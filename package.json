@@ -1,0 +1,60 @@
+{
+  "name": "corvus-x",
+  "version": "0.1.0",
+  "description": "AI-powered X intelligence in your terminal",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "bin": {
+    "corvus": "dist/bin/corvus.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx bin/corvus.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+  },
+  "author": "Roger Griffin <roger@griffinatlas.us>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GriffinAtlas/corvus-x.git"
+  },
+  "keywords": [
+    "cli",
+    "twitter",
+    "x",
+    "grok",
+    "ai",
+    "intelligence",
+    "terminal",
+    "sentiment"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "conf": "^15.1.0",
+    "openai": "^6.27.0",
+    "ora": "^9.3.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "eslint": "^10.0.3",
+    "prettier": "^3.8.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
