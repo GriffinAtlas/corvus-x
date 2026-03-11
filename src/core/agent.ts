@@ -1,12 +1,9 @@
 import type { GrokAdapter } from './grok-adapter.js'
-import type { XAdapter, Tweet } from './x-adapter.js'
+import type { Tweet } from './x-adapter.js'
 import type {
   Snapshot,
   GrokTweetScore,
   AgentBrief,
-  BriefAccount,
-  BriefEvidence,
-  ConfidenceScore,
   ScanSnapshot,
   PulseSnapshot,
 } from './schemas.js'
@@ -16,8 +13,6 @@ import { parseGrokJson } from './grok-adapter.js'
 import { computeConfidence, detectContradictions } from './metrics.js'
 import { SnapshotStore } from './snapshots.js'
 import { ConfigManager } from '../infra/config.js'
-
-// ── Orchestration types ──
 
 export interface AgentPlan {
   goal: string
@@ -54,9 +49,7 @@ export interface AgentStepResult {
   newestTweetAt: number | null
 }
 
-export type ReplanDecision =
-  | { action: 'continue' }
-  | { action: 'revise'; steps: AgentStep[] }
+export type ReplanDecision = { action: 'continue' } | { action: 'revise'; steps: AgentStep[] }
 
 export interface AgentOptions {
   maxSteps: number
@@ -69,8 +62,6 @@ export interface AgentOptions {
   onReplan?: (newSteps: AgentStep[]) => void
   onLeadFound?: (label: string, tag: string) => void
 }
-
-// ── System prompts ──
 
 const PLANNER_SYSTEM_PROMPT = `You are a planning engine for an X intelligence CLI. Given a user's question,
 produce a JSON execution plan using only these commands:
@@ -118,12 +109,15 @@ Rules:
 - If data is thin (few tweets, few authors), say so directly.
 - Return ONLY valid JSON matching: { "signalLine": "string", "summary": ["string"], "contradictions": ["string"], "keyAccounts": [{ "handle": "string", "reach": number, "sentiment": number, "stance": "string" }], "evidence": [{ "source": "string", "key": "string", "detail": "string" }] }`
 
-// ── AgentPlanner ──
+export interface PlanResult {
+  plan: AgentPlan
+  costUsd: number
+}
 
 export class AgentPlanner {
   constructor(private grok: GrokAdapter) {}
 
-  async plan(question: string): Promise<AgentPlan> {
+  async plan(question: string): Promise<PlanResult> {
     const response = await this.grok.query(question, {
       systemPrompt: PLANNER_SYSTEM_PROMPT,
       maxTokens: 2048,
@@ -135,28 +129,28 @@ export class AgentPlanner {
       throw new Error('Planner returned an empty or invalid plan')
     }
 
-    return {
-      goal: plan.goal,
-      steps: plan.steps.slice(0, 8).map((s) => ({
-        command: s.command,
-        args: s.args ?? {},
-        reasoning: s.reasoning ?? '',
-      })),
-    }
-  }
+    const validCommands = new Set(['scan', 'pulse', 'trace', 'gather', 'read', 'scope'])
 
-  get planCost(): number {
-    return 0 // tracked externally via grok.query response
+    return {
+      plan: {
+        goal: plan.goal,
+        steps: plan.steps
+          .filter((s) => validCommands.has(s.command))
+          .slice(0, 8)
+          .map((s) => ({
+            command: s.command,
+            args: s.args ?? {},
+            reasoning: s.reasoning ?? '',
+          })),
+      },
+      costUsd: response.usage.costUsd,
+    }
   }
 }
 
-// ── AgentExecutor ──
-
 type BuildFn = (deps: CommandDeps, ...args: unknown[]) => Promise<BuildResult<Snapshot>>
 
-async function resolveBuildFn(
-  command: string,
-): Promise<BuildFn> {
+async function resolveBuildFn(command: string): Promise<BuildFn> {
   switch (command) {
     case 'scan': {
       const { buildScanSnapshot } = await import('../cli/commands/scan.js')
@@ -203,7 +197,11 @@ function buildArgs(step: AgentStep): unknown[] {
   }
 }
 
-function extractLeads(snapshot: Snapshot, existingLeads: Set<string>, plannedTargets: Set<string>): string[] {
+function extractLeads(
+  snapshot: Snapshot,
+  existingLeads: Set<string>,
+  plannedTargets: Set<string>,
+): string[] {
   const leads: string[] = []
 
   if ('topAccounts' in snapshot) {
@@ -226,22 +224,17 @@ function extractLeads(snapshot: Snapshot, existingLeads: Set<string>, plannedTar
 }
 
 function summarizeResult(result: AgentStepResult): string {
-  const snap = result.snapshot
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const snap = result.snapshot as any
   const parts: string[] = [`${result.command}:`]
 
-  if ('sentiment' in snap && typeof (snap as { sentiment: { avg: number } }).sentiment?.avg === 'number') {
-    parts.push(`sentiment ${(snap as { sentiment: { avg: number } }).sentiment.avg}`)
+  if (typeof snap.sentiment?.avg === 'number') parts.push(`sentiment ${snap.sentiment.avg}`)
+  if (typeof snap.metrics?.tweetCount === 'number') parts.push(`${snap.metrics.tweetCount} tweets`)
+  if (Array.isArray(snap.signals) && snap.signals.length > 0) {
+    parts.push(`signals: ${snap.signals.slice(0, 2).join('; ')}`)
   }
-  if ('metrics' in snap && typeof (snap as { metrics: { tweetCount: number } }).metrics?.tweetCount === 'number') {
-    parts.push(`${(snap as { metrics: { tweetCount: number } }).metrics.tweetCount} tweets`)
-  }
-  if ('signals' in snap && Array.isArray((snap as { signals: string[] }).signals)) {
-    const signals = (snap as { signals: string[] }).signals
-    if (signals.length > 0) parts.push(`signals: ${signals.slice(0, 2).join('; ')}`)
-  }
-  if ('bullSignals' in snap) {
-    const pulse = snap as PulseSnapshot
-    parts.push(`bull(${pulse.bullSignals.length}) bear(${pulse.bearSignals.length})`)
+  if (Array.isArray(snap.bullSignals)) {
+    parts.push(`bull(${snap.bullSignals.length}) bear(${snap.bearSignals?.length ?? 0})`)
   }
 
   return parts.join(' | ')
@@ -299,9 +292,8 @@ export class AgentExecutor {
 
       const step = steps[i]
 
-      // Budget check: estimate next step cost from average of completed steps
       if (this.context.results.length > 0) {
-        const avgCost = this.context.totalCost / (this.context.results.length + 1) // +1 for plan cost
+        const avgCost = this.context.totalCost / (this.context.results.length + 1)
         if (this.context.totalCost + avgCost > this.options.budget) {
           this.options.onStepSkip?.(i, step, 'budget exceeded')
           for (let j = i + 1; j < steps.length; j++) {
@@ -311,7 +303,7 @@ export class AgentExecutor {
         }
       }
 
-      this.options.onStepStart?.(completedCount, step)
+      this.options.onStepStart?.(i, step)
       const startTime = Date.now()
 
       try {
@@ -338,7 +330,6 @@ export class AgentExecutor {
         this.context.results.push(stepResult)
         this.context.totalCost += result.cost
 
-        // Extract leads
         const leadSet = new Set(this.context.leads)
         const newLeads = extractLeads(result.data, leadSet, plannedTargets)
         for (const lead of newLeads) {
@@ -346,10 +337,9 @@ export class AgentExecutor {
           this.options.onLeadFound?.(`scope · @${lead}`, 'lead')
         }
 
-        this.options.onStepComplete?.(completedCount, step, durationMs)
+        this.options.onStepComplete?.(i, step, durationMs)
         completedCount++
 
-        // Adaptive replanning
         if (
           this.options.replan &&
           REPLAN_STEPS.has(completedCount) &&
@@ -368,12 +358,11 @@ export class AgentExecutor {
           }
         }
       } catch (err) {
-        const durationMs = Date.now() - startTime
         const isRateLimit = err instanceof Error && err.message.includes('429')
         if (isRateLimit) {
-          this.options.onStepSkip?.(completedCount, step, 'rate-limited')
+          this.options.onStepSkip?.(i, step, 'rate-limited')
         } else {
-          this.options.onStepFail?.(completedCount, step, err instanceof Error ? err : new Error(String(err)))
+          this.options.onStepFail?.(i, step, err instanceof Error ? err : new Error(String(err)))
         }
         completedCount++
       }
@@ -385,7 +374,8 @@ export class AgentExecutor {
   private async replan(remaining: AgentStep[]): Promise<AgentStep[] | null> {
     const summaryLines = this.context.results.map(summarizeResult)
     const remainingLines = remaining.map(
-      (s) => `${s.command} ${s.args.topic ?? s.args.username ?? s.args.tweetId ?? ''}: ${s.reasoning}`,
+      (s) =>
+        `${s.command} ${s.args.topic ?? s.args.username ?? s.args.tweetId ?? ''}: ${s.reasoning}`,
     )
     const leadLines = this.context.leads.filter(
       (l) => !remaining.some((s) => s.args.username === l || s.args.topic === l),
@@ -416,13 +406,10 @@ export class AgentExecutor {
   }
 }
 
-// ── AgentSynthesizer ──
-
 export class AgentSynthesizer {
   constructor(private grok: GrokAdapter) {}
 
   async synthesize(context: AgentContext): Promise<AgentBrief> {
-    // Aggregate tweets and scores from data-producing steps
     const allTweets: Tweet[] = []
     const allScores: GrokTweetScore[] = []
     let newestTweetAt: number | null = null
@@ -442,7 +429,6 @@ export class AgentSynthesizer {
       }
     }
 
-    // Locally-computed fields
     const confidence = computeConfidence(allTweets, allScores)
     const localContradictions = detectContradictions(
       context.results.map((r) => ({
@@ -455,12 +441,9 @@ export class AgentSynthesizer {
     const sampleSize = allTweets.length
     const staleness = newestTweetAt !== null ? Date.now() - newestTweetAt : null
 
-    // Build prompt for Grok synthesis
-    const resultSummaries = context.results.map((r) => {
-      const parts = [`## ${r.command}`]
-      parts.push(JSON.stringify(r.snapshot, null, 2))
-      return parts.join('\n')
-    }).join('\n\n')
+    const resultSummaries = context.results
+      .map((r) => `## ${r.command}\n${JSON.stringify(r.snapshot, null, 2)}`)
+      .join('\n\n')
 
     const prompt = `Question: ${context.question}\n\nInvestigation results (${context.results.length} steps, ${sampleSize} tweets analyzed):\n\n${resultSummaries}`
 
@@ -471,17 +454,13 @@ export class AgentSynthesizer {
 
     const grokBrief = parseGrokJson<Partial<AgentBrief>>(response.text)
 
-    // Compute overall sentiment from aggregated scores
     const sentiment =
       allScores.length > 0
-        ? Number(
-            (allScores.reduce((sum, s) => sum + s.sentiment, 0) / allScores.length).toFixed(2),
-          )
+        ? Number((allScores.reduce((sum, s) => sum + s.sentiment, 0) / allScores.length).toFixed(2))
         : 0
 
-    // Merge Grok-generated fields with locally-computed fields
     const brief: AgentBrief = {
-      signalLine: grokBrief.signalLine ?? 'Insufficient data for signal assessment.',
+      signalLine: grokBrief.signalLine ?? 'No signal.',
       sentiment,
       summary: grokBrief.summary ?? [],
       contradictions: mergeContradictions(localContradictions, grokBrief.contradictions ?? []),
@@ -506,14 +485,11 @@ export class AgentSynthesizer {
 }
 
 function mergeContradictions(local: string[], grok: string[]): string[] {
-  // Local contradictions first (data-driven), then Grok's (analytical)
-  // Deduplicate by checking if a Grok contradiction is substantially similar to a local one
   const merged = [...local]
   for (const g of grok) {
     const lowerG = g.toLowerCase()
     const isDuplicate = local.some((l) => {
       const lowerL = l.toLowerCase()
-      // Simple overlap check: if >50% of words match, skip it
       const gWords = new Set(lowerG.split(/\s+/))
       const lWords = lowerL.split(/\s+/)
       const overlap = lWords.filter((w) => gWords.has(w)).length

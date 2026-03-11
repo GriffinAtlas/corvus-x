@@ -34,7 +34,7 @@ export class AuthManager {
     try {
       raw = fs.readFileSync(this.credPath, 'utf-8')
     } catch {
-      return {} // file doesn't exist yet — expected on first run
+      return {}
     }
     try {
       return JSON.parse(raw)
@@ -51,8 +51,7 @@ export class AuthManager {
       fs.mkdirSync(this.baseDir, { recursive: true })
       fs.writeFileSync(this.credPath, JSON.stringify(creds, null, 2), { mode: 0o600 })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      throw new Error(`Failed to write credentials to ${this.credPath}: ${msg}`)
+      throw new Error(`Failed to write credentials to ${this.credPath}`, { cause: err })
     }
   }
 }

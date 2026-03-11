@@ -12,13 +12,18 @@ vi.mock('openai', () => ({
 
 vi.mock('../../../src/core/snapshots.js', () => ({
   SnapshotStore: class {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     save(_cmd: string, _topic: string, data: any, raw: string, cost: number) {
       return { command: _cmd, topic: _topic, data, raw, timestamp: Date.now(), cost }
     }
-    loadLatest() { return null }
-    loadAll() { return [] }
-    listTopics() { return [] }
+    loadLatest() {
+      return null
+    }
+    loadAll() {
+      return []
+    }
+    listTopics() {
+      return []
+    }
   },
 }))
 
@@ -29,26 +34,57 @@ function mockScopeFetch() {
   mockFetch.mockImplementation((url: string) => {
     if (url.includes('/users/by/username/')) {
       return Promise.resolve({
-        ok: true, status: 200, headers: new Headers(),
-        json: () => Promise.resolve({
-          data: {
-            id: 'uid_1', username: 'testuser', name: 'Test User',
-            description: 'A test account', public_metrics: { followers_count: 5000, following_count: 200, tweet_count: 500 },
-            verified: false,
-          },
-        }),
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: () =>
+          Promise.resolve({
+            data: {
+              id: 'uid_1',
+              username: 'testuser',
+              name: 'Test User',
+              description: 'A test account',
+              public_metrics: { followers_count: 5000, following_count: 200, tweet_count: 500 },
+              verified: false,
+            },
+          }),
         text: () => Promise.resolve(''),
       })
     }
     if (url.includes('/tweets')) {
       return Promise.resolve({
-        ok: true, status: 200, headers: new Headers(),
-        json: () => Promise.resolve({
-          data: [
-            { id: '1', text: 'Tweet 1', author_id: 'uid_1', created_at: '2024-01-01', public_metrics: { like_count: 10, retweet_count: 5, reply_count: 2, impression_count: 100 } },
-            { id: '2', text: 'Tweet 2', author_id: 'uid_1', created_at: '2024-01-02', public_metrics: { like_count: 20, retweet_count: 8, reply_count: 3, impression_count: 200 } },
-          ],
-        }),
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: () =>
+          Promise.resolve({
+            data: [
+              {
+                id: '1',
+                text: 'Tweet 1',
+                author_id: 'uid_1',
+                created_at: '2024-01-01',
+                public_metrics: {
+                  like_count: 10,
+                  retweet_count: 5,
+                  reply_count: 2,
+                  impression_count: 100,
+                },
+              },
+              {
+                id: '2',
+                text: 'Tweet 2',
+                author_id: 'uid_1',
+                created_at: '2024-01-02',
+                public_metrics: {
+                  like_count: 20,
+                  retweet_count: 8,
+                  reply_count: 3,
+                  impression_count: 200,
+                },
+              },
+            ],
+          }),
         text: () => Promise.resolve(''),
       })
     }
@@ -107,7 +143,9 @@ describe('registerScopeCommand', () => {
   it('exits with code 1 when no grok key', async () => {
     try {
       await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
@@ -139,7 +177,14 @@ describe('registerScopeCommand', () => {
     mockQuery.mockResolvedValueOnce(grokScopeResponse())
 
     await program.parseAsync(['node', 'corvus', 'scope', '-f', 'json', 'testuser'])
-    const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    const jsonLog = logs.find((l) => {
+      try {
+        JSON.parse(l)
+        return true
+      } catch {
+        return false
+      }
+    })
     expect(jsonLog).toBeDefined()
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('scope')
@@ -151,7 +196,9 @@ describe('registerScopeCommand', () => {
     mockFetch.mockRejectedValueOnce(new Error('Unauthorized'))
     try {
       await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('Unauthorized'))).toBe(true)
   })
@@ -160,7 +207,9 @@ describe('registerScopeCommand', () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     try {
       await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
   })

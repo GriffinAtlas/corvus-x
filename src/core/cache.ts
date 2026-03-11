@@ -43,22 +43,40 @@ export class QueryCache {
     try {
       entry = JSON.parse(raw)
     } catch {
-      try { fs.unlinkSync(filePath) } catch {}
+      try {
+        fs.unlinkSync(filePath)
+      } catch {
+        /* already gone */
+      }
       return null
     }
     if (!Number.isFinite(entry.createdAt) || !Number.isFinite(entry.ttlMs)) {
-      try { fs.unlinkSync(filePath) } catch {}
+      try {
+        fs.unlinkSync(filePath)
+      } catch {
+        /* already gone */
+      }
       return null
     }
     if (Date.now() > entry.createdAt + entry.ttlMs) {
-      try { fs.unlinkSync(filePath) } catch {}
+      try {
+        fs.unlinkSync(filePath)
+      } catch {
+        /* already gone */
+      }
       return null
     }
 
     return entry
   }
 
-  set(command: string, query: string, response: string, costUsd: number, ttlMs = DEFAULT_TTL_MS): void {
+  set(
+    command: string,
+    query: string,
+    response: string,
+    costUsd: number,
+    ttlMs = DEFAULT_TTL_MS,
+  ): void {
     try {
       fs.mkdirSync(this.cacheDir, { recursive: true })
       const entry: CacheEntry = { command, query, response, costUsd, createdAt: Date.now(), ttlMs }
@@ -68,7 +86,7 @@ export class QueryCache {
         { mode: 0o600 },
       )
     } catch {
-      // Cache is best-effort — don't crash the CLI if write fails
+      /* best-effort */
     }
     this.recordCost(costUsd, query)
   }
@@ -86,7 +104,9 @@ export class QueryCache {
       try {
         fs.unlinkSync(path.join(this.cacheDir, file))
         count++
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
     return count
   }
@@ -103,12 +123,20 @@ export class QueryCache {
     for (const file of files) {
       if (!file.endsWith('.json')) continue
       try {
-        const entry: CacheEntry = JSON.parse(fs.readFileSync(path.join(this.cacheDir, file), 'utf-8'))
-        if (!Number.isFinite(entry.createdAt) || !Number.isFinite(entry.ttlMs) || now > entry.createdAt + entry.ttlMs) {
+        const entry: CacheEntry = JSON.parse(
+          fs.readFileSync(path.join(this.cacheDir, file), 'utf-8'),
+        )
+        if (
+          !Number.isFinite(entry.createdAt) ||
+          !Number.isFinite(entry.ttlMs) ||
+          now > entry.createdAt + entry.ttlMs
+        ) {
           fs.unlinkSync(path.join(this.cacheDir, file))
           count++
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
     return count
   }
@@ -133,7 +161,7 @@ export class QueryCache {
       fs.mkdirSync(path.dirname(this.ledgerPath), { recursive: true })
       fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger), { mode: 0o600 })
     } catch {
-      // Ledger is best-effort — don't crash the CLI if write fails
+      /* best-effort */
     }
   }
 

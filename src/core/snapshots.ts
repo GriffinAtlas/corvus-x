@@ -12,7 +12,13 @@ export class SnapshotStore {
     this.baseDir = path.join(baseDir, 'snapshots')
   }
 
-  save<T extends Snapshot>(command: string, topic: string, data: T, raw: string, cost: number): StoredSnapshot<T> {
+  save<T extends Snapshot>(
+    command: string,
+    topic: string,
+    data: T,
+    raw: string,
+    cost: number,
+  ): StoredSnapshot<T> {
     const dir = this.topicDir(command, topic)
     fs.mkdirSync(dir, { recursive: true })
 
@@ -25,11 +31,9 @@ export class SnapshotStore {
       cost,
     }
 
-    fs.writeFileSync(
-      path.join(dir, `${snapshot.timestamp}.json`),
-      JSON.stringify(snapshot),
-      { mode: 0o600 },
-    )
+    fs.writeFileSync(path.join(dir, `${snapshot.timestamp}.json`), JSON.stringify(snapshot), {
+      mode: 0o600,
+    })
 
     this.prune(dir)
     return snapshot
@@ -46,14 +50,18 @@ export class SnapshotStore {
   loadAll<T extends Snapshot>(command: string, topic: string): StoredSnapshot<T>[] {
     const dir = this.topicDir(command, topic)
     const files = this.listFiles(dir)
-    return files.map((file) =>
-      JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8')),
-    )
+    return files.map((file) => JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8')))
   }
 
   listTopics(): { command: string; topic: string; dir: string; count: number; latest: number }[] {
     if (!fs.existsSync(this.baseDir)) return []
-    const results: { command: string; topic: string; dir: string; count: number; latest: number }[] = []
+    const results: {
+      command: string
+      topic: string
+      dir: string
+      count: number
+      latest: number
+    }[] = []
     for (const entry of fs.readdirSync(this.baseDir)) {
       const fullPath = path.join(this.baseDir, entry)
       if (!fs.statSync(fullPath).isDirectory()) continue
@@ -81,7 +89,8 @@ export class SnapshotStore {
 
   private listFiles(dir: string): string[] {
     if (!fs.existsSync(dir)) return []
-    return fs.readdirSync(dir)
+    return fs
+      .readdirSync(dir)
       .filter((f) => f.endsWith('.json'))
       .sort()
   }
@@ -91,7 +100,11 @@ export class SnapshotStore {
     if (files.length <= MAX_SNAPSHOTS_PER_TOPIC) return
     const toRemove = files.slice(0, files.length - MAX_SNAPSHOTS_PER_TOPIC)
     for (const file of toRemove) {
-      try { fs.unlinkSync(path.join(dir, file)) } catch {}
+      try {
+        fs.unlinkSync(path.join(dir, file))
+      } catch {
+        /* already gone */
+      }
     }
   }
 }

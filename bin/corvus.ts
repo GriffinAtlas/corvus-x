@@ -10,12 +10,13 @@ import { registerAskCommand } from '../src/cli/commands/ask.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// Resolves from both bin/corvus.ts (dev) and dist/bin/corvus.js (build/npm install)
 function readVersion(): string {
   for (const depth of ['..', join('..', '..')]) {
     try {
       return JSON.parse(readFileSync(join(__dirname, depth, 'package.json'), 'utf-8')).version
-    } catch {}
+    } catch {
+      /* file not found at this depth */
+    }
   }
   return '0.0.0'
 }

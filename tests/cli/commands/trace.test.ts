@@ -12,13 +12,18 @@ vi.mock('openai', () => ({
 
 vi.mock('../../../src/core/snapshots.js', () => ({
   SnapshotStore: class {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     save(_cmd: string, _topic: string, data: any, raw: string, cost: number) {
       return { command: _cmd, topic: _topic, data, raw, timestamp: Date.now(), cost }
     }
-    loadLatest() { return null }
-    loadAll() { return [] }
-    listTopics() { return [] }
+    loadLatest() {
+      return null
+    }
+    loadAll() {
+      return []
+    }
+    listTopics() {
+      return []
+    }
   },
 }))
 
@@ -55,11 +60,12 @@ function xSearchResponse(tweetCount = 2) {
     ok: true,
     status: 200,
     headers: new Headers(),
-    json: () => Promise.resolve({
-      data: tweets,
-      includes: { users },
-      meta: { result_count: tweetCount },
-    }),
+    json: () =>
+      Promise.resolve({
+        data: tweets,
+        includes: { users },
+        meta: { result_count: tweetCount },
+      }),
     text: () => Promise.resolve(''),
   }
 }
@@ -114,7 +120,9 @@ describe('registerTraceCommand', () => {
   it('exits with code 1 when no grok key', async () => {
     try {
       await program.parseAsync(['node', 'corvus', 'trace', 'AI will replace jobs'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
@@ -146,7 +154,14 @@ describe('registerTraceCommand', () => {
     mockQuery.mockResolvedValueOnce(grokTraceResponse())
 
     await program.parseAsync(['node', 'corvus', 'trace', '-f', 'json', 'test'])
-    const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    const jsonLog = logs.find((l) => {
+      try {
+        JSON.parse(l)
+        return true
+      } catch {
+        return false
+      }
+    })
     expect(jsonLog).toBeDefined()
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('trace')
@@ -158,7 +173,9 @@ describe('registerTraceCommand', () => {
     mockFetch.mockRejectedValueOnce(new Error('timeout'))
     try {
       await program.parseAsync(['node', 'corvus', 'trace', 'test'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('timeout'))).toBe(true)
   })
@@ -167,7 +184,9 @@ describe('registerTraceCommand', () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     try {
       await program.parseAsync(['node', 'corvus', 'trace', 'test'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
   })

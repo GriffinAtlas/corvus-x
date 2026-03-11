@@ -12,13 +12,18 @@ vi.mock('openai', () => ({
 
 vi.mock('../../../src/core/snapshots.js', () => ({
   SnapshotStore: class {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     save(_cmd: string, _topic: string, data: any, raw: string, cost: number) {
       return { command: _cmd, topic: _topic, data, raw, timestamp: Date.now(), cost }
     }
-    loadLatest() { return null }
-    loadAll() { return [] }
-    listTopics() { return [] }
+    loadLatest() {
+      return null
+    }
+    loadAll() {
+      return []
+    }
+    listTopics() {
+      return []
+    }
   },
 }))
 
@@ -29,26 +34,43 @@ function mockReadFetch() {
   mockFetch.mockImplementation((url: string) => {
     if (url.includes('/tweets/')) {
       return Promise.resolve({
-        ok: true, status: 200, headers: new Headers(),
-        json: () => Promise.resolve({
-          data: {
-            id: '12345', text: 'Test tweet', author_id: 'author_1',
-            created_at: '2024-01-01', public_metrics: { like_count: 10, retweet_count: 5, reply_count: 2, impression_count: 100 },
-          },
-        }),
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: () =>
+          Promise.resolve({
+            data: {
+              id: '12345',
+              text: 'Test tweet',
+              author_id: 'author_1',
+              created_at: '2024-01-01',
+              public_metrics: {
+                like_count: 10,
+                retweet_count: 5,
+                reply_count: 2,
+                impression_count: 100,
+              },
+            },
+          }),
         text: () => Promise.resolve(''),
       })
     }
     if (url.includes('/users/')) {
       return Promise.resolve({
-        ok: true, status: 200, headers: new Headers(),
-        json: () => Promise.resolve({
-          data: {
-            id: 'author_1', username: 'testuser', name: 'Test User',
-            description: '', public_metrics: { followers_count: 1000, following_count: 500, tweet_count: 100 },
-            verified: false,
-          },
-        }),
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: () =>
+          Promise.resolve({
+            data: {
+              id: 'author_1',
+              username: 'testuser',
+              name: 'Test User',
+              description: '',
+              public_metrics: { followers_count: 1000, following_count: 500, tweet_count: 100 },
+              verified: false,
+            },
+          }),
         text: () => Promise.resolve(''),
       })
     }
@@ -127,7 +149,9 @@ describe('registerReadCommand', () => {
   it('exits with code 1 when no grok key', async () => {
     try {
       await program.parseAsync(['node', 'corvus', 'read', '123456'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
@@ -144,7 +168,9 @@ describe('registerReadCommand', () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     try {
       await program.parseAsync(['node', 'corvus', 'read', 'not-a-tweet-id'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('Invalid tweet ID or URL'))).toBe(true)
   })
@@ -168,7 +194,14 @@ describe('registerReadCommand', () => {
     mockQuery.mockResolvedValueOnce(grokReadResponse())
 
     await program.parseAsync(['node', 'corvus', 'read', '-f', 'json', '12345'])
-    const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    const jsonLog = logs.find((l) => {
+      try {
+        JSON.parse(l)
+        return true
+      } catch {
+        return false
+      }
+    })
     expect(jsonLog).toBeDefined()
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('read')
@@ -180,7 +213,9 @@ describe('registerReadCommand', () => {
     mockFetch.mockRejectedValueOnce(new Error('network error'))
     try {
       await program.parseAsync(['node', 'corvus', 'read', '12345'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('network error'))).toBe(true)
   })
@@ -189,7 +224,9 @@ describe('registerReadCommand', () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     try {
       await program.parseAsync(['node', 'corvus', 'read', '12345'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
   })

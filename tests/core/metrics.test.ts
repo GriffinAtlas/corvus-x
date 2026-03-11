@@ -11,9 +11,9 @@ import {
 } from '../../src/core/metrics.js'
 import type { Tweet, XUser } from '../../src/core/x-adapter.js'
 import type { GrokTweetScore, GrokNarrative } from '../../src/core/schemas.js'
-import type { ScanSnapshot, PulseSnapshot, GatherSnapshot, Snapshot } from '../../src/core/schemas.js'
+import type { ScanSnapshot, PulseSnapshot, Snapshot } from '../../src/core/schemas.js'
 
-function makeTweet(overrides: Partial<Tweet> & { id: string, authorId: string }): Tweet {
+function makeTweet(overrides: Partial<Tweet> & { id: string; authorId: string }): Tweet {
   return {
     text: 'default tweet text',
     createdAt: '2026-03-10T00:00:00Z',
@@ -22,7 +22,7 @@ function makeTweet(overrides: Partial<Tweet> & { id: string, authorId: string })
   } as Tweet
 }
 
-function makeUser(overrides: Partial<XUser> & { id: string, username: string }): XUser {
+function makeUser(overrides: Partial<XUser> & { id: string; username: string }): XUser {
   return {
     name: overrides.username,
     description: '',
@@ -46,7 +46,13 @@ describe('computeBaseMetrics', () => {
   })
 
   it('computes metrics for a single tweet', () => {
-    const tweets = [makeTweet({ id: '1', authorId: 'a', metrics: { likes: 10, retweets: 5, replies: 3, impressions: 100 } })]
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 10, retweets: 5, replies: 3, impressions: 100 },
+      }),
+    ]
     const result = computeBaseMetrics(tweets)
     expect(result.tweetCount).toBe(1)
     // 10 + 5 + 3 + 100 = 118
@@ -57,9 +63,21 @@ describe('computeBaseMetrics', () => {
 
   it('computes metrics for multiple tweets with distinct authors', () => {
     const tweets = [
-      makeTweet({ id: '1', authorId: 'a', metrics: { likes: 10, retweets: 2, replies: 0, impressions: 50 } }),
-      makeTweet({ id: '2', authorId: 'b', metrics: { likes: 4, retweets: 1, replies: 1, impressions: 30 } }),
-      makeTweet({ id: '3', authorId: 'c', metrics: { likes: 0, retweets: 0, replies: 0, impressions: 10 } }),
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 10, retweets: 2, replies: 0, impressions: 50 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 4, retweets: 1, replies: 1, impressions: 30 },
+      }),
+      makeTweet({
+        id: '3',
+        authorId: 'c',
+        metrics: { likes: 0, retweets: 0, replies: 0, impressions: 10 },
+      }),
     ]
     const result = computeBaseMetrics(tweets)
     expect(result.tweetCount).toBe(3)
@@ -81,13 +99,43 @@ describe('computeBaseMetrics', () => {
 
   it('rounds engagementPerTweet correctly', () => {
     const tweets = [
-      makeTweet({ id: '1', authorId: 'a', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 } }),
-      makeTweet({ id: '2', authorId: 'b', metrics: { likes: 0, retweets: 0, replies: 0, impressions: 5 } }),
-      makeTweet({ id: '3', authorId: 'c', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 } }),
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 0, retweets: 0, replies: 0, impressions: 5 },
+      }),
+      makeTweet({
+        id: '3',
+        authorId: 'c',
+        metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 },
+      }),
     ]
     const result = computeBaseMetrics(tweets)
     // total = (1+5) + (0+5) + (1+5) = 17, count = 3, 17/3 = 5.666... rounds to 6
     expect(result.engagementPerTweet).toBe(Math.round(17 / 3))
+  })
+
+  it('handles tweets with zero engagement', () => {
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 0, retweets: 0, replies: 0, impressions: 0 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 0, retweets: 0, replies: 0, impressions: 0 },
+      }),
+    ]
+    const result = computeBaseMetrics(tweets)
+    expect(result.totalEngagement).toBe(0)
+    expect(result.engagementPerTweet).toBe(0)
   })
 })
 
@@ -141,6 +189,15 @@ describe('computeSentiment', () => {
     const result = computeSentiment(scores)
     // avg = (0.1 + 0.2 + 0.3) / 3 = 0.2
     expect(result.avg).toBe(0.2)
+  })
+
+  it('handles single score', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.7, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.avg).toBe(0.7)
+    expect(result.positive).toBe(1)
+    expect(result.neutral).toBe(0)
+    expect(result.negative).toBe(0)
   })
 })
 
@@ -213,10 +270,7 @@ describe('computeTopAccounts', () => {
   })
 
   it('sorts by followers when post counts are equal', () => {
-    const tweets = [
-      makeTweet({ id: '1', authorId: 'a' }),
-      makeTweet({ id: '2', authorId: 'b' }),
-    ]
+    const tweets = [makeTweet({ id: '1', authorId: 'a' }), makeTweet({ id: '2', authorId: 'b' })]
     const scores: GrokTweetScore[] = [
       { index: 0, sentiment: 0, narrative: 'x' },
       { index: 1, sentiment: 0, narrative: 'x' },
@@ -256,9 +310,7 @@ describe('computeNarratives', () => {
   })
 
   it('creates entry from score narrative not in narratives array', () => {
-    const scores: GrokTweetScore[] = [
-      { index: 0, sentiment: 0.1, narrative: 'unknown-theme' },
-    ]
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.1, narrative: 'unknown-theme' }]
     const result = computeNarratives(scores, [])
     expect(result.length).toBe(1)
     expect(result[0].theme).toBe('unknown-theme')
@@ -274,8 +326,16 @@ describe('computeTopPosts', () => {
 
   it('sorts by engagement descending', () => {
     const tweets = [
-      makeTweet({ id: '1', authorId: 'a', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 10 } }),
-      makeTweet({ id: '2', authorId: 'b', metrics: { likes: 100, retweets: 50, replies: 20, impressions: 1000 } }),
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 1, retweets: 0, replies: 0, impressions: 10 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 100, retweets: 50, replies: 20, impressions: 1000 },
+      }),
     ]
     const users: XUser[] = [
       makeUser({ id: 'a', username: 'alice' }),
@@ -309,7 +369,11 @@ describe('computeTopPosts', () => {
 
   it('respects the limit parameter', () => {
     const tweets = Array.from({ length: 10 }, (_, i) =>
-      makeTweet({ id: String(i), authorId: 'a', metrics: { likes: i, retweets: 0, replies: 0, impressions: 10 } }),
+      makeTweet({
+        id: String(i),
+        authorId: 'a',
+        metrics: { likes: i, retweets: 0, replies: 0, impressions: 10 },
+      }),
     )
     const result = computeTopPosts(tweets, [], 3)
     expect(result.length).toBe(3)
@@ -329,10 +393,7 @@ describe('computeKeyVoices', () => {
   })
 
   it('sorts by reach (followers) descending', () => {
-    const tweets = [
-      makeTweet({ id: '1', authorId: 'a' }),
-      makeTweet({ id: '2', authorId: 'b' }),
-    ]
+    const tweets = [makeTweet({ id: '1', authorId: 'a' }), makeTweet({ id: '2', authorId: 'b' })]
     const scores: GrokTweetScore[] = [
       { index: 0, sentiment: 0.5, narrative: 'x' },
       { index: 1, sentiment: -0.3, narrative: 'x' },
@@ -369,10 +430,7 @@ describe('computeKeyVoices', () => {
   })
 
   it('computes average sentiment per voice', () => {
-    const tweets = [
-      makeTweet({ id: '1', authorId: 'a' }),
-      makeTweet({ id: '2', authorId: 'a' }),
-    ]
+    const tweets = [makeTweet({ id: '1', authorId: 'a' }), makeTweet({ id: '2', authorId: 'a' })]
     const scores: GrokTweetScore[] = [
       { index: 0, sentiment: 0.4, narrative: 'x' },
       { index: 1, sentiment: 0.6, narrative: 'x' },
@@ -380,6 +438,29 @@ describe('computeKeyVoices', () => {
     const users: XUser[] = [makeUser({ id: 'a', username: 'alice' })]
     const result = computeKeyVoices(tweets, scores, users)
     expect(result[0].sentiment).toBe(0.5)
+  })
+
+  it('handles duplicate tweets from same author', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a' }),
+      makeTweet({ id: '2', authorId: 'a' }),
+      makeTweet({ id: '3', authorId: 'b' }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.4, narrative: 'x' },
+      { index: 1, sentiment: 0.8, narrative: 'x' },
+      { index: 2, sentiment: -0.2, narrative: 'x' },
+    ]
+    const users: XUser[] = [
+      makeUser({ id: 'a', username: 'alice', followersCount: 5000 }),
+      makeUser({ id: 'b', username: 'bob', followersCount: 1000 }),
+    ]
+    const result = computeKeyVoices(tweets, scores, users)
+    // alice appears once with averaged sentiment: (0.4 + 0.8) / 2 = 0.6
+    const alice = result.find((v) => v.handle === 'alice')!
+    expect(alice.sentiment).toBe(0.6)
+    // alice should only appear once
+    expect(result.filter((v) => v.handle === 'alice').length).toBe(1)
   })
 })
 
@@ -465,11 +546,67 @@ describe('computeConfidence', () => {
     // overall = 0.6*0.4 + 1.0*0.3 + 1.0*0.3 = 0.24 + 0.3 + 0.3 = 0.84
     expect(result.overall).toBe(0.84)
   })
+
+  it('returns correct values for exactly 1 score', () => {
+    const tweets = [makeTweet({ id: '1', authorId: 'a' })]
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.5, narrative: 'x' }]
+    const result = computeConfidence(tweets, scores)
+    // std dev of single value = 0
+    expect(result.consistency).toBe(0)
+    // 1 unique author / 1 tweet = 1.0
+    expect(result.diversity).toBe(1)
+    expect(result.volume).toBe('low')
+  })
+
+  it('returns diversity 0.1 when all tweets from same author', () => {
+    const tweets = Array.from({ length: 10 }, (_, i) => makeTweet({ id: String(i), authorId: 'a' }))
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    // 1 unique author / 10 tweets = 0.1
+    expect(result.diversity).toBe(0.1)
+  })
+
+  it('boundary: exactly 30 tweets is moderate', () => {
+    const tweets = Array.from({ length: 30 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('moderate')
+  })
+
+  it('boundary: exactly 100 tweets is high', () => {
+    const tweets = Array.from({ length: 100 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('high')
+  })
+
+  it('diversityScore capped at 1.0 when diversity > 0.5', () => {
+    // 10 tweets from 8 unique authors => diversity = 0.8
+    // diversityScore = min(1, 0.8 * 2) = min(1, 1.6) = 1.0
+    const tweets = Array.from({ length: 10 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: i < 8 ? `a${i}` : 'a0' }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.diversity).toBe(0.8)
+    // diversityScore = min(1, 1.6) = 1.0, volumeScore = 0.3 (low), consistencyScore = 1.0
+    // overall = 0.3*0.4 + 1.0*0.3 + 1.0*0.3 = 0.12 + 0.3 + 0.3 = 0.72
+    expect(result.overall).toBe(0.72)
+  })
 })
 
 describe('detectContradictions', () => {
   const baseSentiment = { positive: 5, neutral: 3, negative: 2 }
-  const baseMetrics = { tweetCount: 10, totalEngagement: 500, uniqueAuthors: 8, engagementPerTweet: 50 }
+  const baseMetrics = {
+    tweetCount: 10,
+    totalEngagement: 500,
+    uniqueAuthors: 8,
+    engagementPerTweet: 50,
+  }
 
   function makeStep(overrides: {
     command: string
@@ -570,11 +707,31 @@ describe('detectContradictions', () => {
   it('detects top accounts vs crowd divergence', () => {
     // Top 3 accounts are bullish but crowd is bearish
     const tweets = [
-      makeTweet({ id: '1', authorId: 'whale1', metrics: { likes: 1000, retweets: 500, replies: 100, impressions: 5000 } }),
-      makeTweet({ id: '2', authorId: 'whale2', metrics: { likes: 800, retweets: 300, replies: 50, impressions: 4000 } }),
-      makeTweet({ id: '3', authorId: 'whale3', metrics: { likes: 600, retweets: 200, replies: 30, impressions: 3000 } }),
-      makeTweet({ id: '4', authorId: 'crowd1', metrics: { likes: 2, retweets: 0, replies: 0, impressions: 10 } }),
-      makeTweet({ id: '5', authorId: 'crowd2', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 } }),
+      makeTweet({
+        id: '1',
+        authorId: 'whale1',
+        metrics: { likes: 1000, retweets: 500, replies: 100, impressions: 5000 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'whale2',
+        metrics: { likes: 800, retweets: 300, replies: 50, impressions: 4000 },
+      }),
+      makeTweet({
+        id: '3',
+        authorId: 'whale3',
+        metrics: { likes: 600, retweets: 200, replies: 30, impressions: 3000 },
+      }),
+      makeTweet({
+        id: '4',
+        authorId: 'crowd1',
+        metrics: { likes: 2, retweets: 0, replies: 0, impressions: 10 },
+      }),
+      makeTweet({
+        id: '5',
+        authorId: 'crowd2',
+        metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 },
+      }),
     ]
     const scores: GrokTweetScore[] = [
       { index: 0, sentiment: 0.8, narrative: 'x' },
@@ -645,7 +802,12 @@ describe('detectContradictions', () => {
           sentiment: { avg: 0.25, positive: 5, neutral: 3, negative: 2 },
           topAccounts: [],
           narratives: [
-            { theme: 'ETF outflows', description: 'Capital leaving ETFs', tweetCount: 8, avgSentiment: -0.52 },
+            {
+              theme: 'ETF outflows',
+              description: 'Capital leaving ETFs',
+              tweetCount: 8,
+              avgSentiment: -0.52,
+            },
             { theme: 'HODLing', description: 'Holding strong', tweetCount: 2, avgSentiment: 0.9 },
           ],
           signals: [],
@@ -674,5 +836,177 @@ describe('detectContradictions', () => {
       }),
     ])
     expect(result).toEqual([])
+  })
+
+  it('boundary: exactly 0.3 sentiment diff is NOT flagged', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.2, ...baseSentiment },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.5, ...baseSentiment },
+          bullSignals: [],
+          bearSignals: [],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    // diff = |0.5 - 0.2| = 0.3, condition is > 0.3 (strict), so NOT flagged
+    expect(result).toEqual([])
+  })
+
+  it('skips top accounts check when fewer than 2 authors', () => {
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'solo',
+        metrics: { likes: 1000, retweets: 500, replies: 100, impressions: 5000 },
+      }),
+    ]
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.9, narrative: 'x' }]
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: -0.8, positive: 0, neutral: 0, negative: 1 },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+        tweets,
+        scores,
+      }),
+    ])
+    // Only 1 author, topAuthors.length < 2, so top-accounts-vs-crowd check is skipped
+    expect(result.filter((c) => c.includes('Top'))).toEqual([])
+  })
+
+  it('skips narrative mismatch when avgSentiment is 0', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.5, positive: 5, neutral: 3, negative: 2 },
+          topAccounts: [],
+          narratives: [
+            { theme: 'Neutral talk', description: 'desc', tweetCount: 5, avgSentiment: 0 },
+          ],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+    ])
+    // dominant.avgSentiment === 0, so narrative mismatch is skipped
+    expect(result.filter((c) => c.includes('Neutral talk'))).toEqual([])
+  })
+
+  it('skips narrative mismatch when overallAvg is 0', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0, positive: 3, neutral: 4, negative: 3 },
+          topAccounts: [],
+          narratives: [
+            { theme: 'Bearish take', description: 'desc', tweetCount: 5, avgSentiment: -0.6 },
+          ],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+    ])
+    // overallAvg === 0, so narrative mismatch is skipped
+    expect(result.filter((c) => c.includes('Bearish take'))).toEqual([])
+  })
+
+  it('handles pulse without bullSignals/bearSignals arrays', () => {
+    // Cast an empty object as PulseSnapshot to simulate missing arrays
+    const result = detectContradictions([
+      makeStep({
+        command: 'pulse',
+        snapshot: {} as PulseSnapshot,
+      }),
+    ])
+    // Should not crash — the guard skips non-array bullSignals/bearSignals
+    expect(result).toEqual([])
+  })
+
+  it('handles step with no tweets/scores', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: -0.5, positive: 1, neutral: 2, negative: 7 },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+        tweets: [],
+        scores: [],
+      }),
+    ])
+    // Empty tweets/scores => the top-accounts-vs-crowd loop continues past them
+    expect(result.filter((c) => c.includes('Top'))).toEqual([])
+  })
+
+  it('detects multiple contradictions simultaneously', () => {
+    // Build a step that triggers BOTH cross-step sentiment divergence AND narrative mismatch
+    const tweets = Array.from({ length: 5 }, (_, i) =>
+      makeTweet({
+        id: String(i),
+        authorId: `a${i}`,
+        metrics: { likes: 10, retweets: 5, replies: 3, impressions: 100 },
+      }),
+    )
+    const scores: GrokTweetScore[] = tweets.map((_, i) => ({
+      index: i,
+      sentiment: 0.5,
+      narrative: 'x',
+    }))
+
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.5, positive: 8, neutral: 1, negative: 1 },
+          topAccounts: [],
+          narratives: [
+            // Dominant narrative is bearish but overall sentiment is positive => narrative mismatch
+            { theme: 'Crash incoming', description: 'desc', tweetCount: 8, avgSentiment: -0.7 },
+          ],
+          signals: [],
+        } as ScanSnapshot,
+        tweets,
+        scores,
+      }),
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          // avg = -0.2 vs scan avg = 0.5 => diff = 0.7 > 0.3 => cross-step divergence
+          sentiment: { avg: -0.2, positive: 2, neutral: 3, negative: 5 },
+          bullSignals: [],
+          bearSignals: [],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    // Should have at least 2 contradictions: cross-step divergence + narrative mismatch
+    expect(result.length).toBeGreaterThanOrEqual(2)
+    expect(result.some((c) => c.includes('diverges'))).toBe(true)
+    expect(result.some((c) => c.includes('Crash incoming'))).toBe(true)
   })
 })

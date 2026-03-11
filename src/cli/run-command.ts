@@ -8,7 +8,12 @@ import { QueryCache } from '../core/cache.js'
 import { SnapshotStore } from '../core/snapshots.js'
 import { diffSnapshots } from '../core/differ.js'
 import { formatOutput, formatStructuredOutput } from './output.js'
-import type { GrokResponse, CommandResult, StructuredCommandResult, BuildResult } from '../core/types.js'
+import type {
+  GrokResponse,
+  CommandResult,
+  StructuredCommandResult,
+  BuildResult,
+} from '../core/types.js'
 import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
 import type { DiffLine } from '../core/differ.js'
@@ -149,12 +154,7 @@ export async function runStructuredCommand<T extends Snapshot>(
     let diff: DiffLine[] = []
     let timeSinceLast = 0
     if (previous) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      diff = diffSnapshots(
-        previous.data as any,
-        stored.data as any,
-        opts.matchKeys,
-      )
+      diff = diffSnapshots(previous.data, stored.data, opts.matchKeys)
       timeSinceLast = stored.timestamp - previous.timestamp
     }
 

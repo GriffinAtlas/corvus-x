@@ -7,13 +7,23 @@ export interface DiffLine {
   newValue?: string
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRecord = Record<string, any>
+
 export function diffSnapshots(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  oldData: Record<string, any>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  newData: Record<string, any>,
+  oldData: object,
+  newData: object,
   matchKeys: MatchKeys,
   prefix = '',
+): DiffLine[] {
+  return diffRecords(oldData as AnyRecord, newData as AnyRecord, matchKeys, prefix)
+}
+
+function diffRecords(
+  oldData: AnyRecord,
+  newData: AnyRecord,
+  matchKeys: MatchKeys,
+  prefix: string,
 ): DiffLine[] {
   const lines: DiffLine[] = []
 
@@ -61,7 +71,6 @@ export function diffSnapshots(
 
       if (newVal.length === 0 && oldVal.length === 0) continue
 
-      // Array of strings
       if (typeof newVal[0] === 'string' || typeof oldVal[0] === 'string') {
         const oldSet = new Set(oldVal as string[])
         const newSet = new Set(newVal as string[])
@@ -78,7 +87,6 @@ export function diffSnapshots(
         continue
       }
 
-      // Array of objects — match by key field
       if (matchKey && typeof newVal[0] === 'object') {
         const oldMap = new Map<string, Record<string, unknown>>()
         for (const item of oldVal) oldMap.set(String(item[matchKey]), item)
@@ -88,7 +96,11 @@ export function diffSnapshots(
         for (const [id, newItem] of newMap) {
           const oldItem = oldMap.get(id)
           if (!oldItem) {
-            lines.push({ path: fullPath, type: 'added', newValue: formatObjectBrief(newItem, matchKey) })
+            lines.push({
+              path: fullPath,
+              type: 'added',
+              newValue: formatObjectBrief(newItem, matchKey),
+            })
           } else {
             const subDiffs = diffObjectFields(oldItem, newItem, fullPath, id)
             lines.push(...subDiffs)
@@ -102,7 +114,6 @@ export function diffSnapshots(
         continue
       }
 
-      // Array of objects without match key — compare by count
       if (oldVal.length !== newVal.length) {
         lines.push({
           path: fullPath,
@@ -114,9 +125,14 @@ export function diffSnapshots(
       continue
     }
 
-    // Nested object
-    if (typeof newVal === 'object' && newVal !== null && typeof oldVal === 'object' && oldVal !== null && !Array.isArray(newVal)) {
-      lines.push(...diffSnapshots(oldVal, newVal, matchKeys, fullPath))
+    if (
+      typeof newVal === 'object' &&
+      newVal !== null &&
+      typeof oldVal === 'object' &&
+      oldVal !== null &&
+      !Array.isArray(newVal)
+    ) {
+      lines.push(...diffRecords(oldVal, newVal, matchKeys, fullPath))
       continue
     }
   }
@@ -181,16 +197,15 @@ export function formatDiffLines(lines: DiffLine[], timeSince: number): string {
   if (lines.length === 0) return ''
 
   const timeStr = formatTimeSince(timeSince)
-  const parts: string[] = [
-    '',
-    `  ── changes since ${timeStr} ago ──`,
-  ]
+  const parts: string[] = ['', `  ── changes since ${timeStr} ago ──`]
 
   for (const line of lines) {
     const label = simplifyPath(line.path)
     switch (line.type) {
       case 'changed':
-        parts.push(`  ${label}: ${line.oldValue} → ${line.newValue}${formatDelta(line.oldValue, line.newValue)}`)
+        parts.push(
+          `  ${label}: ${line.oldValue} → ${line.newValue}${formatDelta(line.oldValue, line.newValue)}`,
+        )
         break
       case 'added':
         parts.push(`  + ${label}: ${line.newValue}`)
@@ -217,10 +232,7 @@ function formatDelta(oldVal?: string, newVal?: string): string {
 }
 
 function simplifyPath(path: string): string {
-  return path
-    .replace(/^metrics\./, '')
-    .replace(/^sentiment\./, 'sentiment.')
-    .replace(/^reach\./, 'reach.')
+  return path.replace(/^metrics\./, '')
 }
 
 function formatTimeSince(ms: number): string {

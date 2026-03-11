@@ -120,12 +120,54 @@ describe('SnapshotStore', () => {
   it('auto-prunes to 50 snapshots per command+topic', () => {
     freshStore()
     const nowSpy = vi.spyOn(Date, 'now')
-    let ts = 1700000000000
+    const ts = 1700000000000
     for (let i = 0; i < 55; i++) {
       nowSpy.mockReturnValue(ts + i * 1000)
       store.save('scan', 'prune-test', { i } as any, 'raw', 0.001)
     }
     const all = store.loadAll('scan', 'prune-test')
     expect(all.length).toBe(50)
+  })
+
+  it('treats topics case-insensitively (Bitcoin === bitcoin)', () => {
+    freshStore()
+    store.save('scan', 'Bitcoin', { price: 50000 } as any, 'raw', 0.001)
+    const loaded = store.loadLatest('scan', 'bitcoin')
+    expect(loaded).not.toBeNull()
+    expect(loaded!.data).toEqual({ price: 50000 })
+  })
+
+  it('handles special characters in topic', () => {
+    freshStore()
+    store.save('scan', 'topic with spaces & symbols!', { ok: true } as any, 'raw', 0.001)
+    const loaded = store.loadLatest('scan', 'topic with spaces & symbols!')
+    expect(loaded).not.toBeNull()
+    expect(loaded!.data).toEqual({ ok: true })
+  })
+
+  it('prune keeps exactly 50 when saving the 51st', () => {
+    freshStore()
+    const nowSpy = vi.spyOn(Date, 'now')
+    const ts = 1700000000000
+    for (let i = 0; i < 51; i++) {
+      nowSpy.mockReturnValue(ts + i * 1000)
+      store.save('scan', 'prune-exact', { i } as any, 'raw', 0.001)
+    }
+    const all = store.loadAll('scan', 'prune-exact')
+    expect(all.length).toBe(50)
+  })
+
+  it('loadLatest returns the correct data shape', () => {
+    freshStore()
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(1700000000000)
+    store.save('pulse', 'shape-test', { sentiment: 0.8 } as any, 'raw output', 0.005)
+    const loaded = store.loadLatest('pulse', 'shape-test')
+    expect(loaded).not.toBeNull()
+    expect(loaded!.timestamp).toBe(1700000000000)
+    expect(loaded!.cost).toBe(0.005)
+    expect(loaded!.command).toBe('pulse')
+    expect(loaded!.topic).toBe('shape-test')
+    expect(loaded!.data).toEqual({ sentiment: 0.8 })
   })
 })

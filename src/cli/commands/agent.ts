@@ -11,11 +11,7 @@ import { formatDiffLines } from '../../core/differ.js'
 import { AGENT_MATCH_KEYS } from '../../core/schemas.js'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../core/agent.js'
 import { StepProgress } from '../progress.js'
-import {
-  renderAgentBrief,
-  renderAgentBriefJson,
-  renderAgentBriefMd,
-} from '../output.js'
+import { renderAgentBrief, renderAgentBriefMd } from '../output.js'
 import type { AgentPlan, AgentStep } from '../../core/agent.js'
 import type { AgentBrief } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
@@ -116,7 +112,7 @@ export function registerAgentCommand(program: Command): void {
       ) => {
         const question = questionParts.join(' ')
         const maxSteps = Math.max(2, Math.min(12, parseInt(options.maxSteps, 10) || 8))
-        const budget = Math.max(0.01, parseFloat(options.budget) || 0.10)
+        const budget = Math.max(0.01, parseFloat(options.budget) || 0.1)
 
         const auth = new AuthManager(ConfigManager.defaultDir())
         const grokKey = auth.getGrokKey()
@@ -133,7 +129,9 @@ export function registerAgentCommand(program: Command): void {
           console.log(t.muted(`  Max steps: ${maxSteps}`))
           console.log(t.muted(`  Budget cap: $${budget.toFixed(2)}`))
           console.log(
-            t.muted(`  Estimated max total: $${(perStep * (maxSteps + 2)).toFixed(6)} (includes plan + synthesis)`),
+            t.muted(
+              `  Estimated max total: $${(perStep * (maxSteps + 2)).toFixed(6)} (includes plan + synthesis)`,
+            ),
           )
           console.log()
           return
@@ -145,12 +143,10 @@ export function registerAgentCommand(program: Command): void {
           x: xToken ? new XAdapter(xToken) : null,
         }
 
-        // Display logo
         console.log('')
         console.log(LOGO)
         console.log('')
 
-        // Phase 1: Planning
         console.log(t.muted(`  planning: ${question}`))
         const planner = new AgentPlanner(deps.grok)
         let plan: AgentPlan
@@ -158,8 +154,9 @@ export function registerAgentCommand(program: Command): void {
 
         try {
           const planStart = Date.now()
-          plan = await planner.plan(question)
-          planCost = deps.grok ? 0.001 : 0 // rough estimate, real cost tracked by adapter
+          const planResult = await planner.plan(question)
+          plan = planResult.plan
+          planCost = planResult.costUsd
           const planDuration = ((Date.now() - planStart) / 1000).toFixed(1)
           console.log(t.muted(`  plan: ${plan.steps.length} steps (${planDuration}s)\n`))
         } catch (err) {
@@ -168,7 +165,6 @@ export function registerAgentCommand(program: Command): void {
           process.exit(1)
         }
 
-        // Interactive: approve plan
         if (options.interactive) {
           displayPlan(plan)
           const answer = await prompt('  Proceed? [Y/n/edit] ')
@@ -185,10 +181,7 @@ export function registerAgentCommand(program: Command): void {
           }
         }
 
-        // Phase 2: Execution
-        const progress = new StepProgress(
-          plan.steps.map((s) => ({ label: stepLabel(s) })),
-        )
+        const progress = new StepProgress(plan.steps.map((s) => ({ label: stepLabel(s) })))
 
         let aborted = false
         const agentStartTime = Date.now()
@@ -219,7 +212,6 @@ export function registerAgentCommand(program: Command): void {
           },
         })
 
-        // Handle SIGINT gracefully
         const sigintHandler = () => {
           aborted = true
           executor.abort()
@@ -242,18 +234,18 @@ export function registerAgentCommand(program: Command): void {
           return
         }
 
-        // Interactive: approve synthesis
         if (options.interactive && context.results.length > 0) {
           const answer = await prompt('\n  Synthesize brief? [Y/n] ')
           if (answer === 'n' || answer === 'no') {
             console.log(
-              t.muted(`\n  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`),
+              t.muted(
+                `\n  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`,
+              ),
             )
             return
           }
         }
 
-        // Phase 3: Synthesis
         console.log(t.muted('\n  synthesizing...'))
         const synthesizer = new AgentSynthesizer(deps.grok)
         let brief: AgentBrief
@@ -264,20 +256,22 @@ export function registerAgentCommand(program: Command): void {
           const msg = err instanceof Error ? err.message : String(err)
           console.log(t.error(`\n  Synthesis failed: ${msg}\n`))
           console.log(
-            t.muted(`  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`),
+            t.muted(
+              `  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`,
+            ),
           )
           return
         }
 
-        // Store agent snapshot
         const store = new SnapshotStore(ConfigManager.defaultDir())
         const previous = store.loadLatest<AgentBrief>('agent', question)
         store.save('agent', question, brief, JSON.stringify(context), context.totalCost)
 
-        // Compute render options
         const totalDuration = Date.now() - agentStartTime
         const allTweets = context.results.reduce((sum, r) => sum + r.tweets.length, 0)
-        const allAuthors = new Set(context.results.flatMap((r) => r.tweets.map((tw) => tw.authorId))).size
+        const allAuthors = new Set(
+          context.results.flatMap((r) => r.tweets.map((tw) => tw.authorId)),
+        ).size
 
         const renderOpts = {
           stepCount: context.results.length,
@@ -288,11 +282,10 @@ export function registerAgentCommand(program: Command): void {
           previousSentiment: previous ? (previous.data as AgentBrief).sentiment : undefined,
         }
 
-        // Output
         console.log('')
         switch (options.format) {
           case 'json':
-            console.log(renderAgentBriefJson(brief))
+            console.log(JSON.stringify(brief, null, 2))
             break
           case 'md':
             console.log(renderAgentBriefMd(brief, renderOpts))
@@ -301,13 +294,8 @@ export function registerAgentCommand(program: Command): void {
           default: {
             console.log(renderAgentBrief(brief, renderOpts))
 
-            // Show diff if previous snapshot exists
             if (previous) {
-              const diff = diffSnapshots(
-                previous.data as unknown as Record<string, unknown>,
-                brief as unknown as Record<string, unknown>,
-                AGENT_MATCH_KEYS,
-              )
+              const diff = diffSnapshots(previous.data, brief, AGENT_MATCH_KEYS)
               const diffText = formatDiffLines(diff, Date.now() - previous.timestamp)
               if (diffText) {
                 console.log('')
