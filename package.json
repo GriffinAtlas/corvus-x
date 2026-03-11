@@ -12,7 +12,7 @@
     "dev": "tsx bin/corvus.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint bin/ src/ tests/",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "prepublishOnly": "npm run build && npm test"
   },
@@ -47,13 +47,13 @@
     "ora": "^9.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.4.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.0",
-    "@typescript-eslint/parser": "^8.57.0",
     "eslint": "^10.0.3",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"
   }
 }
