@@ -14,11 +14,13 @@ Named for the genus of crows and ravens — among the most intelligent birds on 
 ## Who It's For
 
 **Primary audience:**
+
 - Developers tracking projects, tools, and industry discourse
 - AI/ML researchers collecting and analyzing X data
 - Open source maintainers monitoring community sentiment
 
 **Secondary audience:**
+
 - OSINT researchers and journalists
 - Startup founders doing competitive intelligence
 - Crypto/finance sentiment analysis
@@ -73,6 +75,7 @@ Grok-first design. Grok API is the primary engine (native `x_search` + `web_sear
 ```
 
 **Routing logic (honest version):**
+
 - `--raw` flag or `gather` command → X API only, no AI
 - `watch --live` → X API stream + periodic Grok analysis
 - Everything else → Grok-first (it has x_search built in)
@@ -80,39 +83,40 @@ Grok-first design. Grok API is the primary engine (native `x_search` + `web_sear
 
 ## Tech Stack
 
-| Technology | Purpose |
-|---|---|
-| TypeScript | Language |
-| Node.js >= 18 | Runtime |
-| `openai` npm | Grok API client (OpenAI-compatible) |
+| Technology        | Purpose                             |
+| ----------------- | ----------------------------------- |
+| TypeScript        | Language                            |
+| Node.js >= 18     | Runtime                             |
+| `openai` npm      | Grok API client (OpenAI-compatible) |
 | `twitter-api-sdk` | X API v2 client (optional features) |
-| `commander` | CLI argument parsing |
-| `ink` + `react` | Terminal UI for REPL mode |
-| `ink-table` | Formatted tables |
-| `better-sqlite3` | Local cache |
-| `keytar` | OS keychain credential storage |
-| `chalk` | Terminal colors |
-| `ora` | Loading spinners |
-| `conf` | Config management |
-| `zod` | Output validation from Grok |
-| `vitest` | Testing |
+| `commander`       | CLI argument parsing                |
+| `ink` + `react`   | Terminal UI for REPL mode           |
+| `ink-table`       | Formatted tables                    |
+| `better-sqlite3`  | Local cache                         |
+| `keytar`          | OS keychain credential storage      |
+| `chalk`           | Terminal colors                     |
+| `ora`             | Loading spinners                    |
+| `conf`            | Config management                   |
+| `zod`             | Output validation from Grok         |
+| `vitest`          | Testing                             |
 
 ## Commands
 
-| Command | What It Does | API |
-|---|---|---|
-| `corvus ask "question"` | Natural language query about X | Grok (x_search) |
-| `corvus scan <query>` | Search tweets with AI summary | Grok (x_search) |
-| `corvus scope <@handle>` | Profile analysis | Grok (x_search) + X API |
-| `corvus read <topic>` | Sentiment analysis | Grok (x_search) |
-| `corvus trace <url>` | Thread pull + summary | X API + Grok |
-| `corvus pulse` | Trending topics with analysis | Grok (x_search + web_search) |
-| `corvus watch <query>` | Real-time monitoring | X API stream + Grok |
-| `corvus gather <query>` | Export raw data | X API |
-| `corvus auth` | API key setup wizard | Local |
-| `corvus` (no args) | Interactive REPL | Both |
+| Command                  | What It Does                   | API                          |
+| ------------------------ | ------------------------------ | ---------------------------- |
+| `corvus ask "question"`  | Natural language query about X | Grok (x_search)              |
+| `corvus scan <query>`    | Search tweets with AI summary  | Grok (x_search)              |
+| `corvus scope <@handle>` | Profile analysis               | Grok (x_search) + X API      |
+| `corvus read <topic>`    | Sentiment analysis             | Grok (x_search)              |
+| `corvus trace <url>`     | Thread pull + summary          | X API + Grok                 |
+| `corvus pulse`           | Trending topics with analysis  | Grok (x_search + web_search) |
+| `corvus watch <query>`   | Real-time monitoring           | X API stream + Grok          |
+| `corvus gather <query>`  | Export raw data                | X API                        |
+| `corvus auth`            | API key setup wizard           | Local                        |
+| `corvus` (no args)       | Interactive REPL               | Both                         |
 
 **Global flags:**
+
 - `--format table|json|csv|md` (default: table)
 - `--raw` — skip AI, return raw X API data
 - `--cost` — estimate cost before executing
@@ -143,6 +147,7 @@ Grok-first design. Grok API is the primary engine (native `x_search` + `web_sear
 ## Caching
 
 SQLite at `~/.corvus/cache.db`. TTLs:
+
 - Search results: 15 min
 - User profiles: 1 hour
 - Sentiment snapshots: 15 min
@@ -160,24 +165,24 @@ Cache key: `command:query:params_hash`. `--no-cache` bypasses. `corvus cache cle
 
 ## Error Handling
 
-| Scenario | Behavior |
-|---|---|
-| No API keys | First-run auth wizard |
-| X API rate limited | Backoff + use Grok x_search as fallback |
-| Grok API down | Raw X API data (no AI) with warning |
-| Empty results | Clear message + broader query suggestion |
-| Long threads (500+) | Paginate + summarize in chunks |
-| Invalid/expired keys | Detect on first call, prompt re-auth |
-| Network offline | Cache-only mode with stale data warning |
-| Cost overrun | Session budget hard stop |
+| Scenario             | Behavior                                 |
+| -------------------- | ---------------------------------------- |
+| No API keys          | First-run auth wizard                    |
+| X API rate limited   | Backoff + use Grok x_search as fallback  |
+| Grok API down        | Raw X API data (no AI) with warning      |
+| Empty results        | Clear message + broader query suggestion |
+| Long threads (500+)  | Paginate + summarize in chunks           |
+| Invalid/expired keys | Detect on first call, prompt re-auth     |
+| Network offline      | Cache-only mode with stale data warning  |
+| Cost overrun         | Session budget hard stop                 |
 
 ## Distribution
 
-| Channel | Method | Version |
-|---|---|---|
-| npm | `npm install -g corvus-x` / `npx corvus-x` | v0.1.0 |
-| GitHub Releases | Standalone binaries via `pkg` or `bun build --compile` | v0.2.0 |
-| Homebrew | Custom tap | v0.3.0 |
+| Channel         | Method                                                 | Version |
+| --------------- | ------------------------------------------------------ | ------- |
+| npm             | `npm install -g corvus-x` / `npx corvus-x`             | v0.1.0  |
+| GitHub Releases | Standalone binaries via `pkg` or `bun build --compile` | v0.2.0  |
+| Homebrew        | Custom tap                                             | v0.3.0  |
 
 ## Open Source Setup
 
@@ -191,24 +196,24 @@ Cache key: `command:query:params_hash`. `--no-cache` bypasses. `corvus cache cle
 
 ## Known Unknowns
 
-| Unknown | Impact | Action |
-|---|---|---|
-| Grok x_search rate limits | Could throttle heavy usage | Test during prototype |
-| Grok x_search result quality | Core UX dependency | Compare vs raw X API search |
-| x_search per-call tool fee | Affects cost story | Measure during prototype |
-| X API pay-per-use beta access | Tier recommendation | Monitor beta rollout |
-| keytar on Linux servers | Auth UX | Build encrypted file fallback |
-| ink + Grok streaming perf | REPL responsiveness | Benchmark during prototype |
+| Unknown                       | Impact                     | Action                        |
+| ----------------------------- | -------------------------- | ----------------------------- |
+| Grok x_search rate limits     | Could throttle heavy usage | Test during prototype         |
+| Grok x_search result quality  | Core UX dependency         | Compare vs raw X API search   |
+| x_search per-call tool fee    | Affects cost story         | Measure during prototype      |
+| X API pay-per-use beta access | Tier recommendation        | Monitor beta rollout          |
+| keytar on Linux servers       | Auth UX                    | Build encrypted file fallback |
+| ink + Grok streaming perf     | REPL responsiveness        | Benchmark during prototype    |
 
 ## Risks
 
-| Risk | Severity | Mitigation |
-|---|---|---|
-| xAI changes x_search API | High | Adapter pattern — swap to X API + separate LLM |
-| X API pricing increases | Medium | Grok-first minimizes direct X API usage |
-| Grok response quality varies | Medium | Structured prompts, zod validation, raw fallback |
-| npm name collision | Low | `corvus-x` confirmed available |
-| X ToS data display rules | Medium | Review developer agreement, comply |
+| Risk                         | Severity | Mitigation                                       |
+| ---------------------------- | -------- | ------------------------------------------------ |
+| xAI changes x_search API     | High     | Adapter pattern — swap to X API + separate LLM   |
+| X API pricing increases      | Medium   | Grok-first minimizes direct X API usage          |
+| Grok response quality varies | Medium   | Structured prompts, zod validation, raw fallback |
+| npm name collision           | Low      | `corvus-x` confirmed available                   |
+| X ToS data display rules     | Medium   | Review developer agreement, comply               |
 
 ## Scope
 

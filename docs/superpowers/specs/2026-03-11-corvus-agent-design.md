@@ -40,7 +40,7 @@ Four fixes applied before agent work begins. Each is independently testable.
 New exported function `parseGrokJson<T>(raw: string): T`:
 
 - Strip leading/trailing whitespace
-- Strip markdown fences: detect `` ```json `` or `` ``` `` prefix/suffix, remove them
+- Strip markdown fences: detect ` ```json ` or ` ``` ` prefix/suffix, remove them
 - Strip any text before the first `{` or `[` character (handles Grok preambles like "Sure, here is the JSON:")
 - Strip any text after the last `}` or `]` character
 - Call `JSON.parse` on the cleaned string
@@ -69,6 +69,7 @@ No external retry library. The retry is a single `for` loop with `maxAttempts = 
 **File:** `src/core/metrics.ts`, line ~67
 
 Current (broken):
+
 ```typescript
 const score = scores.find(
   (s) => s.index < tweets.length && tweets[s.index]?.authorId === tweet.authorId,
@@ -78,6 +79,7 @@ const score = scores.find(
 This finds the first score whose indexed tweet belongs to the current author — not the score for the current tweet. For multi-tweet authors, all iterations find the same score.
 
 Fixed:
+
 ```typescript
 const tweetIndex = tweets.indexOf(tweet)
 const score = scores.find((s) => s.index === tweetIndex)
@@ -96,9 +98,11 @@ This matches how `computeKeyVoices` already works correctly at `metrics.ts:~154`
 **File:** `src/core/x-adapter.ts`
 
 `formatTweetsForAnalysis`: update the per-tweet format string to include impressions so Grok sees the same engagement model:
+
 ```
 [0] @handle (12L 3RT 1R 450V): tweet text here
 ```
+
 Where `V` = impressions/views. This keeps Grok's analysis consistent with the local engagement metric.
 
 All tests that assert specific engagement totals must be updated to include impressions.
@@ -164,8 +168,8 @@ interface BuildResult<T extends Snapshot> {
   data: T
   raw: string
   cost: number
-  tweets: Tweet[]              // raw tweets fetched (empty for read/scope single-tweet)
-  scores: GrokTweetScore[]     // Grok's per-tweet scores (empty for read/scope)
+  tweets: Tweet[] // raw tweets fetched (empty for read/scope single-tweet)
+  scores: GrokTweetScore[] // Grok's per-tweet scores (empty for read/scope)
   newestTweetAt: number | null // epoch ms of newest tweet's createdAt
 }
 ```
@@ -194,6 +198,7 @@ src/
 ```
 
 Type placement:
+
 - `AgentPlan`, `AgentStep`, `AgentContext`, `AgentStepResult`, `ReplanDecision` → `src/core/agent.ts` (internal orchestration)
 - `AgentBrief`, `BriefAccount`, `BriefEvidence`, `ConfidenceScore` → `src/core/schemas.ts` (output shapes, part of `Snapshot` union)
 - `BuildResult<T>` → `src/core/types.ts` (shared across all commands)
@@ -235,16 +240,14 @@ interface AgentStepResult {
   snapshot: Snapshot
   cost: number
   durationMs: number
-  tweets: Tweet[]              // raw tweets from this step (empty for read/scope)
-  scores: GrokTweetScore[]     // per-tweet Grok scores (empty for read/scope)
+  tweets: Tweet[] // raw tweets from this step (empty for read/scope)
+  scores: GrokTweetScore[] // per-tweet Grok scores (empty for read/scope)
   newestTweetAt: number | null // epoch ms of newest tweet in this step
 }
 
 // ── Replan ──
 
-type ReplanDecision =
-  | { action: 'continue' }
-  | { action: 'revise'; steps: AgentStep[] }
+type ReplanDecision = { action: 'continue' } | { action: 'revise'; steps: AgentStep[] }
 // Any unrecognized `action` value is treated as 'continue'.
 
 // ── Brief ──
@@ -258,27 +261,27 @@ interface AgentBrief {
   evidence: BriefEvidence[]
   confidence: ConfidenceScore
   sampleSize: number
-  staleness: number | null       // ms since newest tweet, null if fresh
+  staleness: number | null // ms since newest tweet, null if fresh
 }
 
 interface BriefAccount {
   handle: string
   reach: number
   sentiment: number
-  stance: string                 // one-line position summary
+  stance: string // one-line position summary
 }
 
 interface BriefEvidence {
-  source: string                 // "scan", "pulse", etc.
-  key: string                    // what this evidence shows
+  source: string // "scan", "pulse", etc.
+  key: string // what this evidence shows
   detail: string
 }
 
 interface ConfidenceScore {
-  overall: number                // 0-1
+  overall: number // 0-1
   volume: 'low' | 'moderate' | 'high'
-  consistency: number            // sentiment std dev (lower = more confident)
-  diversity: number              // unique authors / total tweets
+  consistency: number // sentiment std dev (lower = more confident)
+  diversity: number // unique authors / total tweets
 }
 ```
 
@@ -378,20 +381,27 @@ Implementation in `metrics.ts`:
 ```typescript
 function computeConfidence(allTweets: Tweet[], allScores: GrokTweetScore[]): ConfidenceScore {
   const volume = allTweets.length < 30 ? 'low' : allTweets.length < 100 ? 'moderate' : 'high'
-  const sentiments = allScores.map(s => s.sentiment)
+  const sentiments = allScores.map((s) => s.sentiment)
   const mean = sentiments.reduce((a, b) => a + b, 0) / sentiments.length
   const consistency = Math.sqrt(
-    sentiments.reduce((sum, s) => sum + (s - mean) ** 2, 0) / sentiments.length
+    sentiments.reduce((sum, s) => sum + (s - mean) ** 2, 0) / sentiments.length,
   )
-  const uniqueAuthors = new Set(allTweets.map(t => t.authorId)).size
+  const uniqueAuthors = new Set(allTweets.map((t) => t.authorId)).size
   const diversity = uniqueAuthors / allTweets.length
 
   const volumeScore = allTweets.length < 30 ? 0.3 : allTweets.length < 100 ? 0.6 : 0.9
   const consistencyScore = Math.max(0, 1 - consistency)
   const diversityScore = Math.min(1, diversity * 2)
-  const overall = Number(((volumeScore * 0.4 + consistencyScore * 0.3 + diversityScore * 0.3)).toFixed(2))
+  const overall = Number(
+    (volumeScore * 0.4 + consistencyScore * 0.3 + diversityScore * 0.3).toFixed(2),
+  )
 
-  return { overall, volume, consistency: Number(consistency.toFixed(3)), diversity: Number(diversity.toFixed(3)) }
+  return {
+    overall,
+    volume,
+    consistency: Number(consistency.toFixed(3)),
+    diversity: Number(diversity.toFixed(3)),
+  }
 }
 ```
 
@@ -461,6 +471,7 @@ corvus agent <question...> [options]
 ```
 
 Options:
+
 - `-i, --interactive` — checkpoint mode
 - `-n, --max-steps <n>` — step cap (default 8, min 2, max 12)
 - `-f, --format <type>` — `table` (default), `json`, `md`
@@ -504,7 +515,9 @@ Agent runs store a composite snapshot at `~/.corvus/snapshots/agent-<hash>/`:
 {
   "command": "agent",
   "topic": "<question>",
-  "data": { /* AgentBrief */ },
+  "data": {
+    /* AgentBrief */
+  },
   "raw": "{ /* full AgentContext as JSON string */ }",
   "timestamp": 1741651234567,
   "cost": 0.021
@@ -512,6 +525,7 @@ Agent runs store a composite snapshot at `~/.corvus/snapshots/agent-<hash>/`:
 ```
 
 Individual command steps also store their own snapshots in their normal locations (e.g., `scan-<hash>/`). This means:
+
 - `corvus history` shows agent runs
 - Re-running the same agent question produces a diff of the brief
 - Individual command snapshots are available for standalone re-use
@@ -579,20 +593,26 @@ Multi-line in-place progress tracker for agent runs.
 
 ```typescript
 export class StepProgress {
-  private steps: { label: string; status: 'pending' | 'running' | 'done' | 'failed'; tag?: string; durationMs?: number }[]
+  private steps: {
+    label: string
+    status: 'pending' | 'running' | 'done' | 'failed'
+    tag?: string
+    durationMs?: number
+  }[]
   private rendered: boolean = false
 
   constructor(steps: { label: string; tag?: string }[])
 
-  start(index: number): void        // mark step as running, re-render
-  complete(index: number, durationMs: number): void  // mark done, re-render
-  fail(index: number): void         // mark failed, re-render
-  addStep(label: string, tag: string): void  // append a new step (replan)
-  render(): void                     // write all lines, using ANSI cursor-up to overwrite previous render
+  start(index: number): void // mark step as running, re-render
+  complete(index: number, durationMs: number): void // mark done, re-render
+  fail(index: number): void // mark failed, re-render
+  addStep(label: string, tag: string): void // append a new step (replan)
+  render(): void // write all lines, using ANSI cursor-up to overwrite previous render
 }
 ```
 
 Rendering:
+
 - Each step is one line: `  [n/total] command · target                status`
 - Status symbols: `○` pending, spinner character running, `✓` done (green), `✗` failed (red)
 - Duration shown after checkmark: `✓ 3.2s` (muted)
@@ -607,6 +627,7 @@ Located in `src/cli/output.ts` as `renderAgentBrief(brief: AgentBrief, previousS
 The `previousSentiment` parameter is populated from the previous agent snapshot's `sentiment` field (loaded via `SnapshotStore.loadLatest` in the agent command, same pattern as other structured commands). If no previous snapshot exists, the "(was +0.12)" display is omitted.
 
 Structure:
+
 ```
   ╔═══════════════════════════════════════════════════╗
   ║  [signal line — one sentence, the conclusion]     ║
@@ -640,6 +661,7 @@ If `--format json`, output the raw `AgentBrief` object. If `--format md`, output
 ### 5.4 CLI Branding
 
 The `LOGO` constant renders on:
+
 - `corvus --help` (above the command list)
 - `corvus repl` startup (above the prompt)
 - `corvus agent` runs (above the progress tracker)
@@ -661,16 +683,16 @@ Setup           auth
 
 All existing spinner text is replaced across every command:
 
-| File | Old | New |
-|---|---|---|
-| `ask.ts` | `scanning X...` | `ask · {truncated question}` |
-| `scan.ts` | `scanning X...` | `scan · {topic}` |
-| `pulse.ts` | `reading pulse...` | `pulse · {topic}` |
-| `trace.ts` | `tracing narrative...` | `trace · {topic}` |
-| `gather.ts` | `gathering intelligence...` | `gather · {topic}` |
-| `read.ts` | `reading tweet...` | `read · {id}` |
-| `scope.ts` | `scoping @{handle}...` | `scope · @{handle}` |
-| `repl.ts` | `thinking...` | (empty — spinner animation only) |
+| File        | Old                         | New                              |
+| ----------- | --------------------------- | -------------------------------- |
+| `ask.ts`    | `scanning X...`             | `ask · {truncated question}`     |
+| `scan.ts`   | `scanning X...`             | `scan · {topic}`                 |
+| `pulse.ts`  | `reading pulse...`          | `pulse · {topic}`                |
+| `trace.ts`  | `tracing narrative...`      | `trace · {topic}`                |
+| `gather.ts` | `gathering intelligence...` | `gather · {topic}`               |
+| `read.ts`   | `reading tweet...`          | `read · {id}`                    |
+| `scope.ts`  | `scoping @{handle}...`      | `scope · @{handle}`              |
+| `repl.ts`   | `thinking...`               | (empty — spinner animation only) |
 
 ---
 
@@ -692,6 +714,7 @@ Hard constraints enforced across the entire CLI.
 ### Brief Tone
 
 The Grok synthesizer system prompt enforces:
+
 - Bloomberg wire note style, not chatbot conversation
 - No first person
 - Lead with conclusion, evidence follows
@@ -745,6 +768,7 @@ The Grok synthesizer system prompt enforces:
 ## 8. File Change Summary
 
 ### New files
+
 - `src/core/agent.ts` — AgentPlanner, AgentExecutor, AgentSynthesizer
 - `src/cli/commands/agent.ts` — Commander registration, rendering
 - `src/cli/progress.ts` — StepProgress class
@@ -755,6 +779,7 @@ The Grok synthesizer system prompt enforces:
 - `tests/cli/theme.test.ts` — Theme utility tests
 
 ### Modified files
+
 - `src/core/grok-adapter.ts` — add `parseGrokJson`, `GrokParseError`, retry/timeout logic
 - `src/core/x-adapter.ts` — add pagination to `searchRecent`
 - `src/core/metrics.ts` — fix `computeTopAccounts`, add impressions to engagement, add `computeConfidence`, `detectContradictions`
@@ -776,6 +801,7 @@ The Grok synthesizer system prompt enforces:
 - `tests/cli/output.test.ts` — add renderAgentBrief tests
 
 ### Unchanged files
+
 - `src/core/cache.ts` — no changes
 - `src/core/differ.ts` — no changes
 - `src/core/snapshots.ts` — no changes
@@ -790,6 +816,7 @@ The Grok synthesizer system prompt enforces:
 ## 9. Implementation Phases
 
 ### Phase 1: Pipeline Hardening
+
 - 2a: JSON parse safety
 - 2b: Retry and timeout
 - 2c: Fix computeTopAccounts bug
@@ -799,6 +826,7 @@ The Grok synthesizer system prompt enforces:
 - All 264 existing tests still pass
 
 ### Phase 2: Presentation Layer
+
 - theme.ts — palette, TTY detection, visual primitives
 - Migrate all chalk calls across output.ts, run-command.ts, repl.ts
 - Update spinner text across all commands
@@ -808,6 +836,7 @@ The Grok synthesizer system prompt enforces:
 - Tests for theme and progress
 
 ### Phase 3: Agent Core
+
 - schemas.ts — agent types, brief types, confidence types
 - metrics.ts — computeConfidence, detectContradictions
 - agent.ts — AgentPlanner, AgentExecutor, AgentSynthesizer
@@ -816,6 +845,7 @@ The Grok synthesizer system prompt enforces:
 - Tests for agent core
 
 ### Phase 4: Agent Command
+
 - commands/agent.ts — Commander registration, fire-and-forget mode
 - output.ts — renderAgentBrief
 - Interactive mode
@@ -829,13 +859,13 @@ The Grok synthesizer system prompt enforces:
 
 Typical agent run with 5 command steps:
 
-| Call | Tokens (est.) | Cost |
-|---|---|---|
-| Planner | ~500 in / ~300 out | $0.0003 |
-| Command step x5 | ~2000 in / ~800 out each | $0.0040 |
-| Replan x2 | ~1000 in / ~200 out each | $0.0006 |
-| Synthesizer | ~3000 in / ~1000 out | $0.0011 |
-| **Total** | | **~$0.006** |
+| Call            | Tokens (est.)            | Cost        |
+| --------------- | ------------------------ | ----------- |
+| Planner         | ~500 in / ~300 out       | $0.0003     |
+| Command step x5 | ~2000 in / ~800 out each | $0.0040     |
+| Replan x2       | ~1000 in / ~200 out each | $0.0006     |
+| Synthesizer     | ~3000 in / ~1000 out     | $0.0011     |
+| **Total**       |                          | **~$0.006** |
 
 At grok-4-1-fast pricing ($0.20/M input, $0.50/M output), a typical agent run costs under $0.01. A deep investigation with 8 steps and 3 replans would cost ~$0.02-0.03.
 

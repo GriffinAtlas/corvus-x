@@ -31,6 +31,7 @@ Phase 1 (Scaffold)
 **Goal:** Empty but runnable project with all tooling configured.
 
 **Steps:**
+
 1. `mkdir corvus && cd corvus && git init`
 2. `npm init` — name: `corvus-x`, version: `0.1.0`
 3. Install dev dependencies:
@@ -53,7 +54,7 @@ Phase 1 (Scaffold)
    ```
 6. Add `bin` field to package.json: `"bin": { "corvus": "./dist/bin/corvus.js" }`
 7. Add npm scripts: `build`, `dev`, `test`, `lint`, `format`
-8. Create `.gitignore` (node_modules, dist, .env, *.db)
+8. Create `.gitignore` (node_modules, dist, .env, \*.db)
 9. Verify: `npm run build && npx . --help` outputs placeholder help text
 
 **Tests:** Build succeeds. `corvus --version` outputs `0.1.0`.
@@ -65,19 +66,23 @@ Phase 1 (Scaffold)
 **Goal:** Users can store and retrieve API keys securely.
 
 **Files:**
+
 - `src/infra/auth.ts` — key storage and retrieval
 - `src/infra/config.ts` — config file management
 - `src/cli/commands/auth.ts` — auth wizard command
 
 **Steps:**
+
 1. Define config schema (zod):
    ```typescript
    const ConfigSchema = z.object({
      activeProfile: z.string().default('default'),
-     profiles: z.record(z.object({
-       grokKey: z.string().optional(),
-       xBearerToken: z.string().optional(),
-     })),
+     profiles: z.record(
+       z.object({
+         grokKey: z.string().optional(),
+         xBearerToken: z.string().optional(),
+       }),
+     ),
      cache: z.object({
        enabled: z.boolean().default(true),
        ttlOverrides: z.record(z.number()).optional(),
@@ -108,6 +113,7 @@ Phase 1 (Scaffold)
 5. First-run detection: if no config exists, auto-run auth wizard
 
 **Tests:**
+
 - Config read/write/merge
 - Auth store/retrieve (mock keytar)
 - Env var override precedence
@@ -120,12 +126,15 @@ Phase 1 (Scaffold)
 **Goal:** Reliable interface to Grok with x_search and web_search tools.
 
 **Files:**
+
 - `src/core/grok-adapter.ts`
 - `src/core/types.ts` — shared interfaces
 
 **Steps:**
+
 1. Install `openai` npm package
 2. Create `GrokAdapter` class:
+
    ```typescript
    class GrokAdapter {
      private client: OpenAI
@@ -141,11 +150,12 @@ Phase 1 (Scaffold)
      async *stream(prompt: string, options: QueryOptions): AsyncGenerator<string>
    }
    ```
+
 3. Implement tool configuration:
    ```typescript
    const tools = [
-     { type: 'x_search' },   // native X search
-     { type: 'web_search' },  // web browsing
+     { type: 'x_search' }, // native X search
+     { type: 'web_search' }, // web browsing
    ]
    ```
 4. Implement system prompts per command type:
@@ -164,6 +174,7 @@ Phase 1 (Scaffold)
    - Return cost alongside response data
 
 **Tests:**
+
 - Mock API responses, verify parsing
 - Streaming token assembly
 - Error handling (401, 429, 500, network)
@@ -176,11 +187,14 @@ Phase 1 (Scaffold)
 **Goal:** Raw X API access for data export, streaming, and enrichment.
 
 **Files:**
+
 - `src/core/x-adapter.ts`
 
 **Steps:**
+
 1. Install `twitter-api-sdk`
 2. Create `XAdapter` class:
+
    ```typescript
    class XAdapter {
      private client: TwitterApi | null
@@ -196,6 +210,7 @@ Phase 1 (Scaffold)
      async *stream(query: string): AsyncGenerator<Tweet>
    }
    ```
+
 3. Implement pagination handler — auto-follows `next_token`
 4. Implement rate limit tracker:
    - Read `x-rate-limit-remaining` headers
@@ -205,6 +220,7 @@ Phase 1 (Scaffold)
 6. Implement filtered stream setup for `watch` command
 
 **Tests:**
+
 - Mock API responses
 - Pagination token following
 - Rate limit detection and backoff
@@ -217,23 +233,27 @@ Phase 1 (Scaffold)
 **Goal:** Reduce API calls and costs with local caching.
 
 **Files:**
+
 - `src/infra/cache.ts`
 
 **Steps:**
+
 1. Install `better-sqlite3` and `@types/better-sqlite3`
 2. Create `Cache` class:
+
    ```typescript
    class Cache {
      private db: Database
 
      constructor(dbPath: string) // default: ~/.corvus/cache.db
 
-     get<T>(key: string): T | null        // returns null if expired
+     get<T>(key: string): T | null // returns null if expired
      set(key: string, value: unknown, ttlMs: number): void
      clear(): void
-     stats(): { entries: number, sizeBytes: number }
+     stats(): { entries: number; sizeBytes: number }
    }
    ```
+
 3. SQLite schema:
    ```sql
    CREATE TABLE cache (
@@ -255,6 +275,7 @@ Phase 1 (Scaffold)
 8. `corvus cache stats` command
 
 **Tests:**
+
 - Set/get with TTL expiry
 - Cache miss returns null
 - Clear works
@@ -267,10 +288,12 @@ Phase 1 (Scaffold)
 **Goal:** Multiple output formats with a distinctive visual style.
 
 **Files:**
+
 - `src/cli/output.ts`
 - `src/cli/ascii.ts` — crow animation frames
 
 **Steps:**
+
 1. Install `chalk`, `ink-table`, `ora`
 2. Define `OutputFormatter` interface:
    ```typescript
@@ -305,6 +328,7 @@ Phase 1 (Scaffold)
    - `--no-animation` flag
 
 **Tests:**
+
 - Each format produces valid output
 - JSON is parseable
 - CSV handles commas in content
@@ -317,6 +341,7 @@ Phase 1 (Scaffold)
 **Goal:** All 8 commands working end-to-end.
 
 **Files:**
+
 - `src/cli/commands/ask.ts`
 - `src/cli/commands/scan.ts`
 - `src/cli/commands/read.ts`
@@ -328,6 +353,7 @@ Phase 1 (Scaffold)
 - `bin/corvus.ts` — commander setup with all commands registered
 
 **Steps:**
+
 1. Install `commander`
 2. Set up commander in `bin/corvus.ts`:
    - Version, description, global flags
@@ -362,6 +388,7 @@ Phase 1 (Scaffold)
    - API error → human-readable message + retry suggestion
 
 **Tests:**
+
 - Each command with mocked APIs
 - Flag combinations (--raw, --format, --cost)
 - Error cases (no auth, API errors, empty results)
@@ -374,10 +401,12 @@ Phase 1 (Scaffold)
 **Goal:** Conversational terminal interface with personality.
 
 **Files:**
+
 - `src/cli/repl.tsx` — ink-based REPL app
 - `src/cli/components/` — ink components
 
 **Steps:**
+
 1. Install `ink`, `react`, `@types/react`, `ink-text-input`
 2. Create REPL app component:
    ```tsx
@@ -409,6 +438,7 @@ Phase 1 (Scaffold)
    - Up/down arrow navigation
 
 **Tests:**
+
 - Render tests with ink-testing-library
 - Input routing (natural language vs commands)
 - Streaming token assembly
@@ -421,9 +451,11 @@ Phase 1 (Scaffold)
 **Goal:** Real-time X stream with periodic AI analysis.
 
 **Files:**
+
 - `src/cli/commands/watch.ts`
 
 **Steps:**
+
 1. Implement using X API filtered stream (requires X API key)
 2. Set up stream with filter rules for query
 3. Display incoming tweets in real-time (table format)
@@ -439,6 +471,7 @@ Phase 1 (Scaffold)
 7. Fallback: if no X API key, use periodic Grok x_search polling instead
 
 **Tests:**
+
 - Mock stream events
 - Budget tracking
 - Summary trigger timing
@@ -451,6 +484,7 @@ Phase 1 (Scaffold)
 **Goal:** Published, installable, documented open source tool.
 
 **Files:**
+
 - `README.md` — hero section, install, quickstart, commands, examples
 - `LICENSE` — MIT
 - `CONTRIBUTING.md` — how to contribute, dev setup, PR process
@@ -464,6 +498,7 @@ Phase 1 (Scaffold)
 - `.npmignore`
 
 **Steps:**
+
 1. Write README:
    - ASCII crow banner at top
    - One-line description
@@ -486,6 +521,7 @@ Phase 1 (Scaffold)
 10. Create GitHub release with changelog
 
 **Tests:**
+
 - CI pipeline passes
 - npm pack includes correct files
 - `npx corvus-x --version` works after publish

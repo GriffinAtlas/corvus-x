@@ -57,6 +57,7 @@ corvus/
 ## Task 1: Project Scaffold
 
 **Files:**
+
 - Create: `package.json`
 - Create: `tsconfig.json`
 - Create: `vitest.config.ts`
@@ -202,10 +203,7 @@ import { Command } from 'commander'
 
 const program = new Command()
 
-program
-  .name('corvus')
-  .description('AI-powered X intelligence in your terminal')
-  .version('0.1.0')
+program.name('corvus').description('AI-powered X intelligence in your terminal').version('0.1.0')
 
 program.parse()
 ```
@@ -238,6 +236,7 @@ git commit -m "feat: project scaffold — corvus-x CLI skeleton"
 ## Task 2: Config Manager
 
 **Files:**
+
 - Create: `src/infra/config.ts`
 - Create: `tests/infra/config.test.ts`
 
@@ -347,7 +346,11 @@ export class ConfigManager {
     }
 
     if (!fs.existsSync(this.configPath)) {
-      return { ...DEFAULT_CONFIG, display: { ...DEFAULT_CONFIG.display }, budget: { ...DEFAULT_CONFIG.budget } }
+      return {
+        ...DEFAULT_CONFIG,
+        display: { ...DEFAULT_CONFIG.display },
+        budget: { ...DEFAULT_CONFIG.budget },
+      }
     }
 
     try {
@@ -363,7 +366,11 @@ export class ConfigManager {
         },
       }
     } catch {
-      return { ...DEFAULT_CONFIG, display: { ...DEFAULT_CONFIG.display }, budget: { ...DEFAULT_CONFIG.budget } }
+      return {
+        ...DEFAULT_CONFIG,
+        display: { ...DEFAULT_CONFIG.display },
+        budget: { ...DEFAULT_CONFIG.budget },
+      }
     }
   }
 
@@ -403,6 +410,7 @@ git commit -m "feat: config manager — ~/.corvus/config.json with defaults"
 ## Task 3: Auth Manager
 
 **Files:**
+
 - Create: `src/infra/auth.ts`
 - Create: `tests/infra/auth.test.ts`
 
@@ -573,6 +581,7 @@ git commit -m "feat: auth manager — credential storage with env var overrides"
 ## Task 4: Auth Command (corvus auth)
 
 **Files:**
+
 - Create: `src/cli/commands/auth.ts`
 - Modify: `bin/corvus.ts`
 
@@ -596,9 +605,7 @@ function prompt(question: string, hidden = false): Promise<string> {
 }
 
 export function registerAuthCommand(program: Command): void {
-  const auth = program
-    .command('auth')
-    .description('Set up API keys')
+  const auth = program.command('auth').description('Set up API keys')
 
   auth
     .command('setup')
@@ -653,7 +660,7 @@ export function registerAuthCommand(program: Command): void {
 
   // Make bare `corvus auth` run setup
   auth.action(async () => {
-    await auth.commands.find(c => c.name() === 'setup')?.parseAsync([])
+    await auth.commands.find((c) => c.name() === 'setup')?.parseAsync([])
   })
 }
 ```
@@ -668,10 +675,7 @@ import { registerAuthCommand } from '../src/cli/commands/auth.js'
 
 const program = new Command()
 
-program
-  .name('corvus')
-  .description('AI-powered X intelligence in your terminal')
-  .version('0.1.0')
+program.name('corvus').description('AI-powered X intelligence in your terminal').version('0.1.0')
 
 registerAuthCommand(program)
 
@@ -697,6 +701,7 @@ git commit -m "feat: corvus auth — interactive API key setup wizard"
 ## Task 5: Grok Adapter
 
 **Files:**
+
 - Create: `src/core/types.ts`
 - Create: `src/core/grok-adapter.ts`
 - Create: `tests/core/grok-adapter.test.ts`
@@ -801,7 +806,7 @@ import OpenAI from 'openai'
 import type { GrokResponse, QueryOptions } from './types.js'
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'grok-4-1-fast': { input: 0.20, output: 0.50 },
+  'grok-4-1-fast': { input: 0.2, output: 0.5 },
   'grok-4': { input: 3.0, output: 15.0 },
 }
 
@@ -822,10 +827,24 @@ export class GrokAdapter {
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = []
 
     if (options.enableXSearch !== false) {
-      tools.push({ type: 'function', function: { name: 'x_search', description: 'Search X', parameters: { type: 'object', properties: {} } } })
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'x_search',
+          description: 'Search X',
+          parameters: { type: 'object', properties: {} },
+        },
+      })
     }
     if (options.enableWebSearch) {
-      tools.push({ type: 'function', function: { name: 'web_search', description: 'Search web', parameters: { type: 'object', properties: {} } } })
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'web_search',
+          description: 'Search web',
+          parameters: { type: 'object', properties: {} },
+        },
+      })
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
@@ -901,6 +920,7 @@ git commit -m "feat: Grok adapter — x_search enabled, cost tracking, streaming
 ## Task 6: Output Formatter
 
 **Files:**
+
 - Create: `src/cli/output.ts`
 - Create: `tests/cli/output.test.ts`
 
@@ -996,14 +1016,18 @@ function formatTable(result: CommandResult): string {
 }
 
 function formatJson(result: CommandResult): string {
-  return JSON.stringify({
-    command: result.command,
-    query: result.query,
-    response: result.response,
-    cost: result.cost,
-    cached: result.cached,
-    timestamp: result.timestamp,
-  }, null, 2)
+  return JSON.stringify(
+    {
+      command: result.command,
+      query: result.query,
+      response: result.response,
+      cost: result.cost,
+      cached: result.cached,
+      timestamp: result.timestamp,
+    },
+    null,
+    2,
+  )
 }
 
 function formatCsv(result: CommandResult): string {
@@ -1053,6 +1077,7 @@ git commit -m "feat: output formatters — table, json, csv, markdown"
 ## Task 7: Ask Command (End-to-End)
 
 **Files:**
+
 - Create: `src/cli/commands/ask.ts`
 - Modify: `bin/corvus.ts`
 
@@ -1139,10 +1164,7 @@ import { registerAskCommand } from '../src/cli/commands/ask.js'
 
 const program = new Command()
 
-program
-  .name('corvus')
-  .description('AI-powered X intelligence in your terminal')
-  .version('0.1.0')
+program.name('corvus').description('AI-powered X intelligence in your terminal').version('0.1.0')
 
 registerAuthCommand(program)
 registerAskCommand(program)
