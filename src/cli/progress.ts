@@ -14,6 +14,7 @@ export class StepProgress {
   private rendered = false
   private spinnerFrame = 0
   private spinnerTimer: ReturnType<typeof setInterval> | null = null
+  private lastChangedIndex = -1
 
   constructor(steps: { label: string; tag?: string }[]) {
     this.steps = steps.map((s) => ({ label: s.label, status: 'pending' as const, tag: s.tag }))
@@ -36,6 +37,7 @@ export class StepProgress {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'done'
       this.steps[index].durationMs = durationMs
+      this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()
     }
@@ -44,6 +46,7 @@ export class StepProgress {
   fail(index: number): void {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'failed'
+      this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()
     }
@@ -53,6 +56,7 @@ export class StepProgress {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'skipped'
       if (reason) this.steps[index].tag = reason
+      this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()
     }
@@ -119,16 +123,10 @@ export class StepProgress {
           console.log(strip(line))
         }
         this.rendered = true
-      } else {
-        const last = this.steps.findIndex(
-          (s) => s.status === 'done' || s.status === 'failed' || s.status === 'skipped',
-        )
-        if (last >= 0) {
-          const step = this.steps[last]
-          if (step.status !== 'pending' && step.status !== 'running') {
-            const line = lines[last]
-            console.log(strip(line))
-          }
+      } else if (this.lastChangedIndex >= 0 && this.lastChangedIndex < lines.length) {
+        const step = this.steps[this.lastChangedIndex]
+        if (step.status === 'done' || step.status === 'failed' || step.status === 'skipped') {
+          console.log(strip(lines[this.lastChangedIndex]))
         }
       }
     }

@@ -51,10 +51,10 @@ export async function buildScopeSnapshot(
     ),
   ].join('\n')
 
-  const response = await deps.grok.query(
-    `Analyze this X profile:\n\n${profileContext}`,
-    { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072 },
-  )
+  const response = await deps.grok.query(`Analyze this X profile:\n\n${profileContext}`, {
+    systemPrompt: SYSTEM_PROMPT,
+    maxTokens: 3072,
+  })
 
   const grok = parseGrokJson<GrokScopeResponse>(response.text)
 
@@ -71,8 +71,7 @@ export async function buildScopeSnapshot(
       const bEng = b.metrics.likes + b.metrics.retweets + b.metrics.replies
       return bEng > aEng ? b : a
     })
-    const bestEng =
-      best.metrics.likes + best.metrics.retweets + best.metrics.replies
+    const bestEng = best.metrics.likes + best.metrics.retweets + best.metrics.replies
     topTweet = {
       id: best.id,
       text: best.text.length > 200 ? best.text.slice(0, 200) + '...' : best.text,

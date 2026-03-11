@@ -46,10 +46,11 @@ export async function buildPulseSnapshot(
   const sentiment = computeSentiment(grok.tweetAnalysis)
   const keyVoices = computeKeyVoices(tweets, grok.tweetAnalysis, users)
 
-  const newestTweetAt = tweets.reduce((max, t) => {
-    const ts = new Date(t.createdAt).getTime()
-    return Number.isFinite(ts) && ts > max ? ts : max
-  }, 0) || null
+  const newestTweetAt =
+    tweets.reduce((max, t) => {
+      const ts = new Date(t.createdAt).getTime()
+      return Number.isFinite(ts) && ts > max ? ts : max
+    }, 0) || null
 
   return {
     data: {

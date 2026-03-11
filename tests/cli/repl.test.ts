@@ -11,7 +11,9 @@ vi.mock('openai', () => ({
 
 vi.mock('../../src/core/cache.js', () => ({
   QueryCache: class {
-    get() { return null }
+    get() {
+      return null
+    }
     set() {}
   },
 }))
@@ -76,7 +78,9 @@ describe('REPL', () => {
     try {
       const { startRepl } = await import('../../src/cli/repl.js')
       await startRepl()
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })

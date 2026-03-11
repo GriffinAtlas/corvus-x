@@ -123,9 +123,11 @@ describe('GrokAdapter', () => {
   })
 
   it('returns zero cost when usage has zero tokens', async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse({
-      usage: { prompt_tokens: 0, completion_tokens: 0 },
-    }))
+    mockCreate.mockResolvedValueOnce(
+      mockResponse({
+        usage: { prompt_tokens: 0, completion_tokens: 0 },
+      }),
+    )
     const result = await adapter.query('test')
     expect(result.usage.costUsd).toBe(0)
     expect(result.usage.inputTokens).toBe(0)
@@ -143,9 +145,11 @@ describe('GrokAdapter', () => {
   })
 
   it('returns empty string when content is null', async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse({
-      choices: [{ message: { content: null } }],
-    }))
+    mockCreate.mockResolvedValueOnce(
+      mockResponse({
+        choices: [{ message: { content: null } }],
+      }),
+    )
     expect((await adapter.query('test')).text).toBe('')
   })
 
@@ -181,9 +185,7 @@ describe('GrokAdapter', () => {
 
   it('retries once on transient 500 error', async () => {
     const error500 = Object.assign(new Error('Internal Server Error'), { status: 500 })
-    mockCreate
-      .mockRejectedValueOnce(error500)
-      .mockResolvedValueOnce(mockResponse())
+    mockCreate.mockRejectedValueOnce(error500).mockResolvedValueOnce(mockResponse())
 
     const result = await adapter.query('test')
     expect(mockCreate).toHaveBeenCalledTimes(2)
@@ -192,9 +194,7 @@ describe('GrokAdapter', () => {
 
   it('retries once on transient 502 error', async () => {
     const error502 = Object.assign(new Error('Bad Gateway'), { status: 502 })
-    mockCreate
-      .mockRejectedValueOnce(error502)
-      .mockResolvedValueOnce(mockResponse())
+    mockCreate.mockRejectedValueOnce(error502).mockResolvedValueOnce(mockResponse())
 
     const result = await adapter.query('test')
     expect(mockCreate).toHaveBeenCalledTimes(2)
@@ -203,9 +203,7 @@ describe('GrokAdapter', () => {
 
   it('retries once on transient 503 error', async () => {
     const error503 = Object.assign(new Error('Service Unavailable'), { status: 503 })
-    mockCreate
-      .mockRejectedValueOnce(error503)
-      .mockResolvedValueOnce(mockResponse())
+    mockCreate.mockRejectedValueOnce(error503).mockResolvedValueOnce(mockResponse())
 
     const result = await adapter.query('test')
     expect(mockCreate).toHaveBeenCalledTimes(2)
@@ -217,9 +215,7 @@ describe('GrokAdapter', () => {
       status: 429,
       headers: { 'retry-after': '3' },
     })
-    mockCreate
-      .mockRejectedValueOnce(error429)
-      .mockResolvedValueOnce(mockResponse())
+    mockCreate.mockRejectedValueOnce(error429).mockResolvedValueOnce(mockResponse())
 
     const result = await adapter.query('test')
     expect(mockCreate).toHaveBeenCalledTimes(2)
@@ -255,9 +251,7 @@ describe('GrokAdapter', () => {
 
   it('retries on network error with ECONNRESET code', async () => {
     const networkErr = Object.assign(new Error('connection reset'), { code: 'ECONNRESET' })
-    mockCreate
-      .mockRejectedValueOnce(networkErr)
-      .mockResolvedValueOnce(mockResponse())
+    mockCreate.mockRejectedValueOnce(networkErr).mockResolvedValueOnce(mockResponse())
 
     const result = await adapter.query('test')
     expect(mockCreate).toHaveBeenCalledTimes(2)
@@ -266,13 +260,92 @@ describe('GrokAdapter', () => {
 
   it('throws after max retry attempts exhausted', async () => {
     const error500 = Object.assign(new Error('Internal Server Error'), { status: 500 })
-    mockCreate
-      .mockRejectedValueOnce(error500)
-      .mockRejectedValueOnce(error500)
+    mockCreate.mockRejectedValueOnce(error500).mockRejectedValueOnce(error500)
 
     await expect(adapter.query('test')).rejects.toThrow('Internal Server Error')
     expect(mockCreate).toHaveBeenCalledTimes(2)
   }, 10000)
+
+  it('retries on 429 with Retry-After "0" (skips wait, uses default delay)', async () => {
+    const error429 = Object.assign(new Error('Rate limited'), {
+      status: 429,
+      headers: { 'retry-after': '0' },
+    })
+    mockCreate.mockRejectedValueOnce(error429).mockResolvedValueOnce(mockResponse())
+
+    const result = await adapter.query('test')
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(result.text).toBe('Test response')
+  }, 10000)
+
+  it('retries on 429 with non-numeric Retry-After', async () => {
+    const error429 = Object.assign(new Error('Rate limited'), {
+      status: 429,
+      headers: { 'retry-after': 'abc' },
+    })
+    mockCreate.mockRejectedValueOnce(error429).mockResolvedValueOnce(mockResponse())
+
+    const result = await adapter.query('test')
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(result.text).toBe('Test response')
+  }, 10000)
+
+  it('retries on ECONNREFUSED network error', async () => {
+    const networkErr = Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' })
+    mockCreate.mockRejectedValueOnce(networkErr).mockResolvedValueOnce(mockResponse())
+
+    const result = await adapter.query('test')
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(result.text).toBe('Test response')
+  }, 10000)
+
+  it('retries on ETIMEDOUT network error', async () => {
+    const networkErr = Object.assign(new Error('connection timed out'), { code: 'ETIMEDOUT' })
+    mockCreate.mockRejectedValueOnce(networkErr).mockResolvedValueOnce(mockResponse())
+
+    const result = await adapter.query('test')
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(result.text).toBe('Test response')
+  }, 10000)
+
+  it('does not retry on AbortError', async () => {
+    const abortErr = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
+    mockCreate.mockRejectedValueOnce(abortErr)
+
+    await expect(adapter.query('test')).rejects.toThrow('The operation was aborted')
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry on unknown errors without status or code', async () => {
+    const genericErr = new Error('something wrong')
+    mockCreate.mockRejectedValueOnce(genericErr)
+
+    await expect(adapter.query('test')).rejects.toThrow('something wrong')
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries on 429 with Retry-After at 10 (boundary — allowed)', async () => {
+    const error429 = Object.assign(new Error('Rate limited'), {
+      status: 429,
+      headers: { 'retry-after': '10' },
+    })
+    mockCreate.mockRejectedValueOnce(error429).mockResolvedValueOnce(mockResponse())
+
+    const result = await adapter.query('test')
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(result.text).toBe('Test response')
+  }, 15000)
+
+  it('does not retry on 429 with Retry-After at 11 (boundary — rejected)', async () => {
+    const error429 = Object.assign(new Error('Rate limited'), {
+      status: 429,
+      headers: { 'retry-after': '11' },
+    })
+    mockCreate.mockRejectedValueOnce(error429)
+
+    await expect(adapter.query('test')).rejects.toThrow('Rate limited')
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('parseGrokJson', () => {
@@ -360,5 +433,48 @@ describe('parseGrokJson', () => {
     const raw = '{"outer": {"inner": [1, 2]}}'
     const result = parseGrokJson<{ outer: { inner: number[] } }>(raw)
     expect(result.outer.inner).toEqual([1, 2])
+  })
+
+  it('parses JSON with unicode characters', () => {
+    const result = parseGrokJson<{ emoji: string; name: string }>('{"emoji": "🚀", "name": "café"}')
+    expect(result).toEqual({ emoji: '🚀', name: 'café' })
+  })
+
+  it('handles multiple JSON-like objects, takes first', () => {
+    const raw = 'Here: {"a": 1} and {"b": 2}'
+    expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
+  })
+
+  it('handles array at top level with preamble', () => {
+    const raw = 'Result:\n[{"id": 1}, {"id": 2}]'
+    const result = parseGrokJson<{ id: number }[]>(raw)
+    expect(result).toEqual([{ id: 1 }, { id: 2 }])
+  })
+
+  it('throws on only opening brace', () => {
+    const raw = 'text { more text'
+    expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
+  })
+
+  it('handles empty markdown fences', () => {
+    const raw = '```json\n\n```'
+    expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
+  })
+
+  it('handles JSON with trailing comma (invalid JSON)', () => {
+    const raw = '{"a": 1,}'
+    expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
+  })
+
+  it('GrokParseError message includes both raw and cleaned preview', () => {
+    try {
+      parseGrokJson('preamble {"bad": }')
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(GrokParseError)
+      const msg = (err as GrokParseError).message
+      expect(msg).toContain('Raw')
+      expect(msg).toContain('Cleaned')
+    }
   })
 })

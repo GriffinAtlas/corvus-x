@@ -40,7 +40,7 @@ async function runSetup(): Promise<void> {
     }
   }
 
-  console.log("  ✓ Ready. Try: corvus ask \"what's trending in AI?\"\n")
+  console.log('  ✓ Ready. Try: corvus ask "what\'s trending in AI?"\n')
 }
 
 function runStatus(): void {

@@ -12,7 +12,9 @@ vi.mock('openai', () => ({
 
 vi.mock('../../../src/core/cache.js', () => ({
   QueryCache: class {
-    get() { return null }
+    get() {
+      return null
+    }
     set() {}
   },
 }))
@@ -54,7 +56,9 @@ describe('registerAskCommand', () => {
   it('exits with code 1 when no grok key is configured', async () => {
     try {
       await program.parseAsync(['node', 'corvus', 'ask', 'test question'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
@@ -89,7 +93,9 @@ describe('registerAskCommand', () => {
       usage: { prompt_tokens: 10, completion_tokens: 10 },
     })
     await program.parseAsync(['node', 'corvus', 'ask', 'what', 'is', 'trending'])
-    const userMsg = mockQuery.mock.calls[0][0].messages.find((m: { role: string }) => m.role === 'user')
+    const userMsg = mockQuery.mock.calls[0][0].messages.find(
+      (m: { role: string }) => m.role === 'user',
+    )
     expect(userMsg.content).toBe('what is trending')
   })
 
@@ -110,7 +116,9 @@ describe('registerAskCommand', () => {
     mockQuery.mockRejectedValueOnce(new Error('rate limit exceeded'))
     try {
       await program.parseAsync(['node', 'corvus', 'ask', 'test'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('rate limit exceeded'))).toBe(true)
   })
@@ -120,7 +128,9 @@ describe('registerAskCommand', () => {
     mockQuery.mockRejectedValueOnce('string error')
     try {
       await program.parseAsync(['node', 'corvus', 'ask', 'test'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('string error'))).toBe(true)
   })
@@ -132,7 +142,14 @@ describe('registerAskCommand', () => {
       usage: { prompt_tokens: 10, completion_tokens: 10 },
     })
     await program.parseAsync(['node', 'corvus', 'ask', '-f', 'json', 'test'])
-    const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    const jsonLog = logs.find((l) => {
+      try {
+        JSON.parse(l)
+        return true
+      } catch {
+        return false
+      }
+    })
     expect(jsonLog).toBeDefined()
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('ask')

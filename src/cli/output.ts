@@ -14,8 +14,6 @@ import type {
 
 export type OutputFormat = 'table' | 'json' | 'csv' | 'md'
 
-// ── Legacy prose output (used by `ask`) ──
-
 export function formatOutput(result: CommandResult, format: OutputFormat): string {
   switch (format) {
     case 'json':
@@ -31,9 +29,7 @@ export function formatOutput(result: CommandResult, format: OutputFormat): strin
 }
 
 function formatTable(result: CommandResult): string {
-  const cost = result.cached
-    ? t.muted('(cached)')
-    : t.muted(`cost: $${result.cost.toFixed(4)}`)
+  const cost = result.cached ? t.muted('(cached)') : t.muted(`cost: $${result.cost.toFixed(4)}`)
 
   return [
     '',
@@ -73,8 +69,6 @@ function formatMarkdown(result: CommandResult): string {
     `*Cost: $${result.cost.toFixed(4)} | ${result.cached ? 'cached' : 'live'}*`,
   ].join('\n')
 }
-
-// ── Structured output (used by scan, pulse, trace, gather, read, scope) ──
 
 export function formatStructuredOutput<T extends Snapshot>(
   result: StructuredCommandResult<T>,
@@ -132,8 +126,6 @@ export function formatStructuredOutput<T extends Snapshot>(
   }
 }
 
-// ── Helpers ──
-
 function compactNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`
@@ -144,8 +136,6 @@ function sentimentColor(val: number): string {
   const formatted = val >= 0 ? `+${val}` : String(val)
   return val >= 0 ? t.positive(formatted) : t.negative(formatted)
 }
-
-// ── Per-command renderers ──
 
 export function renderScan(data: ScanSnapshot): string {
   const { metrics, sentiment, topAccounts, narratives, signals } = data
@@ -251,7 +241,10 @@ export function renderTrace(data: TraceSnapshot): string {
     for (const phase of timeline) {
       const amplifiers =
         phase.keyAmplifiers.length > 0
-          ? ` — ${phase.keyAmplifiers.slice(0, 3).map((a) => `@${a}`).join(', ')}`
+          ? ` — ${phase.keyAmplifiers
+              .slice(0, 3)
+              .map((a) => `@${a}`)
+              .join(', ')}`
           : ''
       parts.push(
         `    ${phase.phase}  ${phase.tweetCount} tweets  ${t.muted(phase.timeframe)}${amplifiers}`,
@@ -287,9 +280,7 @@ export function renderGather(data: GatherSnapshot): string {
     parts.push(`  ${t.heading('Top Posts')}`)
     for (const p of topPosts.slice(0, 3)) {
       parts.push(`    @${p.author}  ${compactNum(p.engagement)} engagement`)
-      parts.push(
-        `      ${t.muted(p.text.length > 120 ? p.text.slice(0, 120) + '...' : p.text)}`,
-      )
+      parts.push(`      ${t.muted(p.text.length > 120 ? p.text.slice(0, 120) + '...' : p.text)}`)
     }
   }
 
@@ -417,19 +408,17 @@ export interface AgentBriefRenderOptions {
 export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOptions): string {
   const parts: string[] = []
 
-  // Signal line in a box
   parts.push(box([`  ${brief.signalLine}  `]))
   parts.push('')
 
-  // Sentiment bar
   const sentimentStr = sentimentColor(brief.sentiment)
   const bar = sentimentBar(brief.sentiment, 20)
-  const prevStr = opts.previousSentiment !== undefined
-    ? t.muted(` (was ${opts.previousSentiment >= 0 ? '+' : ''}${opts.previousSentiment})`)
-    : ''
+  const prevStr =
+    opts.previousSentiment !== undefined
+      ? t.muted(` (was ${opts.previousSentiment >= 0 ? '+' : ''}${opts.previousSentiment})`)
+      : ''
   parts.push(`  Sentiment  ${sentimentStr} avg  ${bar}${prevStr}`)
 
-  // Key findings
   if (brief.summary.length > 0) {
     parts.push('')
     parts.push(`  ${t.heading('Key Findings')}`)
@@ -438,7 +427,6 @@ export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOption
     }
   }
 
-  // Top voices
   if (brief.keyAccounts.length > 0) {
     parts.push('')
     parts.push(`  ${t.heading('Top Voices')}`)
@@ -449,7 +437,6 @@ export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOption
     }
   }
 
-  // Contradictions
   if (brief.contradictions.length > 0) {
     parts.push('')
     parts.push(`  ${t.warning('Contradictions')}`)
@@ -458,22 +445,17 @@ export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOption
     }
   }
 
-  // Confidence
   const confBar = confidenceBar(brief.confidence.overall, 20)
   const volumeLabel = brief.confidence.volume
   parts.push('')
   parts.push(`  Confidence  ${confBar}  ${brief.confidence.overall}  ${volumeLabel}`)
-  parts.push(
-    `  Sample: ${brief.sampleSize} tweets from ${opts.accountCount} authors`,
-  )
+  parts.push(`  Sample: ${brief.sampleSize} tweets from ${opts.accountCount} authors`)
 
-  // Staleness
   if (brief.staleness !== null && brief.staleness > 3600_000) {
     const hours = Math.round(brief.staleness / 3600_000)
     parts.push(`  ${t.warning(`stale: newest tweet ${hours}h ago`)}`)
   }
 
-  // Footer
   parts.push('')
   parts.push(`  ${divider()}`)
   const duration = (opts.durationMs / 1000).toFixed(1)
@@ -482,10 +464,6 @@ export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOption
   )
 
   return parts.join('\n')
-}
-
-export function renderAgentBriefJson(brief: AgentBrief): string {
-  return JSON.stringify(brief, null, 2)
 }
 
 export function renderAgentBriefMd(brief: AgentBrief, opts: AgentBriefRenderOptions): string {
@@ -509,7 +487,9 @@ export function renderAgentBriefMd(brief: AgentBrief, opts: AgentBriefRenderOpti
     parts.push('| Handle | Reach | Sentiment | Stance |')
     parts.push('|--------|-------|-----------|--------|')
     for (const acct of brief.keyAccounts) {
-      parts.push(`| @${acct.handle} | ${compactNum(acct.reach)} | ${acct.sentiment} | ${acct.stance} |`)
+      parts.push(
+        `| @${acct.handle} | ${compactNum(acct.reach)} | ${acct.sentiment} | ${acct.stance} |`,
+      )
     }
     parts.push('')
   }
@@ -523,7 +503,9 @@ export function renderAgentBriefMd(brief: AgentBrief, opts: AgentBriefRenderOpti
   }
 
   parts.push(`---`)
-  parts.push(`*Confidence: ${brief.confidence.overall} (${brief.confidence.volume}) | ${opts.stepCount} steps | ${opts.tweetCount} tweets | $${opts.cost.toFixed(4)}*`)
+  parts.push(
+    `*Confidence: ${brief.confidence.overall} (${brief.confidence.volume}) | ${opts.stepCount} steps | ${opts.tweetCount} tweets | $${opts.cost.toFixed(4)}*`,
+  )
 
   return parts.join('\n')
 }

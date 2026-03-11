@@ -16,7 +16,8 @@ import type { Snapshot } from './schemas.js'
 export function computeBaseMetrics(tweets: Tweet[]): BaseMetrics {
   const tweetCount = tweets.length
   const totalEngagement = tweets.reduce(
-    (sum, t) => sum + t.metrics.likes + t.metrics.retweets + t.metrics.replies + t.metrics.impressions,
+    (sum, t) =>
+      sum + t.metrics.likes + t.metrics.retweets + t.metrics.replies + t.metrics.impressions,
     0,
   )
   const uniqueAuthors = new Set(tweets.map((t) => t.authorId)).size
@@ -67,7 +68,11 @@ export function computeTopAccounts(
 
   for (let i = 0; i < tweets.length; i++) {
     const tweet = tweets[i]
-    const existing = authorStats.get(tweet.authorId) ?? { count: 0, sentimentSum: 0, authorId: tweet.authorId }
+    const existing = authorStats.get(tweet.authorId) ?? {
+      count: 0,
+      sentimentSum: 0,
+      authorId: tweet.authorId,
+    }
     existing.count++
 
     const score = scores.find((s) => s.index === i)
@@ -83,7 +88,8 @@ export function computeTopAccounts(
       handle: user?.username ?? authorId,
       postCount: stats.count,
       followers: user?.followersCount ?? 0,
-      avgSentiment: stats.count > 0 ? Math.round((stats.sentimentSum / stats.count) * 100) / 100 : 0,
+      avgSentiment:
+        stats.count > 0 ? Math.round((stats.sentimentSum / stats.count) * 100) / 100 : 0,
     })
   }
 
@@ -118,7 +124,8 @@ export function computeNarratives(
       theme,
       description: stats.description,
       tweetCount: stats.count,
-      avgSentiment: stats.count > 0 ? Math.round((stats.sentimentSum / stats.count) * 100) / 100 : 0,
+      avgSentiment:
+        stats.count > 0 ? Math.round((stats.sentimentSum / stats.count) * 100) / 100 : 0,
     })
   }
 
@@ -153,7 +160,10 @@ export function computeKeyVoices(
   const userMap = new Map<string, XUser>()
   for (const u of users) userMap.set(u.id, u)
 
-  const voiceMap = new Map<string, { sentimentSum: number; count: number; reach: number; handle: string }>()
+  const voiceMap = new Map<
+    string,
+    { sentimentSum: number; count: number; reach: number; handle: string }
+  >()
 
   for (let i = 0; i < tweets.length; i++) {
     const tweet = tweets[i]
@@ -181,7 +191,10 @@ export function computeKeyVoices(
     .slice(0, limit)
 }
 
-export function computeConfidence(allTweets: Tweet[], allScores: GrokTweetScore[]): ConfidenceScore {
+export function computeConfidence(
+  allTweets: Tweet[],
+  allScores: GrokTweetScore[],
+): ConfidenceScore {
   if (allScores.length === 0) {
     return { overall: 0, volume: 'low', consistency: 0, diversity: 0 }
   }
@@ -198,7 +211,9 @@ export function computeConfidence(allTweets: Tweet[], allScores: GrokTweetScore[
   const volumeScore = allTweets.length < 30 ? 0.3 : allTweets.length < 100 ? 0.6 : 0.9
   const consistencyScore = Math.max(0, 1 - consistency)
   const diversityScore = Math.min(1, diversity * 2)
-  const overall = Number((volumeScore * 0.4 + consistencyScore * 0.3 + diversityScore * 0.3).toFixed(2))
+  const overall = Number(
+    (volumeScore * 0.4 + consistencyScore * 0.3 + diversityScore * 0.3).toFixed(2),
+  )
 
   return {
     overall,
@@ -216,13 +231,15 @@ interface StepForContradictions {
 }
 
 function hasSentiment(snap: Snapshot): snap is ScanSnapshot | PulseSnapshot | GatherSnapshot {
-  return 'sentiment' in snap && typeof (snap as { sentiment?: { avg?: number } }).sentiment?.avg === 'number'
+  return (
+    'sentiment' in snap &&
+    typeof (snap as { sentiment?: { avg?: number } }).sentiment?.avg === 'number'
+  )
 }
 
 export function detectContradictions(results: StepForContradictions[]): string[] {
   const contradictions: string[] = []
 
-  // 1. Cross-step sentiment divergence
   const sentimentSteps = results.filter((r) => hasSentiment(r.snapshot))
   for (let i = 0; i < sentimentSteps.length; i++) {
     for (let j = i + 1; j < sentimentSteps.length; j++) {
@@ -239,7 +256,6 @@ export function detectContradictions(results: StepForContradictions[]): string[]
     }
   }
 
-  // 2. Top accounts vs crowd
   for (const r of results) {
     if (r.tweets.length === 0 || r.scores.length === 0) continue
     if (!hasSentiment(r.snapshot)) continue
@@ -279,7 +295,6 @@ export function detectContradictions(results: StepForContradictions[]): string[]
     }
   }
 
-  // 3. Bull/bear signal strength
   for (const r of results) {
     if (r.command !== 'pulse') continue
     const snap = r.snapshot as PulseSnapshot
@@ -291,7 +306,6 @@ export function detectContradictions(results: StepForContradictions[]): string[]
     }
   }
 
-  // 4. Narrative vs sentiment mismatch
   for (const r of results) {
     if (!('narratives' in r.snapshot)) continue
     if (!hasSentiment(r.snapshot)) continue

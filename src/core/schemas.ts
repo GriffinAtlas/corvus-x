@@ -1,11 +1,9 @@
 // ── Grok JSON response shapes ──
-// These define what we instruct Grok to return as JSON.
-// Corvus computes aggregate metrics from these + raw tweet data.
 
 export interface GrokTweetScore {
   index: number
-  sentiment: number  // -1.0 to 1.0
-  narrative: string  // theme label matching a narrative entry
+  sentiment: number // -1.0 to 1.0
+  narrative: string // theme label matching a narrative entry
 }
 
 export interface GrokNarrative {
@@ -62,8 +60,6 @@ export interface GrokScopeResponse {
 }
 
 // ── Computed snapshot shapes ──
-// These are what Corvus stores. They combine real metrics (from X API)
-// with Grok's analysis. Every number field is computed from data.
 
 export interface AccountEntry {
   handle: string
@@ -238,8 +234,7 @@ export interface StoredSnapshot<T extends Snapshot = Snapshot> {
   cost: number
 }
 
-// ── Diff match key configuration ──
-// Tells the differ which field to use when matching objects in arrays.
+// ── Diff match keys ──
 
 export type MatchKeys = Record<string, string>
 

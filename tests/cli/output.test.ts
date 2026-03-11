@@ -76,7 +76,9 @@ describe('formatOutput', () => {
     })
 
     it('handles special characters in response', () => {
-      const parsed = JSON.parse(formatOutput(makeResult({ response: 'said "hello" and \'goodbye\'' }), 'json'))
+      const parsed = JSON.parse(
+        formatOutput(makeResult({ response: 'said "hello" and \'goodbye\'' }), 'json'),
+      )
       expect(parsed.response).toBe('said "hello" and \'goodbye\'')
     })
 
@@ -177,7 +179,9 @@ describe('formatOutput', () => {
   })
 
   it('handles unicode in response', () => {
-    const parsed = JSON.parse(formatOutput(makeResult({ response: 'Trending: 🔥 AI agents' }), 'json'))
+    const parsed = JSON.parse(
+      formatOutput(makeResult({ response: 'Trending: 🔥 AI agents' }), 'json'),
+    )
     expect(parsed.response).toBe('Trending: 🔥 AI agents')
   })
 })

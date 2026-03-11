@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { XAdapter, XRateLimitError, XApiError, formatTweetsForAnalysis } from '../../src/core/x-adapter.js'
+import {
+  XAdapter,
+  XRateLimitError,
+  XApiError,
+  formatTweetsForAnalysis,
+} from '../../src/core/x-adapter.js'
 import type { Tweet, XUser } from '../../src/core/x-adapter.js'
 
 const mockFetch = vi.fn()
@@ -119,11 +124,13 @@ describe('XAdapter', () => {
   })
 
   it('searchRecent returns tweets, users, and nextToken', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      data: [RAW_TWEET],
-      includes: { users: [RAW_USER] },
-      meta: { next_token: 'abc123' },
-    }))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        data: [RAW_TWEET],
+        includes: { users: [RAW_USER] },
+        meta: { next_token: 'abc123' },
+      }),
+    )
     const result = await adapter.searchRecent('AI agents')
     expect(result.tweets).toHaveLength(1)
     expect(result.tweets[0].text).toBe('AI agents are the future')
@@ -159,16 +166,20 @@ describe('XAdapter', () => {
 
   it('searchRecent paginates across multiple pages', async () => {
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ ...RAW_TWEET, id: '100' }],
-        includes: { users: [RAW_USER] },
-        meta: { next_token: 'page2' },
-      }))
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ ...RAW_TWEET, id: '200' }],
-        includes: { users: [RAW_USER] },
-        meta: {},
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ ...RAW_TWEET, id: '100' }],
+          includes: { users: [RAW_USER] },
+          meta: { next_token: 'page2' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ ...RAW_TWEET, id: '200' }],
+          includes: { users: [RAW_USER] },
+          meta: {},
+        }),
+      )
 
     const result = await adapter.searchRecent('test', 10, 2)
     expect(result.tweets).toHaveLength(2)
@@ -178,16 +189,20 @@ describe('XAdapter', () => {
 
   it('searchRecent deduplicates tweets across pages', async () => {
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({
-        data: [RAW_TWEET],
-        includes: { users: [RAW_USER] },
-        meta: { next_token: 'page2' },
-      }))
-      .mockResolvedValueOnce(jsonResponse({
-        data: [RAW_TWEET],
-        includes: { users: [RAW_USER] },
-        meta: {},
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [RAW_TWEET],
+          includes: { users: [RAW_USER] },
+          meta: { next_token: 'page2' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [RAW_TWEET],
+          includes: { users: [RAW_USER] },
+          meta: {},
+        }),
+      )
 
     const result = await adapter.searchRecent('test', 10, 2)
     expect(result.tweets).toHaveLength(1)
@@ -195,11 +210,13 @@ describe('XAdapter', () => {
   })
 
   it('searchRecent stops early when no nextToken', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      data: [RAW_TWEET],
-      includes: { users: [RAW_USER] },
-      meta: {},
-    }))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        data: [RAW_TWEET],
+        includes: { users: [RAW_USER] },
+        meta: {},
+      }),
+    )
 
     const result = await adapter.searchRecent('test', 10, 3)
     expect(result.tweets).toHaveLength(1)
@@ -208,16 +225,20 @@ describe('XAdapter', () => {
 
   it('searchRecent passes next_token as query param', async () => {
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ ...RAW_TWEET, id: '1' }],
-        includes: { users: [] },
-        meta: { next_token: 'tok123' },
-      }))
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ ...RAW_TWEET, id: '2' }],
-        includes: { users: [] },
-        meta: {},
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ ...RAW_TWEET, id: '1' }],
+          includes: { users: [] },
+          meta: { next_token: 'tok123' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ ...RAW_TWEET, id: '2' }],
+          includes: { users: [] },
+          meta: {},
+        }),
+      )
 
     await adapter.searchRecent('test', 10, 2)
     const secondUrl = mockFetch.mock.calls[1][0] as string
@@ -234,11 +255,11 @@ describe('XAdapter', () => {
   })
 
   it('throws XRateLimitError on 429', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(
-      { detail: 'Too Many Requests' },
-      429,
-      { 'x-rate-limit-reset': String(Math.floor(Date.now() / 1000) + 900) },
-    ))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ detail: 'Too Many Requests' }, 429, {
+        'x-rate-limit-reset': String(Math.floor(Date.now() / 1000) + 900),
+      }),
+    )
     try {
       await adapter.getTweet('123')
       expect.fail('should have thrown')
@@ -249,10 +270,7 @@ describe('XAdapter', () => {
   })
 
   it('throws XApiError on non-ok response', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(
-      { detail: 'Not Found' },
-      404,
-    ))
+    mockFetch.mockResolvedValueOnce(jsonResponse({ detail: 'Not Found' }, 404))
     try {
       await adapter.getTweet('999')
       expect.fail('should have thrown')
@@ -274,9 +292,11 @@ describe('XAdapter', () => {
   })
 
   it('handles tweet with missing optional fields', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      data: { id: '789', text: 'minimal tweet' },
-    }))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        data: { id: '789', text: 'minimal tweet' },
+      }),
+    )
     const tweet = await adapter.getTweet('789')
     expect(tweet.authorId).toBe('')
     expect(tweet.createdAt).toBe('')
@@ -285,9 +305,11 @@ describe('XAdapter', () => {
   })
 
   it('handles user with missing optional fields', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({
-      data: { id: 'u1', username: 'min', name: 'Min' },
-    }))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        data: { id: 'u1', username: 'min', name: 'Min' },
+      }),
+    )
     const user = await adapter.getUser('min')
     expect(user.description).toBe('')
     expect(user.followersCount).toBe(0)
@@ -325,17 +347,41 @@ describe('XAdapter', () => {
 describe('formatTweetsForAnalysis', () => {
   const tweets: Tweet[] = [
     {
-      id: '1', text: 'Hello world', authorId: 'a1', createdAt: '2024-01-01',
+      id: '1',
+      text: 'Hello world',
+      authorId: 'a1',
+      createdAt: '2024-01-01',
       metrics: { likes: 10, retweets: 5, replies: 2, impressions: 100 },
     },
     {
-      id: '2', text: 'Goodbye', authorId: 'a2', createdAt: '2024-01-02',
+      id: '2',
+      text: 'Goodbye',
+      authorId: 'a2',
+      createdAt: '2024-01-02',
       metrics: { likes: 20, retweets: 3, replies: 1, impressions: 200 },
     },
   ]
   const users: XUser[] = [
-    { id: 'a1', username: 'alice', name: 'Alice', description: '', followersCount: 100, followingCount: 50, tweetCount: 10, verified: false },
-    { id: 'a2', username: 'bob', name: 'Bob', description: '', followersCount: 200, followingCount: 100, tweetCount: 20, verified: false },
+    {
+      id: 'a1',
+      username: 'alice',
+      name: 'Alice',
+      description: '',
+      followersCount: 100,
+      followingCount: 50,
+      tweetCount: 10,
+      verified: false,
+    },
+    {
+      id: 'a2',
+      username: 'bob',
+      name: 'Bob',
+      description: '',
+      followersCount: 200,
+      followingCount: 100,
+      tweetCount: 20,
+      verified: false,
+    },
   ]
 
   it('formats tweets with index and handle', () => {

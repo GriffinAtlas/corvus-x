@@ -15,9 +15,8 @@ describe('diffSnapshots', () => {
       path: 'count',
       type: 'changed',
     })
-    // values are formatted strings from formatNum
-    expect(typeof lines[0].oldValue).toBe('string')
-    expect(typeof lines[0].newValue).toBe('string')
+    expect(lines[0].oldValue).toBe('10')
+    expect(lines[0].newValue).toBe('20')
   })
 
   it('detects a changed string', () => {
@@ -79,14 +78,24 @@ describe('diffSnapshots', () => {
 
   it('detects added objects in matched arrays', () => {
     const oldData = { users: [{ name: 'alice', score: 1 }] }
-    const newData = { users: [{ name: 'alice', score: 1 }, { name: 'bob', score: 2 }] }
+    const newData = {
+      users: [
+        { name: 'alice', score: 1 },
+        { name: 'bob', score: 2 },
+      ],
+    }
     const lines = diffSnapshots(oldData, newData, { users: 'name' })
     const added = lines.find((l) => l.type === 'added')
     expect(added).toBeDefined()
   })
 
   it('detects removed objects in matched arrays', () => {
-    const oldData = { users: [{ name: 'alice', score: 1 }, { name: 'bob', score: 2 }] }
+    const oldData = {
+      users: [
+        { name: 'alice', score: 1 },
+        { name: 'bob', score: 2 },
+      ],
+    }
     const newData = { users: [{ name: 'alice', score: 1 }] }
     const lines = diffSnapshots(oldData, newData, { users: 'name' })
     const removed = lines.find((l) => l.type === 'removed')
@@ -141,10 +150,41 @@ describe('diffSnapshots', () => {
 
   it('formats integer values with toLocaleString', () => {
     const lines = diffSnapshots({ count: 1000 }, { count: 2000 }, {})
-    // toLocaleString may vary by locale but the values should be string representations
     expect(lines[0].type).toBe('changed')
-    expect(typeof lines[0].oldValue).toBe('string')
-    expect(typeof lines[0].newValue).toBe('string')
+    // toLocaleString output: 1000 → "1,000" (en-US) or "1000" etc.
+    expect(lines[0].oldValue).toMatch(/1[,.]?000/)
+    expect(lines[0].newValue).toMatch(/2[,.]?000/)
+  })
+
+  it('handles null old value treated as undefined (field added)', () => {
+    const lines = diffSnapshots({ a: null }, { a: null, b: 1 } as any, {})
+    const added = lines.find((l) => l.type === 'added')
+    expect(added).toBeDefined()
+    expect(added!.path).toBe('b')
+  })
+
+  it('treats null vs non-null as a change — falls through with no diff line', () => {
+    // null is typeof "object" but the nested-object branch requires both non-null,
+    // so null vs string falls through every branch and produces no diff line.
+    const lines = diffSnapshots({ x: null }, { x: 'hello' } as any, {})
+    expect(lines).toEqual([])
+  })
+
+  it('handles negative delta in formatDiffLines', () => {
+    const lines: DiffLine[] = [
+      { path: 'followers', type: 'changed', oldValue: '200', newValue: '150' },
+    ]
+    const output = formatDiffLines(lines, 60_000)
+    expect(output).toContain('(-50)')
+  })
+
+  it('formatDiffLines simplifies metrics. prefix from path', () => {
+    const lines: DiffLine[] = [
+      { path: 'metrics.tweetCount', type: 'changed', oldValue: '10', newValue: '20' },
+    ]
+    const output = formatDiffLines(lines, 60_000)
+    expect(output).toContain('tweetCount')
+    expect(output).not.toContain('metrics.')
   })
 })
 
@@ -154,53 +194,41 @@ describe('formatDiffLines', () => {
   })
 
   it('formats time as minutes when under 60 min', () => {
-    const lines: DiffLine[] = [
-      { path: 'count', type: 'changed', oldValue: '5', newValue: '10' },
-    ]
+    const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '5', newValue: '10' }]
     const twoMinutesMs = 2 * 60 * 1000
     const output = formatDiffLines(lines, twoMinutesMs)
     expect(output).toContain('2m ago')
   })
 
   it('formats time as hours when under 24h', () => {
-    const lines: DiffLine[] = [
-      { path: 'count', type: 'changed', oldValue: '1', newValue: '2' },
-    ]
+    const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '1', newValue: '2' }]
     const threeHoursMs = 3 * 60 * 60 * 1000
     const output = formatDiffLines(lines, threeHoursMs)
     expect(output).toContain('3h ago')
   })
 
   it('formats time as days when 24h or more', () => {
-    const lines: DiffLine[] = [
-      { path: 'count', type: 'changed', oldValue: '1', newValue: '2' },
-    ]
+    const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '1', newValue: '2' }]
     const twoDaysMs = 2 * 24 * 60 * 60 * 1000
     const output = formatDiffLines(lines, twoDaysMs)
     expect(output).toContain('2d ago')
   })
 
   it('shows arrow for changed values', () => {
-    const lines: DiffLine[] = [
-      { path: 'score', type: 'changed', oldValue: '10', newValue: '20' },
-    ]
+    const lines: DiffLine[] = [{ path: 'score', type: 'changed', oldValue: '10', newValue: '20' }]
     const output = formatDiffLines(lines, 60_000)
     expect(output).toContain('→')
   })
 
   it('shows + prefix for added values', () => {
-    const lines: DiffLine[] = [
-      { path: 'newField', type: 'added', newValue: '42' },
-    ]
+    const lines: DiffLine[] = [{ path: 'newField', type: 'added', newValue: '42' }]
     const output = formatDiffLines(lines, 60_000)
     expect(output).toContain('+')
     expect(output).toContain('newField')
   })
 
   it('shows - prefix for removed values', () => {
-    const lines: DiffLine[] = [
-      { path: 'oldField', type: 'removed', oldValue: '99' },
-    ]
+    const lines: DiffLine[] = [{ path: 'oldField', type: 'removed', oldValue: '99' }]
     const output = formatDiffLines(lines, 60_000)
     expect(output).toContain('-')
     expect(output).toContain('oldField')
@@ -215,11 +243,27 @@ describe('formatDiffLines', () => {
   })
 
   it('contains header line with changes since', () => {
-    const lines: DiffLine[] = [
-      { path: 'x', type: 'changed', oldValue: '1', newValue: '2' },
-    ]
+    const lines: DiffLine[] = [{ path: 'x', type: 'changed', oldValue: '1', newValue: '2' }]
     const output = formatDiffLines(lines, 5 * 60_000)
     expect(output).toContain('changes since')
     expect(output).toContain('5m ago')
+  })
+
+  it('formats 0 minutes as 0m', () => {
+    const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '1', newValue: '2' }]
+    const output = formatDiffLines(lines, 0)
+    expect(output).toContain('0m ago')
+  })
+
+  it('handles exactly 60 minutes as 1h', () => {
+    const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '1', newValue: '2' }]
+    const output = formatDiffLines(lines, 60 * 60 * 1000)
+    expect(output).toContain('1h ago')
+  })
+
+  it('handles exactly 24 hours as 1d', () => {
+    const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '1', newValue: '2' }]
+    const output = formatDiffLines(lines, 24 * 60 * 60 * 1000)
+    expect(output).toContain('1d ago')
   })
 })

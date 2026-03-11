@@ -33,11 +33,7 @@ function buildTraceData(
   const metrics = computeBaseMetrics(tweets)
 
   let origin: TraceSnapshot['origin'] = null
-  if (
-    grok.originIndex !== null &&
-    grok.originIndex >= 0 &&
-    grok.originIndex < tweets.length
-  ) {
+  if (grok.originIndex !== null && grok.originIndex >= 0 && grok.originIndex < tweets.length) {
     const t = tweets[grok.originIndex]
     const user = userMap.get(t.authorId)
     origin = {
@@ -98,10 +94,11 @@ export async function buildTraceSnapshot(
   const grok = parseGrokJson<GrokTraceResponse>(response.text)
   const data = buildTraceData(tweets, grok, userMap)
 
-  const newestTweetAt = tweets.reduce((max, t) => {
-    const ts = new Date(t.createdAt).getTime()
-    return Number.isFinite(ts) && ts > max ? ts : max
-  }, 0) || null
+  const newestTweetAt =
+    tweets.reduce((max, t) => {
+      const ts = new Date(t.createdAt).getTime()
+      return Number.isFinite(ts) && ts > max ? ts : max
+    }, 0) || null
 
   return {
     data,

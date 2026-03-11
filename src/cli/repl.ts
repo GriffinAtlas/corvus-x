@@ -82,7 +82,9 @@ export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
   rl.on('close', () => {
     const totalCost = ctx.history.reduce((sum, r) => sum + r.cost, 0)
     if (ctx.history.length > 0) {
-      console.log(t.muted(`\n  session: ${ctx.history.length} queries, $${totalCost.toFixed(4)} total\n`))
+      console.log(
+        t.muted(`\n  session: ${ctx.history.length} queries, $${totalCost.toFixed(4)} total\n`),
+      )
     }
   })
 }
@@ -125,7 +127,9 @@ function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'ex
 
     case '/cost': {
       const total = ctx.history.reduce((sum, r) => sum + r.cost, 0)
-      console.log(t.muted(`  session cost: $${total.toFixed(4)} across ${ctx.history.length} queries`))
+      console.log(
+        t.muted(`  session cost: $${total.toFixed(4)} across ${ctx.history.length} queries`),
+      )
       break
     }
 

@@ -95,7 +95,9 @@ describe('Watcher', () => {
       maxCycles: 2,
       onUpdate: () => {},
       onError: () => {},
-      onStop: (s) => { summary = s },
+      onStop: (s) => {
+        summary = s
+      },
     })
 
     await watcher.start('test-key')
@@ -123,7 +125,9 @@ describe('Watcher', () => {
       maxCycles: 2,
       onUpdate: () => {},
       onError: () => {},
-      onStop: (s) => { summary = s },
+      onStop: (s) => {
+        summary = s
+      },
     })
 
     await watcher.start('test-key')
@@ -149,6 +153,67 @@ describe('Watcher', () => {
     expect(errors).toHaveLength(1)
     expect(errors[0].message).toBe('API down')
     watcher.stop()
+  })
+
+  it('stops after 5 consecutive errors', async () => {
+    // Mock 5 consecutive failures
+    for (let i = 0; i < 5; i++) {
+      mockQuery.mockRejectedValueOnce(new Error(`Error ${i + 1}`))
+    }
+
+    const errors: Error[] = []
+    let summary: WatchSummary | null = null
+    const watcher = new Watcher('test', {
+      interval: 1000,
+      maxCycles: 0, // unlimited
+      onUpdate: () => {},
+      onError: (e) => errors.push(e),
+      onStop: (s) => {
+        summary = s
+      },
+    })
+
+    await watcher.start('test-key')
+    // First error fires immediately on start, then advance timer for remaining 4
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(1000)
+    }
+
+    expect(errors).toHaveLength(5)
+    expect(watcher.isRunning).toBe(false)
+    expect(summary).not.toBeNull()
+  })
+
+  it('resets consecutive error count on success', async () => {
+    // Fail twice, succeed once, fail twice more — should NOT stop
+    mockQuery
+      .mockRejectedValueOnce(new Error('err1'))
+      .mockRejectedValueOnce(new Error('err2'))
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 10 },
+      })
+      .mockRejectedValueOnce(new Error('err3'))
+      .mockRejectedValueOnce(new Error('err4'))
+
+    const errors: Error[] = []
+    const updates: CommandResult[] = []
+    const watcher = new Watcher('test', {
+      interval: 1000,
+      maxCycles: 5,
+      onUpdate: (r) => updates.push(r),
+      onError: (e) => errors.push(e),
+      onStop: () => {},
+    })
+
+    await watcher.start('test-key')
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(1000)
+    }
+
+    // Should still be running or have completed max cycles, not stopped from errors
+    expect(errors).toHaveLength(4)
+    expect(updates).toHaveLength(1)
   })
 
   it('stop() clears interval and marks not running', async () => {
@@ -209,7 +274,9 @@ describe('registerWatchCommand', () => {
   it('exits with code 1 when no grok key', async () => {
     try {
       await program.parseAsync(['node', 'corvus', 'watch', 'bitcoin'])
-    } catch { /* process.exit */ }
+    } catch {
+      /* process.exit */
+    }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })

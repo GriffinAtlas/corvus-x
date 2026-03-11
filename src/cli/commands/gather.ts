@@ -54,10 +54,11 @@ export async function buildGatherSnapshot(
   const topPosts = computeTopPosts(tweets, users)
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
-  const newestTweetAt = tweets.reduce((max, t) => {
-    const ts = new Date(t.createdAt).getTime()
-    return Number.isFinite(ts) && ts > max ? ts : max
-  }, 0) || null
+  const newestTweetAt =
+    tweets.reduce((max, t) => {
+      const ts = new Date(t.createdAt).getTime()
+      return Number.isFinite(ts) && ts > max ? ts : max
+    }, 0) || null
 
   return {
     data: {

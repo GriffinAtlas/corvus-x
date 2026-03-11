@@ -51,10 +51,11 @@ export async function buildScanSnapshot(
   const topAccounts = computeTopAccounts(tweets, grok.tweetAnalysis, users)
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
-  const newestTweetAt = tweets.reduce((max, t) => {
-    const ts = new Date(t.createdAt).getTime()
-    return Number.isFinite(ts) && ts > max ? ts : max
-  }, 0) || null
+  const newestTweetAt =
+    tweets.reduce((max, t) => {
+      const ts = new Date(t.createdAt).getTime()
+      return Number.isFinite(ts) && ts > max ? ts : max
+    }, 0) || null
 
   return {
     data: { metrics, sentiment, topAccounts, narratives, signals: grok.signals },

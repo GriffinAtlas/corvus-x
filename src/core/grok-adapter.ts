@@ -32,10 +32,8 @@ export class GrokParseError extends Error {
 export function parseGrokJson<T>(raw: string): T {
   let cleaned = raw.trim()
 
-  // Strip markdown fences: ```json ... ``` or ``` ... ```
   cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
 
-  // Strip any text before the first { or [
   const firstBrace = cleaned.indexOf('{')
   const firstBracket = cleaned.indexOf('[')
   let start = -1
@@ -47,7 +45,6 @@ export function parseGrokJson<T>(raw: string): T {
     throw new GrokParseError(raw, cleaned, new SyntaxError('No JSON object or array found'))
   }
 
-  // Strip any text after the last } or ]
   const lastBrace = cleaned.lastIndexOf('}')
   const lastBracket = cleaned.lastIndexOf(']')
   const end = Math.max(lastBrace, lastBracket)
@@ -69,7 +66,6 @@ function isTransientError(err: unknown): { retry: boolean; retryAfter?: number }
   if (err && typeof err === 'object' && 'status' in err) {
     const status = (err as { status: number }).status
     if (status === 429) {
-      // Check for Retry-After header
       let retryAfter: number | undefined
       if ('headers' in err && err.headers && typeof err.headers === 'object') {
         const headers = err.headers as Record<string, string>
@@ -120,13 +116,21 @@ export class GrokAdapter {
     if (options.enableXSearch) {
       tools.push({
         type: 'function',
-        function: { name: 'x_search', description: 'Search X posts', parameters: { type: 'object', properties: {} } },
+        function: {
+          name: 'x_search',
+          description: 'Search X posts',
+          parameters: { type: 'object', properties: {} },
+        },
       })
     }
     if (options.enableWebSearch) {
       tools.push({
         type: 'function',
-        function: { name: 'web_search', description: 'Search the web', parameters: { type: 'object', properties: {} } },
+        function: {
+          name: 'web_search',
+          description: 'Search the web',
+          parameters: { type: 'object', properties: {} },
+        },
       })
     }
 

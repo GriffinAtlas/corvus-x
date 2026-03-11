@@ -3,6 +3,7 @@ import { QueryCache } from '../../src/core/cache.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import crypto from 'crypto'
 
 describe('QueryCache', () => {
   let tmpDir: string
@@ -49,14 +50,18 @@ describe('QueryCache', () => {
     cache.set('ask', 'test', 'response', 0.001, 1) // 1ms TTL
     // Wait for expiry
     const start = Date.now()
-    while (Date.now() - start < 5) { /* spin */ }
+    while (Date.now() - start < 5) {
+      /* spin */
+    }
     expect(cache.get('ask', 'test')).toBeNull()
   })
 
   it('expired entry file is deleted on get', () => {
     cache.set('ask', 'test', 'response', 0.001, 1)
     const start = Date.now()
-    while (Date.now() - start < 5) { /* spin */ }
+    while (Date.now() - start < 5) {
+      /* spin */
+    }
     cache.get('ask', 'test')
     const files = fs.readdirSync(path.join(tmpDir, 'cache'))
     expect(files).toHaveLength(0)
@@ -80,7 +85,9 @@ describe('QueryCache', () => {
     cache.set('ask', 'short', 'r1', 0.001, 1) // expires instantly
     cache.set('ask', 'long', 'r2', 0.001, 60000) // 1 minute TTL
     const start = Date.now()
-    while (Date.now() - start < 5) { /* spin */ }
+    while (Date.now() - start < 5) {
+      /* spin */
+    }
     const evicted = cache.evictExpired()
     expect(evicted).toBe(1)
     expect(cache.get('ask', 'short')).toBeNull()
@@ -125,5 +132,53 @@ describe('QueryCache', () => {
     const parsed = JSON.parse(fs.readFileSync(path.join(tmpDir, 'cache', files[0]), 'utf-8'))
     expect(parsed.response).toBe('response')
     expect(parsed.command).toBe('ask')
+  })
+
+  it('handles TTL=0 (immediate expiry)', () => {
+    cache.set('ask', 'zero-ttl', 'response', 0.001, 0)
+    // Date.now() will have advanced past createdAt + 0 by the time get runs
+    const start = Date.now()
+    while (Date.now() - start < 2) {
+      /* spin */
+    }
+    expect(cache.get('ask', 'zero-ttl')).toBeNull()
+  })
+
+  it('handles corrupted JSON file gracefully', () => {
+    // Write a valid entry first to ensure cache dir exists, then corrupt it
+    cache.set('ask', 'corrupt', 'response', 0.001)
+    const hash = crypto.createHash('sha256').update('ask:corrupt').digest('hex').slice(0, 16)
+    const filePath = path.join(tmpDir, 'cache', `${hash}.json`)
+    fs.writeFileSync(filePath, 'this is not valid json{{{')
+    expect(cache.get('ask', 'corrupt')).toBeNull()
+    expect(fs.existsSync(filePath)).toBe(false)
+  })
+
+  it('ledger entries cap at MAX_LEDGER_ENTRIES (1000)', () => {
+    for (let i = 0; i < 1005; i++) {
+      cache.set('ask', `q${i}`, `r${i}`, 0.001)
+    }
+    const ledger = cache.getLedger()
+    expect(ledger.entries).toHaveLength(1000)
+    // Latest entries should be kept (slice(-1000)), so the last entry should be q1004
+    expect(ledger.entries[ledger.entries.length - 1].query).toBe('q1004')
+    // First entries should have been trimmed; the first kept should be q5
+    expect(ledger.entries[0].query).toBe('q5')
+  })
+
+  it('evictExpired returns 0 when cache dir does not exist', () => {
+    // Fresh cache with no sets — cache dir never created
+    expect(cache.evictExpired()).toBe(0)
+  })
+
+  it('get returns null for entry with non-finite createdAt', () => {
+    cache.set('ask', 'nan-ts', 'response', 0.001)
+    const hash = crypto.createHash('sha256').update('ask:nan-ts').digest('hex').slice(0, 16)
+    const filePath = path.join(tmpDir, 'cache', `${hash}.json`)
+    const entry = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    entry.createdAt = NaN
+    fs.writeFileSync(filePath, JSON.stringify(entry))
+    expect(cache.get('ask', 'nan-ts')).toBeNull()
+    expect(fs.existsSync(filePath)).toBe(false)
   })
 })

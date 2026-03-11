@@ -38,7 +38,10 @@ export class XRateLimitError extends Error {
 }
 
 export class XApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message)
     this.name = 'XApiError'
   }
@@ -92,7 +95,7 @@ export class XAdapter {
       const params = new URLSearchParams({
         query,
         'tweet.fields': 'created_at,public_metrics,author_id',
-        'expansions': 'author_id',
+        expansions: 'author_id',
         'user.fields': 'username,name,description,public_metrics,verified',
         max_results: String(perPage),
       })
@@ -131,9 +134,10 @@ export class XAdapter {
     if (res.status === 429) {
       const reset = res.headers.get('x-rate-limit-reset')
       const resetSec = Number(reset)
-      const resetDate = Number.isFinite(resetSec) && resetSec > 0
-        ? new Date(resetSec * 1000)
-        : new Date(Date.now() + 15 * 60 * 1000)
+      const resetDate =
+        Number.isFinite(resetSec) && resetSec > 0
+          ? new Date(resetSec * 1000)
+          : new Date(Date.now() + 15 * 60 * 1000)
       throw new XRateLimitError(resetDate)
     }
 

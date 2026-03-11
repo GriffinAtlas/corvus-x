@@ -31,6 +31,8 @@ export interface WatchSummary {
   duration: number
 }
 
+const MAX_CONSECUTIVE_ERRORS = 5
+
 export class Watcher {
   private timer: ReturnType<typeof setTimeout> | null = null
   private running = false
@@ -38,6 +40,7 @@ export class Watcher {
   private totalCost = 0
   private startTime = 0
   private previousSnapshot = ''
+  private consecutiveErrors = 0
 
   constructor(
     private topic: string,
@@ -110,6 +113,7 @@ export class Watcher {
       this.cycles++
       this.totalCost += response.usage.costUsd
       this.previousSnapshot = response.text
+      this.consecutiveErrors = 0
 
       this.options.onUpdate({
         command: 'watch',
@@ -120,7 +124,11 @@ export class Watcher {
         timestamp: Date.now(),
       })
     } catch (err) {
+      this.consecutiveErrors++
       this.options.onError(err instanceof Error ? err : new Error(String(err)))
+      if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        this.stop()
+      }
     }
   }
 }
@@ -132,60 +140,70 @@ export function registerWatchCommand(program: Command): void {
     .option('-i, --interval <seconds>', 'check interval in seconds', '60')
     .option('-n, --max <cycles>', 'maximum number of checks (0 = unlimited)', '0')
     .option('--cost', 'show estimated cost per cycle')
-    .action(async (topicParts: string[], options: { interval: string; max: string; cost?: boolean }) => {
-      const topic = topicParts.join(' ')
-      const intervalSec = Math.max(parseInt(options.interval, 10) || 60, 10)
-      const maxCycles = Math.max(parseInt(options.max, 10) || 0, 0)
-      const auth = new AuthManager(ConfigManager.defaultDir())
+    .action(
+      async (topicParts: string[], options: { interval: string; max: string; cost?: boolean }) => {
+        const topic = topicParts.join(' ')
+        const intervalSec = Math.max(parseInt(options.interval, 10) || 60, 10)
+        const maxCycles = Math.max(parseInt(options.max, 10) || 0, 0)
+        const auth = new AuthManager(ConfigManager.defaultDir())
 
-      const grokKey = auth.getGrokKey()
-      if (!grokKey) {
-        console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
-        process.exit(1)
-      }
-
-      if (options.cost) {
-        const { MODEL_PRICING, DEFAULT_MODEL } = await import('../../core/grok-adapter.js')
-        const pricing = MODEL_PRICING[DEFAULT_MODEL]
-        const perCycle = (500 * pricing.input + 2000 * pricing.output) / 1_000_000
-        console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
-        console.log(t.muted(`  Estimated cost per cycle: $${perCycle.toFixed(6)}`))
-        console.log(t.muted(`  Interval: ${intervalSec}s`))
-        if (maxCycles > 0) {
-          console.log(t.muted(`  Max cycles: ${maxCycles}`))
-          console.log(t.muted(`  Estimated total: $${(perCycle * maxCycles).toFixed(6)}`))
-        } else {
-          console.log(t.muted(`  Runs until stopped (Ctrl+C)`))
-          console.log(t.muted(`  Estimated per hour: $${(perCycle * (3600 / intervalSec)).toFixed(6)}`))
+        const grokKey = auth.getGrokKey()
+        if (!grokKey) {
+          console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
+          process.exit(1)
         }
-        console.log()
-        return
-      }
 
-      console.log(t.heading(`\n  watching: ${topic}`))
-      console.log(t.muted(`  interval: ${intervalSec}s${maxCycles > 0 ? `, max ${maxCycles} cycles` : ''}`))
-      console.log(t.muted('  press Ctrl+C to stop\n'))
+        if (options.cost) {
+          const { MODEL_PRICING, DEFAULT_MODEL } = await import('../../core/grok-adapter.js')
+          const pricing = MODEL_PRICING[DEFAULT_MODEL]
+          const perCycle = (500 * pricing.input + 2000 * pricing.output) / 1_000_000
+          console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
+          console.log(t.muted(`  Estimated cost per cycle: $${perCycle.toFixed(6)}`))
+          console.log(t.muted(`  Interval: ${intervalSec}s`))
+          if (maxCycles > 0) {
+            console.log(t.muted(`  Max cycles: ${maxCycles}`))
+            console.log(t.muted(`  Estimated total: $${(perCycle * maxCycles).toFixed(6)}`))
+          } else {
+            console.log(t.muted(`  Runs until stopped (Ctrl+C)`))
+            console.log(
+              t.muted(`  Estimated per hour: $${(perCycle * (3600 / intervalSec)).toFixed(6)}`),
+            )
+          }
+          console.log()
+          return
+        }
 
-      const watcher = new Watcher(topic, {
-        interval: intervalSec * 1000,
-        maxCycles,
-        onUpdate: (result) => {
-          console.log(t.muted(`  ── ${new Date().toLocaleTimeString()} ──`))
-          console.log(formatOutput(result, 'table'))
-        },
-        onError: (err) => {
-          console.log(t.error(`  error: ${err.message}`))
-        },
-        onStop: (summary) => {
-          console.log(t.muted(`\n  watch stopped: ${summary.cycles} cycles, $${summary.totalCost.toFixed(4)} total, ${Math.round(summary.duration / 1000)}s\n`))
-        },
-      })
+        console.log(t.heading(`\n  watching: ${topic}`))
+        console.log(
+          t.muted(`  interval: ${intervalSec}s${maxCycles > 0 ? `, max ${maxCycles} cycles` : ''}`),
+        )
+        console.log(t.muted('  press Ctrl+C to stop\n'))
 
-      process.on('SIGINT', () => {
-        watcher.stop()
-        process.exit(0)
-      })
+        const watcher = new Watcher(topic, {
+          interval: intervalSec * 1000,
+          maxCycles,
+          onUpdate: (result) => {
+            console.log(t.muted(`  ── ${new Date().toLocaleTimeString()} ──`))
+            console.log(formatOutput(result, 'table'))
+          },
+          onError: (err) => {
+            console.log(t.error(`  error: ${err.message}`))
+          },
+          onStop: (summary) => {
+            console.log(
+              t.muted(
+                `\n  watch stopped: ${summary.cycles} cycles, $${summary.totalCost.toFixed(4)} total, ${Math.round(summary.duration / 1000)}s\n`,
+              ),
+            )
+          },
+        })
 
-      await watcher.start(grokKey)
-    })
+        process.on('SIGINT', () => {
+          watcher.stop()
+          process.exit(0)
+        })
+
+        await watcher.start(grokKey)
+      },
+    )
 }
