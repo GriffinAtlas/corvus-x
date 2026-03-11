@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (227 tests)
+npm test                     # vitest run (200 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -54,6 +54,14 @@ tests/                       # mirrors src/ structure 1:1
 - **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`), falls back to `~/.corvus/credentials.json`.
 - **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.
 - **Tests** mock `openai` and `fetch` globally. Never make real API calls.
+
+## Known Limitations
+
+- **File permissions (0o600) are Unix-only** — no effect on Windows. Credentials at `~/.corvus/credentials.json` are not protected by filesystem permissions on Windows.
+- **Grok API pricing is hardcoded** in `MODEL_PRICING` (`grok-adapter.ts`). Must be updated manually when pricing changes.
+- **No `corvus cost` command** — cost ledger exists on disk (`~/.corvus/cost-ledger.json`) but no CLI command reads cumulative spend. Only per-session cost visible via REPL `/cost`.
+- **Cache has no max-size limit** — files accumulate indefinitely until manual `corvus cache clear` or `evictExpired()`.
+- **Always smoke-test after build** — `npm run build && node dist/bin/corvus.js --version`. Tests run against source (tsx), not compiled output.
 
 ## Commit Style
 
