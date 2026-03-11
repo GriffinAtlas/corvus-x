@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (264 tests)
+npm test                     # vitest run (365 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -32,19 +32,22 @@ npm run format               # prettier
 bin/corvus.ts                # entrypoint — registers all commands, calls program.parse()
 src/
   cli/
-    commands/                # ask, scan, read, scope, trace, pulse, gather, watch, auth, history
+    commands/                # agent, ask, scan, read, scope, trace, pulse, gather, watch, auth, history
     run-command.ts           # IMPORTANT: shared runner — runCommand() for prose, runStructuredCommand() for data-first
-    output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers
+    output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers, renderAgentBrief()
+    progress.ts              # StepProgress — multi-line in-place step tracker for agent runs
+    theme.ts                 # Color palette (t.*), TTY detection, visual primitives (sentimentBar, box, divider)
     repl.ts                  # interactive session with readline
   core/
-    grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai
-    x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis)
+    agent.ts                 # AgentPlanner, AgentExecutor, AgentSynthesizer — autonomous investigation pipeline
+    grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai, parseGrokJson, retry/timeout
+    x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis, pagination)
     cache.ts                 # QueryCache — file-based with SHA-256 keys, TTL, cost ledger
-    schemas.ts               # Grok JSON response shapes, computed snapshot interfaces, match keys
+    schemas.ts               # Grok JSON response shapes, computed snapshot interfaces, AgentBrief, match keys
     snapshots.ts             # SnapshotStore — timestamped JSON snapshots with auto-prune
-    metrics.ts               # Pure compute functions — baseMetrics, sentiment, topAccounts, etc.
+    metrics.ts               # Pure compute functions — baseMetrics, sentiment, topAccounts, confidence, contradictions
     differ.ts                # Generic structured diff engine for snapshot comparison
-    types.ts                 # GrokResponse, QueryOptions, CommandResult, StructuredCommandResult
+    types.ts                 # GrokResponse, QueryOptions, CommandResult, StructuredCommandResult, BuildResult
   infra/
     auth.ts                  # AuthManager — env vars take precedence over ~/.corvus/credentials.json
     config.ts                # ConfigManager — manages ~/.corvus/ directory
@@ -54,7 +57,10 @@ tests/                       # mirrors src/ structure 1:1
 ## Key Patterns
 
 - **Data-first pipeline** — 6 commands (scan, pulse, trace, gather, read, scope) use `runStructuredCommand()`: FETCH (X API) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command still uses `runCommand()` for prose output.
+- **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN (Grok JSON) → EXECUTE (chain buildSnapshot calls) → REPLAN (adaptive) → SYNTHESIZE (AgentBrief). Locally-computed confidence and contradiction detection.
+- **BuildResult<T>** — all 6 data-first commands export named `buildXxxSnapshot()` functions returning `{ data, raw, cost, tweets, scores, newestTweetAt }`. Agent executor calls these programmatically.
 - **Snapshots** — each structured command stores timestamped JSON snapshots in `~/.corvus/snapshots/`. On re-run, the differ compares current vs previous snapshot and shows changes.
+- **Theme** — semantic color palette via `t.*` from `theme.ts`. All chalk calls go through theme. `isTTY` for TTY detection.
 - **Cache** is wired into prose commands via `runCommand()`. Structured commands use snapshots instead.
 - **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`), falls back to `~/.corvus/credentials.json`.
 - **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.

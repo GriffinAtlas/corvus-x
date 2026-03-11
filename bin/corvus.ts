@@ -28,6 +28,7 @@ import { registerPulseCommand } from '../src/cli/commands/pulse.js'
 import { registerGatherCommand } from '../src/cli/commands/gather.js'
 import { registerWatchCommand } from '../src/cli/commands/watch.js'
 import { registerHistoryCommand } from '../src/cli/commands/history.js'
+import { registerAgentCommand } from '../src/cli/commands/agent.js'
 
 const program = new Command()
 
@@ -44,6 +45,7 @@ program
   })
 
 registerAuthCommand(program)
+registerAgentCommand(program)
 registerAskCommand(program)
 registerScanCommand(program)
 registerReadCommand(program)

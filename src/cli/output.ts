@@ -1,4 +1,4 @@
-import { t, divider } from './theme.js'
+import { t, divider, sentimentBar, confidenceBar, box } from './theme.js'
 import { formatDiffLines } from '../core/differ.js'
 import type { CommandResult, StructuredCommandResult } from '../core/types.js'
 import type {
@@ -9,6 +9,7 @@ import type {
   GatherSnapshot,
   ReadSnapshot,
   ScopeSnapshot,
+  AgentBrief,
 } from '../core/schemas.js'
 
 export type OutputFormat = 'table' | 'json' | 'csv' | 'md'
@@ -400,6 +401,129 @@ export function renderScope(data: ScopeSnapshot): string {
   const signalColor =
     signalValue === 'high' ? t.positive : signalValue === 'medium' ? t.warning : t.muted
   parts.push(`  Influence: ${influenceColor(influence)}  Signal Value: ${signalColor(signalValue)}`)
+
+  return parts.join('\n')
+}
+
+export interface AgentBriefRenderOptions {
+  stepCount: number
+  durationMs: number
+  tweetCount: number
+  accountCount: number
+  cost: number
+  previousSentiment?: number
+}
+
+export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOptions): string {
+  const parts: string[] = []
+
+  // Signal line in a box
+  parts.push(box([`  ${brief.signalLine}  `]))
+  parts.push('')
+
+  // Sentiment bar
+  const sentimentStr = sentimentColor(brief.sentiment)
+  const bar = sentimentBar(brief.sentiment, 20)
+  const prevStr = opts.previousSentiment !== undefined
+    ? t.muted(` (was ${opts.previousSentiment >= 0 ? '+' : ''}${opts.previousSentiment})`)
+    : ''
+  parts.push(`  Sentiment  ${sentimentStr} avg  ${bar}${prevStr}`)
+
+  // Key findings
+  if (brief.summary.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Key Findings')}`)
+    for (const bullet of brief.summary) {
+      parts.push(`    · ${bullet}`)
+    }
+  }
+
+  // Top voices
+  if (brief.keyAccounts.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Top Voices')}`)
+    for (const acct of brief.keyAccounts) {
+      parts.push(
+        `    @${acct.handle}  ${compactNum(acct.reach)} reach  ${sentimentColor(acct.sentiment)}  "${acct.stance}"`,
+      )
+    }
+  }
+
+  // Contradictions
+  if (brief.contradictions.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.warning('Contradictions')}`)
+    for (const c of brief.contradictions) {
+      parts.push(`    ${c}`)
+    }
+  }
+
+  // Confidence
+  const confBar = confidenceBar(brief.confidence.overall, 20)
+  const volumeLabel = brief.confidence.volume
+  parts.push('')
+  parts.push(`  Confidence  ${confBar}  ${brief.confidence.overall}  ${volumeLabel}`)
+  parts.push(
+    `  Sample: ${brief.sampleSize} tweets from ${opts.accountCount} authors`,
+  )
+
+  // Staleness
+  if (brief.staleness !== null && brief.staleness > 3600_000) {
+    const hours = Math.round(brief.staleness / 3600_000)
+    parts.push(`  ${t.warning(`stale: newest tweet ${hours}h ago`)}`)
+  }
+
+  // Footer
+  parts.push('')
+  parts.push(`  ${divider()}`)
+  const duration = (opts.durationMs / 1000).toFixed(1)
+  parts.push(
+    `  ${t.muted(`${opts.stepCount} steps · ${duration}s · ${opts.tweetCount} tweets · ${opts.accountCount} accounts · $${opts.cost.toFixed(4)}`)}`,
+  )
+
+  return parts.join('\n')
+}
+
+export function renderAgentBriefJson(brief: AgentBrief): string {
+  return JSON.stringify(brief, null, 2)
+}
+
+export function renderAgentBriefMd(brief: AgentBrief, opts: AgentBriefRenderOptions): string {
+  const parts: string[] = []
+
+  parts.push(`## ${brief.signalLine}`)
+  parts.push('')
+  parts.push(`**Sentiment:** ${brief.sentiment}`)
+  parts.push('')
+
+  if (brief.summary.length > 0) {
+    parts.push('### Key Findings')
+    for (const bullet of brief.summary) {
+      parts.push(`- ${bullet}`)
+    }
+    parts.push('')
+  }
+
+  if (brief.keyAccounts.length > 0) {
+    parts.push('### Top Voices')
+    parts.push('| Handle | Reach | Sentiment | Stance |')
+    parts.push('|--------|-------|-----------|--------|')
+    for (const acct of brief.keyAccounts) {
+      parts.push(`| @${acct.handle} | ${compactNum(acct.reach)} | ${acct.sentiment} | ${acct.stance} |`)
+    }
+    parts.push('')
+  }
+
+  if (brief.contradictions.length > 0) {
+    parts.push('### Contradictions')
+    for (const c of brief.contradictions) {
+      parts.push(`- ${c}`)
+    }
+    parts.push('')
+  }
+
+  parts.push(`---`)
+  parts.push(`*Confidence: ${brief.confidence.overall} (${brief.confidence.volume}) | ${opts.stepCount} steps | ${opts.tweetCount} tweets | $${opts.cost.toFixed(4)}*`)
 
   return parts.join('\n')
 }
