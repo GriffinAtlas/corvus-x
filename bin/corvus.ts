@@ -5,10 +5,20 @@ import { readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { registerAuthCommand } from '../src/cli/commands/auth.js'
+import { registerAskCommand } from '../src/cli/commands/ask.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const VERSION = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')).version
-import { registerAskCommand } from '../src/cli/commands/ask.js'
+
+// Resolves from both bin/corvus.ts (dev) and dist/bin/corvus.js (build/npm install)
+function readVersion(): string {
+  for (const depth of ['..', join('..', '..')]) {
+    try {
+      return JSON.parse(readFileSync(join(__dirname, depth, 'package.json'), 'utf-8')).version
+    } catch {}
+  }
+  return '0.0.0'
+}
+const VERSION = readVersion()
 import { registerScanCommand } from '../src/cli/commands/scan.js'
 import { registerReadCommand } from '../src/cli/commands/read.js'
 import { registerScopeCommand } from '../src/cli/commands/scope.js'

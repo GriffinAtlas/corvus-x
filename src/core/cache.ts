@@ -43,15 +43,15 @@ export class QueryCache {
     try {
       entry = JSON.parse(raw)
     } catch {
-      fs.unlinkSync(filePath)
+      try { fs.unlinkSync(filePath) } catch {}
       return null
     }
     if (!Number.isFinite(entry.createdAt) || !Number.isFinite(entry.ttlMs)) {
-      fs.unlinkSync(filePath)
+      try { fs.unlinkSync(filePath) } catch {}
       return null
     }
     if (Date.now() > entry.createdAt + entry.ttlMs) {
-      fs.unlinkSync(filePath)
+      try { fs.unlinkSync(filePath) } catch {}
       return null
     }
 
