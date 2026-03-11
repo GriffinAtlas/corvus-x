@@ -1,0 +1,62 @@
+// Adapters
+export { GrokAdapter, parseGrokJson, MODEL_PRICING, DEFAULT_MODEL } from './core/grok-adapter.js'
+export { XAdapter, formatTweetsForAnalysis } from './core/x-adapter.js'
+
+// Builders
+export {
+  buildScanSnapshot,
+  buildPulseSnapshot,
+  buildTraceSnapshot,
+  buildGatherSnapshot,
+  buildReadSnapshot,
+  buildScopeSnapshot,
+  extractTweetId,
+} from './core/builders.js'
+
+// Agent
+export { AgentPlanner, AgentExecutor, AgentSynthesizer } from './core/agent.js'
+
+// Compute
+export {
+  computeBaseMetrics,
+  computeSentiment,
+  computeTopAccounts,
+  computeNarratives,
+  computeTopPosts,
+  computeKeyVoices,
+  computeConfidence,
+  detectContradictions,
+} from './core/metrics.js'
+
+// Storage & diff
+export { SnapshotStore } from './core/snapshots.js'
+export { diffSnapshots, formatDiffLines } from './core/differ.js'
+export { QueryCache } from './core/cache.js'
+
+// Types
+export type {
+  GrokResponse,
+  QueryOptions,
+  CommandResult,
+  StructuredCommandResult,
+  BuildResult,
+  CorvusDeps,
+} from './core/types.js'
+
+export type {
+  Snapshot,
+  ScanSnapshot,
+  PulseSnapshot,
+  TraceSnapshot,
+  GatherSnapshot,
+  ReadSnapshot,
+  ScopeSnapshot,
+  StoredSnapshot,
+  MatchKeys,
+  GrokTweetScore,
+  AgentBrief,
+} from './core/schemas.js'
+
+export type { Tweet, XUser } from './core/x-adapter.js'
+export type { DiffLine } from './core/differ.js'
+export type { CacheEntry, CostLedger } from './core/cache.js'

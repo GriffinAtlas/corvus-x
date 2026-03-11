@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../src/core/agent.js'
 import type { AgentPlan, AgentOptions } from '../../src/core/agent.js'
 import type { GrokAdapter } from '../../src/core/grok-adapter.js'
-import type { CommandDeps } from '../../src/cli/run-command.js'
+import type { CorvusDeps } from '../../src/core/types.js'
 import type { GrokResponse } from '../../src/core/types.js'
 import type { ScanSnapshot, PulseSnapshot, AgentBrief } from '../../src/core/schemas.js'
 
 function makeGrokResponse(text: string, cost = 0.001): GrokResponse {
   return {
     text,
-    usage: { inputTokens: 500, outputTokens: 200, costUsd: cost },
+    usage: { inputTokens: 500, outputTokens: 200, costUsd: cost, toolCalls: 0 },
   }
 }
 
@@ -25,8 +25,8 @@ function makeMockGrok(responses: string[]): GrokAdapter {
 }
 
 // Mock all build functions
-vi.mock('../../src/cli/commands/scan.js', () => ({
-  buildScanSnapshot: vi.fn(async (_deps: CommandDeps, topic: string) => ({
+vi.mock('../../src/core/builders/scan.js', () => ({
+  buildScanSnapshot: vi.fn(async (_deps: CorvusDeps, topic: string) => ({
     data: {
       metrics: { tweetCount: 10, totalEngagement: 500, uniqueAuthors: 8, engagementPerTweet: 50 },
       sentiment: { avg: 0.3, positive: 5, neutral: 3, negative: 2 },
@@ -54,7 +54,7 @@ vi.mock('../../src/cli/commands/scan.js', () => ({
   })),
 }))
 
-vi.mock('../../src/cli/commands/pulse.js', () => ({
+vi.mock('../../src/core/builders/pulse.js', () => ({
   buildPulseSnapshot: vi.fn(async () => ({
     data: {
       metrics: { tweetCount: 10, totalEngagement: 400, uniqueAuthors: 7, engagementPerTweet: 40 },
@@ -81,8 +81,8 @@ vi.mock('../../src/cli/commands/pulse.js', () => ({
   })),
 }))
 
-vi.mock('../../src/cli/commands/scope.js', () => ({
-  buildScopeSnapshot: vi.fn(async (_deps: CommandDeps, handle: string) => ({
+vi.mock('../../src/core/builders/scope.js', () => ({
+  buildScopeSnapshot: vi.fn(async (_deps: CorvusDeps, handle: string) => ({
     data: {
       account: { handle, followers: 5000, following: 200, tweetCount: 1000 },
       recentActivity: { avgEngagement: 100, postsAnalyzed: 20, topTweet: null },
@@ -186,13 +186,13 @@ describe('AgentPlanner', () => {
 })
 
 describe('AgentExecutor', () => {
-  let mockDeps: CommandDeps
+  let mockDeps: CorvusDeps
   let defaultOptions: AgentOptions
 
   beforeEach(() => {
     mockDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
     defaultOptions = {
       maxSteps: 8,
@@ -322,7 +322,7 @@ describe('AgentExecutor with replanning', () => {
   it('triggers replan after step 1 when replan enabled', async () => {
     const replanResponse = JSON.stringify({ action: 'continue' })
     const mockGrok = makeMockGrok([replanResponse])
-    const deps: CommandDeps = { grok: mockGrok, x: {} as CommandDeps['x'] }
+    const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
 
     const plan: AgentPlan = {
       goal: 'Test',
@@ -352,7 +352,7 @@ describe('AgentExecutor with replanning', () => {
       steps: [{ command: 'scope', args: { username: 'satoshi' }, reasoning: 'New lead' }],
     })
     const mockGrok = makeMockGrok([replanResponse])
-    const deps: CommandDeps = { grok: mockGrok, x: {} as CommandDeps['x'] }
+    const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
 
     const plan: AgentPlan = {
       goal: 'Test',
@@ -853,9 +853,9 @@ describe('AgentExecutor — error and edge cases', () => {
   })
 
   it('skips remaining steps when budget exceeded', async () => {
-    const deps: CommandDeps = {
+    const deps: CorvusDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
 
     const plan: AgentPlan = {
@@ -884,12 +884,12 @@ describe('AgentExecutor — error and edge cases', () => {
   })
 
   it('calls onStepFail on step error and continues', async () => {
-    const { buildScanSnapshot } = await import('../../src/cli/commands/scan.js')
+    const { buildScanSnapshot } = await import('../../src/core/builders/scan.js')
     vi.mocked(buildScanSnapshot).mockRejectedValueOnce(new Error('Scan failed'))
 
-    const deps: CommandDeps = {
+    const deps: CorvusDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
 
     const plan: AgentPlan = {
@@ -915,12 +915,12 @@ describe('AgentExecutor — error and edge cases', () => {
   })
 
   it('calls onStepSkip with rate-limited on 429 error', async () => {
-    const { buildScanSnapshot } = await import('../../src/cli/commands/scan.js')
+    const { buildScanSnapshot } = await import('../../src/core/builders/scan.js')
     vi.mocked(buildScanSnapshot).mockRejectedValueOnce(new Error('Request failed with status 429'))
 
-    const deps: CommandDeps = {
+    const deps: CorvusDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
 
     const plan: AgentPlan = {
@@ -940,9 +940,9 @@ describe('AgentExecutor — error and edge cases', () => {
   })
 
   it('throws Error for unknown command in resolveBuildFn', async () => {
-    const deps: CommandDeps = {
+    const deps: CorvusDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
 
     const plan: AgentPlan = {
@@ -965,7 +965,7 @@ describe('AgentExecutor — error and edge cases', () => {
     const replanResponse = JSON.stringify({ action: 'continue' })
     // Need enough replan responses: replans happen at completedCount 1, 3, 5
     const mockGrok = makeMockGrok([replanResponse, replanResponse, replanResponse, replanResponse])
-    const deps: CommandDeps = { grok: mockGrok, x: {} as CommandDeps['x'] }
+    const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
 
     const plan: AgentPlan = {
       goal: 'Test',
@@ -992,9 +992,9 @@ describe('AgentExecutor — error and edge cases', () => {
   })
 
   it('does not extract duplicate leads', async () => {
-    const deps: CommandDeps = {
+    const deps: CorvusDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
 
     // Both scan steps will return topAccounts with 'alice' (from the mock)
@@ -1015,9 +1015,9 @@ describe('AgentExecutor — error and edge cases', () => {
   })
 
   it('first step always runs regardless of budget', async () => {
-    const deps: CommandDeps = {
+    const deps: CorvusDeps = {
       grok: makeMockGrok([]),
-      x: {} as CommandDeps['x'],
+      x: {} as CorvusDeps['x'],
     }
 
     const plan: AgentPlan = {

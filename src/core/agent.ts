@@ -7,8 +7,7 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
 } from './schemas.js'
-import type { BuildResult } from './types.js'
-import type { CommandDeps } from '../cli/run-command.js'
+import type { BuildResult, CorvusDeps } from './types.js'
 import { parseGrokJson } from './grok-adapter.js'
 import { computeConfidence, detectContradictions } from './metrics.js'
 import { SnapshotStore } from './snapshots.js'
@@ -148,32 +147,32 @@ export class AgentPlanner {
   }
 }
 
-type BuildFn = (deps: CommandDeps, ...args: unknown[]) => Promise<BuildResult<Snapshot>>
+type BuildFn = (deps: CorvusDeps, ...args: unknown[]) => Promise<BuildResult<Snapshot>>
 
 async function resolveBuildFn(command: string): Promise<BuildFn> {
   switch (command) {
     case 'scan': {
-      const { buildScanSnapshot } = await import('../cli/commands/scan.js')
+      const { buildScanSnapshot } = await import('./builders/scan.js')
       return buildScanSnapshot as unknown as BuildFn
     }
     case 'pulse': {
-      const { buildPulseSnapshot } = await import('../cli/commands/pulse.js')
+      const { buildPulseSnapshot } = await import('./builders/pulse.js')
       return buildPulseSnapshot as unknown as BuildFn
     }
     case 'trace': {
-      const { buildTraceSnapshot } = await import('../cli/commands/trace.js')
+      const { buildTraceSnapshot } = await import('./builders/trace.js')
       return buildTraceSnapshot as unknown as BuildFn
     }
     case 'gather': {
-      const { buildGatherSnapshot } = await import('../cli/commands/gather.js')
+      const { buildGatherSnapshot } = await import('./builders/gather.js')
       return buildGatherSnapshot as unknown as BuildFn
     }
     case 'read': {
-      const { buildReadSnapshot } = await import('../cli/commands/read.js')
+      const { buildReadSnapshot } = await import('./builders/read.js')
       return buildReadSnapshot as unknown as BuildFn
     }
     case 'scope': {
-      const { buildScopeSnapshot } = await import('../cli/commands/scope.js')
+      const { buildScopeSnapshot } = await import('./builders/scope.js')
       return buildScopeSnapshot as unknown as BuildFn
     }
     default:
@@ -245,14 +244,14 @@ const MAX_REPLANS = 3
 
 export class AgentExecutor {
   private context: AgentContext
-  private deps: CommandDeps
+  private deps: CorvusDeps
   private options: AgentOptions
   private store: SnapshotStore
   private replanCount = 0
   private aborted = false
 
   constructor(
-    deps: CommandDeps,
+    deps: CorvusDeps,
     question: string,
     private plan: AgentPlan,
     options: AgentOptions,

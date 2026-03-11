@@ -1,6 +1,13 @@
 import type { Snapshot, GrokTweetScore } from './schemas.js'
 import type { DiffLine } from './differ.js'
 import type { Tweet } from './x-adapter.js'
+import type { GrokAdapter } from './grok-adapter.js'
+import type { XAdapter } from './x-adapter.js'
+
+export interface CorvusDeps {
+  grok: GrokAdapter
+  x: XAdapter | null
+}
 
 export interface GrokResponse {
   text: string

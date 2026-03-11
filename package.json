@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "description": "AI-powered X intelligence in your terminal",
   "type": "module",
-  "main": "dist/bin/corvus.js",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": "./dist/src/index.js",
+    "./cli": "./dist/bin/corvus.js"
+  },
   "bin": {
     "corvus": "dist/bin/corvus.js"
   },

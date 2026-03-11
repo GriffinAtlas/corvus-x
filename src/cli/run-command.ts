@@ -13,15 +13,13 @@ import type {
   CommandResult,
   StructuredCommandResult,
   BuildResult,
+  CorvusDeps,
 } from '../core/types.js'
 import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
 import type { DiffLine } from '../core/differ.js'
 
-export interface CommandDeps {
-  grok: GrokAdapter
-  x: XAdapter | null
-}
+export type CommandDeps = CorvusDeps
 
 export interface RunCommandOptions {
   command: string
