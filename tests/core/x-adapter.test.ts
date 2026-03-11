@@ -212,4 +212,31 @@ describe('XAdapter', () => {
     expect(user.followersCount).toBe(0)
     expect(user.verified).toBe(false)
   })
+
+  it('throws XApiError when response body is not valid JSON', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: () => Promise.reject(new SyntaxError('Unexpected token')),
+    })
+    await expect(adapter.getTweet('123')).rejects.toThrow(XApiError)
+  })
+
+  it('XApiError from invalid JSON includes status code', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: () => Promise.reject(new SyntaxError('bad')),
+    })
+    try {
+      await adapter.getTweet('123')
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(XApiError)
+      expect((err as XApiError).status).toBe(200)
+      expect((err as XApiError).message).toContain('invalid JSON')
+    }
+  })
 })

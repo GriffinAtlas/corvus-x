@@ -47,7 +47,12 @@ export class AuthManager {
   private updateCreds(mutate: (c: Credentials) => void): void {
     const creds = this.readCreds()
     mutate(creds)
-    fs.mkdirSync(this.baseDir, { recursive: true })
-    fs.writeFileSync(this.credPath, JSON.stringify(creds, null, 2), { mode: 0o600 })
+    try {
+      fs.mkdirSync(this.baseDir, { recursive: true })
+      fs.writeFileSync(this.credPath, JSON.stringify(creds, null, 2), { mode: 0o600 })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(`Failed to write credentials to ${this.credPath}: ${msg}`)
+    }
   }
 }

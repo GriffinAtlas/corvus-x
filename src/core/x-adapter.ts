@@ -105,7 +105,11 @@ export class XAdapter {
       throw new XApiError(res.status, `X API ${res.status}: ${truncated}`)
     }
 
-    return res.json()
+    try {
+      return await res.json()
+    } catch {
+      throw new XApiError(res.status, `X API ${res.status}: invalid JSON in response`)
+    }
   }
 }
 

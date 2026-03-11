@@ -125,4 +125,10 @@ describe('AuthManager', () => {
     expect(parsed.grokKey).toBe('disk-key')
     expect(parsed.xBearerToken).toBe('disk-token')
   })
+
+  it('throws descriptive error when credentials cannot be written', () => {
+    const badPath = path.join(tmpDir, '\0invalid')
+    const badAuth = new AuthManager(badPath)
+    expect(() => badAuth.setGrokKey('test')).toThrow('Failed to write credentials')
+  })
 })

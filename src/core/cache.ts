@@ -59,14 +59,17 @@ export class QueryCache {
   }
 
   set(command: string, query: string, response: string, costUsd: number, ttlMs = DEFAULT_TTL_MS): void {
-    fs.mkdirSync(this.cacheDir, { recursive: true })
-
-    const entry: CacheEntry = { command, query, response, costUsd, createdAt: Date.now(), ttlMs }
-    fs.writeFileSync(
-      path.join(this.cacheDir, `${this.hashKey(command, query)}.json`),
-      JSON.stringify(entry),
-      { mode: 0o600 },
-    )
+    try {
+      fs.mkdirSync(this.cacheDir, { recursive: true })
+      const entry: CacheEntry = { command, query, response, costUsd, createdAt: Date.now(), ttlMs }
+      fs.writeFileSync(
+        path.join(this.cacheDir, `${this.hashKey(command, query)}.json`),
+        JSON.stringify(entry),
+        { mode: 0o600 },
+      )
+    } catch {
+      // Cache is best-effort — don't crash the CLI if write fails
+    }
     this.recordCost(costUsd, query)
   }
 
@@ -119,15 +122,19 @@ export class QueryCache {
   }
 
   private recordCost(costUsd: number, query: string): void {
-    const ledger = this.getLedger()
-    ledger.totalUsd += costUsd
-    ledger.queryCount++
-    ledger.entries.push({ timestamp: Date.now(), costUsd, query })
-    if (ledger.entries.length > MAX_LEDGER_ENTRIES) {
-      ledger.entries = ledger.entries.slice(-MAX_LEDGER_ENTRIES)
+    try {
+      const ledger = this.getLedger()
+      ledger.totalUsd += costUsd
+      ledger.queryCount++
+      ledger.entries.push({ timestamp: Date.now(), costUsd, query })
+      if (ledger.entries.length > MAX_LEDGER_ENTRIES) {
+        ledger.entries = ledger.entries.slice(-MAX_LEDGER_ENTRIES)
+      }
+      fs.mkdirSync(path.dirname(this.ledgerPath), { recursive: true })
+      fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger), { mode: 0o600 })
+    } catch {
+      // Ledger is best-effort — don't crash the CLI if write fails
     }
-    fs.mkdirSync(path.dirname(this.ledgerPath), { recursive: true })
-    fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger), { mode: 0o600 })
   }
 
   private hashKey(command: string, query: string): string {
