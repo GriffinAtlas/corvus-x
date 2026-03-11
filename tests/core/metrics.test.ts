@@ -6,9 +6,12 @@ import {
   computeNarratives,
   computeTopPosts,
   computeKeyVoices,
+  computeConfidence,
+  detectContradictions,
 } from '../../src/core/metrics.js'
 import type { Tweet, XUser } from '../../src/core/x-adapter.js'
 import type { GrokTweetScore, GrokNarrative } from '../../src/core/schemas.js'
+import type { ScanSnapshot, PulseSnapshot, GatherSnapshot, Snapshot } from '../../src/core/schemas.js'
 
 function makeTweet(overrides: Partial<Tweet> & { id: string, authorId: string }): Tweet {
   return {
@@ -377,5 +380,299 @@ describe('computeKeyVoices', () => {
     const users: XUser[] = [makeUser({ id: 'a', username: 'alice' })]
     const result = computeKeyVoices(tweets, scores, users)
     expect(result[0].sentiment).toBe(0.5)
+  })
+})
+
+describe('computeConfidence', () => {
+  it('returns zero confidence for empty inputs', () => {
+    const result = computeConfidence([], [])
+    expect(result).toEqual({ overall: 0, volume: 'low', consistency: 0, diversity: 0 })
+  })
+
+  it('returns low volume for < 30 tweets', () => {
+    const tweets = Array.from({ length: 10 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('low')
+  })
+
+  it('returns moderate volume for 30-99 tweets', () => {
+    const tweets = Array.from({ length: 50 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.3, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('moderate')
+  })
+
+  it('returns high volume for >= 100 tweets', () => {
+    const tweets = Array.from({ length: 120 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.1, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('high')
+  })
+
+  it('returns high consistency (low std dev) for uniform sentiment', () => {
+    const tweets = Array.from({ length: 40 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    // All sentiments identical = std dev 0
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.consistency).toBe(0)
+    // consistencyScore = max(0, 1 - 0) = 1.0
+  })
+
+  it('returns lower consistency for divergent sentiment', () => {
+    const tweets = Array.from({ length: 40 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    // Half very positive, half very negative
+    const scores = tweets.map((_, i) => ({
+      index: i,
+      sentiment: i < 20 ? 1.0 : -1.0,
+      narrative: 'x',
+    }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.consistency).toBe(1) // std dev of [1,1,...,-1,-1,...] = 1.0
+  })
+
+  it('computes diversity as unique authors / total tweets', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a' }),
+      makeTweet({ id: '2', authorId: 'a' }),
+      makeTweet({ id: '3', authorId: 'b' }),
+      makeTweet({ id: '4', authorId: 'c' }),
+    ]
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    // 3 unique / 4 total = 0.75
+    expect(result.diversity).toBe(0.75)
+  })
+
+  it('overall is weighted combination of volume, consistency, diversity', () => {
+    // 40 tweets (moderate, volumeScore=0.6), all same sentiment (consistency=0, consistencyScore=1.0),
+    // all unique authors (diversity=1.0, diversityScore=min(1, 2.0)=1.0)
+    const tweets = Array.from({ length: 40 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores = tweets.map((_, i) => ({ index: i, sentiment: 0.5, narrative: 'x' }))
+    const result = computeConfidence(tweets, scores)
+    // overall = 0.6*0.4 + 1.0*0.3 + 1.0*0.3 = 0.24 + 0.3 + 0.3 = 0.84
+    expect(result.overall).toBe(0.84)
+  })
+})
+
+describe('detectContradictions', () => {
+  const baseSentiment = { positive: 5, neutral: 3, negative: 2 }
+  const baseMetrics = { tweetCount: 10, totalEngagement: 500, uniqueAuthors: 8, engagementPerTweet: 50 }
+
+  function makeStep(overrides: {
+    command: string
+    snapshot: Snapshot
+    tweets?: Tweet[]
+    scores?: GrokTweetScore[]
+  }) {
+    return {
+      command: overrides.command,
+      snapshot: overrides.snapshot,
+      tweets: overrides.tweets ?? [],
+      scores: overrides.scores ?? [],
+    }
+  }
+
+  it('returns empty array when no contradictions found', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.3, ...baseSentiment },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.35, ...baseSentiment },
+          bullSignals: ['a'],
+          bearSignals: [],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    expect(result).toEqual([])
+  })
+
+  it('detects cross-step sentiment divergence > 0.3', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: -0.41, positive: 1, neutral: 3, negative: 6 },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.08, positive: 4, neutral: 4, negative: 2 },
+          bullSignals: [],
+          bearSignals: [],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    expect(result.length).toBe(1)
+    expect(result[0]).toContain('scan')
+    expect(result[0]).toContain('pulse')
+    expect(result[0]).toContain('diverges')
+  })
+
+  it('does not flag sentiment difference <= 0.3', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.2, ...baseSentiment },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.4, ...baseSentiment },
+          bullSignals: [],
+          bearSignals: [],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    // 0.4 - 0.2 = 0.2, not > 0.3
+    expect(result).toEqual([])
+  })
+
+  it('detects top accounts vs crowd divergence', () => {
+    // Top 3 accounts are bullish but crowd is bearish
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'whale1', metrics: { likes: 1000, retweets: 500, replies: 100, impressions: 5000 } }),
+      makeTweet({ id: '2', authorId: 'whale2', metrics: { likes: 800, retweets: 300, replies: 50, impressions: 4000 } }),
+      makeTweet({ id: '3', authorId: 'whale3', metrics: { likes: 600, retweets: 200, replies: 30, impressions: 3000 } }),
+      makeTweet({ id: '4', authorId: 'crowd1', metrics: { likes: 2, retweets: 0, replies: 0, impressions: 10 } }),
+      makeTweet({ id: '5', authorId: 'crowd2', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 } }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.8, narrative: 'x' },
+      { index: 1, sentiment: 0.7, narrative: 'x' },
+      { index: 2, sentiment: 0.6, narrative: 'x' },
+      { index: 3, sentiment: -0.8, narrative: 'x' },
+      { index: 4, sentiment: -0.9, narrative: 'x' },
+    ]
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: -0.3, positive: 0, neutral: 1, negative: 4 },
+          topAccounts: [],
+          narratives: [],
+          signals: [],
+        } as ScanSnapshot,
+        tweets,
+        scores,
+      }),
+    ])
+    expect(result.length).toBeGreaterThanOrEqual(1)
+    expect(result.some((c) => c.includes('Top') && c.includes('bullish'))).toBe(true)
+  })
+
+  it('detects bull/bear signal conflict in pulse', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.0, ...baseSentiment },
+          bullSignals: ['a', 'b', 'c'],
+          bearSignals: ['d', 'e', 'f'],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    expect(result.length).toBe(1)
+    expect(result[0]).toContain('bull signals (3)')
+    expect(result[0]).toContain('bear signals (3)')
+    expect(result[0]).toContain('contested')
+  })
+
+  it('does not flag bull/bear when either < 3', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'pulse',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.0, ...baseSentiment },
+          bullSignals: ['a', 'b'],
+          bearSignals: ['c', 'd', 'e'],
+          keyVoices: [],
+        } as PulseSnapshot,
+      }),
+    ])
+    expect(result.filter((c) => c.includes('contested'))).toEqual([])
+  })
+
+  it('detects narrative vs sentiment mismatch', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.25, positive: 5, neutral: 3, negative: 2 },
+          topAccounts: [],
+          narratives: [
+            { theme: 'ETF outflows', description: 'Capital leaving ETFs', tweetCount: 8, avgSentiment: -0.52 },
+            { theme: 'HODLing', description: 'Holding strong', tweetCount: 2, avgSentiment: 0.9 },
+          ],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+    ])
+    expect(result.length).toBe(1)
+    expect(result[0]).toContain('ETF outflows')
+    expect(result[0]).toContain('bearish')
+    expect(result[0]).toContain('positive')
+  })
+
+  it('does not flag narrative mismatch when signs match', () => {
+    const result = detectContradictions([
+      makeStep({
+        command: 'scan',
+        snapshot: {
+          metrics: baseMetrics,
+          sentiment: { avg: 0.5, positive: 7, neutral: 2, negative: 1 },
+          topAccounts: [],
+          narratives: [
+            { theme: 'Bull run', description: 'Market going up', tweetCount: 8, avgSentiment: 0.6 },
+          ],
+          signals: [],
+        } as ScanSnapshot,
+      }),
+    ])
+    expect(result).toEqual([])
   })
 })

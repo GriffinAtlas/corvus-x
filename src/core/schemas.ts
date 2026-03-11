@@ -184,6 +184,40 @@ export interface ScopeSnapshot {
   signalValue: 'high' | 'medium' | 'low'
 }
 
+// ── Agent output shapes ──
+
+export interface ConfidenceScore {
+  overall: number
+  volume: 'low' | 'moderate' | 'high'
+  consistency: number
+  diversity: number
+}
+
+export interface BriefAccount {
+  handle: string
+  reach: number
+  sentiment: number
+  stance: string
+}
+
+export interface BriefEvidence {
+  source: string
+  key: string
+  detail: string
+}
+
+export interface AgentBrief {
+  signalLine: string
+  sentiment: number
+  summary: string[]
+  contradictions: string[]
+  keyAccounts: BriefAccount[]
+  evidence: BriefEvidence[]
+  confidence: ConfidenceScore
+  sampleSize: number
+  staleness: number | null
+}
+
 export type Snapshot =
   | ScanSnapshot
   | PulseSnapshot
@@ -191,6 +225,7 @@ export type Snapshot =
   | GatherSnapshot
   | ReadSnapshot
   | ScopeSnapshot
+  | AgentBrief
 
 // ── Stored snapshot wrapper ──
 
@@ -224,4 +259,9 @@ export const TRACE_MATCH_KEYS: MatchKeys = {
 export const GATHER_MATCH_KEYS: MatchKeys = {
   topPosts: 'id',
   narratives: 'theme',
+}
+
+export const AGENT_MATCH_KEYS: MatchKeys = {
+  keyAccounts: 'handle',
+  evidence: 'source',
 }

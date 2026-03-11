@@ -6,7 +6,12 @@ import type {
   SentimentBreakdown,
   AccountEntry,
   NarrativeEntry,
+  ConfidenceScore,
+  ScanSnapshot,
+  PulseSnapshot,
+  GatherSnapshot,
 } from './schemas.js'
+import type { Snapshot } from './schemas.js'
 
 export function computeBaseMetrics(tweets: Tweet[]): BaseMetrics {
   const tweetCount = tweets.length
@@ -174,4 +179,139 @@ export function computeKeyVoices(
     }))
     .sort((a, b) => b.reach - a.reach)
     .slice(0, limit)
+}
+
+export function computeConfidence(allTweets: Tweet[], allScores: GrokTweetScore[]): ConfidenceScore {
+  if (allScores.length === 0) {
+    return { overall: 0, volume: 'low', consistency: 0, diversity: 0 }
+  }
+
+  const volume = allTweets.length < 30 ? 'low' : allTweets.length < 100 ? 'moderate' : 'high'
+  const sentiments = allScores.map((s) => s.sentiment)
+  const mean = sentiments.reduce((a, b) => a + b, 0) / sentiments.length
+  const consistency = Math.sqrt(
+    sentiments.reduce((sum, s) => sum + (s - mean) ** 2, 0) / sentiments.length,
+  )
+  const uniqueAuthors = new Set(allTweets.map((tw) => tw.authorId)).size
+  const diversity = allTweets.length > 0 ? uniqueAuthors / allTweets.length : 0
+
+  const volumeScore = allTweets.length < 30 ? 0.3 : allTweets.length < 100 ? 0.6 : 0.9
+  const consistencyScore = Math.max(0, 1 - consistency)
+  const diversityScore = Math.min(1, diversity * 2)
+  const overall = Number((volumeScore * 0.4 + consistencyScore * 0.3 + diversityScore * 0.3).toFixed(2))
+
+  return {
+    overall,
+    volume,
+    consistency: Number(consistency.toFixed(3)),
+    diversity: Number(diversity.toFixed(3)),
+  }
+}
+
+interface StepForContradictions {
+  command: string
+  snapshot: Snapshot
+  tweets: Tweet[]
+  scores: GrokTweetScore[]
+}
+
+function hasSentiment(snap: Snapshot): snap is ScanSnapshot | PulseSnapshot | GatherSnapshot {
+  return 'sentiment' in snap && typeof (snap as { sentiment?: { avg?: number } }).sentiment?.avg === 'number'
+}
+
+export function detectContradictions(results: StepForContradictions[]): string[] {
+  const contradictions: string[] = []
+
+  // 1. Cross-step sentiment divergence
+  const sentimentSteps = results.filter((r) => hasSentiment(r.snapshot))
+  for (let i = 0; i < sentimentSteps.length; i++) {
+    for (let j = i + 1; j < sentimentSteps.length; j++) {
+      const a = sentimentSteps[i]
+      const b = sentimentSteps[j]
+      const aAvg = (a.snapshot as ScanSnapshot | PulseSnapshot | GatherSnapshot).sentiment.avg
+      const bAvg = (b.snapshot as ScanSnapshot | PulseSnapshot | GatherSnapshot).sentiment.avg
+      if (Math.abs(aAvg - bAvg) > 0.3) {
+        const fmt = (v: number) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))
+        contradictions.push(
+          `${a.command} sentiment (${fmt(aAvg)}) diverges from ${b.command} (${fmt(bAvg)}) on the same topic`,
+        )
+      }
+    }
+  }
+
+  // 2. Top accounts vs crowd
+  for (const r of results) {
+    if (r.tweets.length === 0 || r.scores.length === 0) continue
+    if (!hasSentiment(r.snapshot)) continue
+
+    const crowdAvg = (r.snapshot as ScanSnapshot | PulseSnapshot | GatherSnapshot).sentiment.avg
+
+    const authorReach = new Map<string, { sentimentSum: number; count: number; reach: number }>()
+    for (let i = 0; i < r.tweets.length; i++) {
+      const tw = r.tweets[i]
+      const score = r.scores.find((s) => s.index === i)
+      const existing = authorReach.get(tw.authorId) ?? { sentimentSum: 0, count: 0, reach: 0 }
+      existing.count++
+      existing.reach = Math.max(
+        existing.reach,
+        tw.metrics.likes + tw.metrics.retweets + tw.metrics.replies + tw.metrics.impressions,
+      )
+      if (score) existing.sentimentSum += score.sentiment
+      authorReach.set(tw.authorId, existing)
+    }
+
+    const topAuthors = Array.from(authorReach.values())
+      .sort((a, b) => b.reach - a.reach)
+      .slice(0, 3)
+
+    if (topAuthors.length < 2) continue
+
+    const topAvg =
+      topAuthors.reduce((sum, a) => sum + (a.count > 0 ? a.sentimentSum / a.count : 0), 0) /
+      topAuthors.length
+
+    if (Math.abs(topAvg - crowdAvg) > 0.3) {
+      const fmtSentiment = (v: number) => (v >= 0 ? 'bullish' : 'bearish')
+      const fmt = (v: number) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))
+      contradictions.push(
+        `Top ${topAuthors.length} accounts ${fmtSentiment(topAvg)} (${fmt(topAvg)} avg) against ${fmtSentiment(crowdAvg)} crowd consensus (${fmt(crowdAvg)})`,
+      )
+    }
+  }
+
+  // 3. Bull/bear signal strength
+  for (const r of results) {
+    if (r.command !== 'pulse') continue
+    const snap = r.snapshot as PulseSnapshot
+    if (!Array.isArray(snap.bullSignals) || !Array.isArray(snap.bearSignals)) continue
+    if (snap.bullSignals.length >= 3 && snap.bearSignals.length >= 3) {
+      contradictions.push(
+        `Strong bull signals (${snap.bullSignals.length}) and bear signals (${snap.bearSignals.length}) both present — market is contested`,
+      )
+    }
+  }
+
+  // 4. Narrative vs sentiment mismatch
+  for (const r of results) {
+    if (!('narratives' in r.snapshot)) continue
+    if (!hasSentiment(r.snapshot)) continue
+    const snap = r.snapshot as ScanSnapshot | GatherSnapshot
+    if (snap.narratives.length === 0) continue
+
+    const dominant = snap.narratives[0] // already sorted by tweetCount descending
+    const overallAvg = snap.sentiment.avg
+    if (
+      dominant.avgSentiment !== 0 &&
+      overallAvg !== 0 &&
+      Math.sign(dominant.avgSentiment) !== Math.sign(overallAvg)
+    ) {
+      const fmt = (v: number) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))
+      const label = dominant.avgSentiment < 0 ? 'bearish' : 'bullish'
+      contradictions.push(
+        `Dominant narrative '${dominant.theme}' is ${label} (${fmt(dominant.avgSentiment)}) but overall sentiment is ${overallAvg >= 0 ? 'positive' : 'negative'} (${fmt(overallAvg)})`,
+      )
+    }
+  }
+
+  return contradictions
 }
