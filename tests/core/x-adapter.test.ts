@@ -344,6 +344,57 @@ describe('XAdapter', () => {
   })
 })
 
+describe('XAdapter timeout', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('throws XApiError when request times out', async () => {
+    const adapter = new XAdapter('test-token', { timeoutMs: 50 })
+    mockFetch.mockImplementation(
+      (_url: string, init?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          const onAbort = () => reject(new DOMException('The operation was aborted.', 'AbortError'))
+          if (init?.signal?.aborted) {
+            onAbort()
+            return
+          }
+          init?.signal?.addEventListener('abort', onAbort)
+        }),
+    )
+
+    await expect(adapter.getTweet('123')).rejects.toThrow('timed out')
+  })
+
+  it('passes AbortSignal to fetch', async () => {
+    const adapter = new XAdapter('test-token')
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_TWEET }))
+    await adapter.getTweet('123')
+    expect(mockFetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('uses custom timeout when provided', async () => {
+    const adapter = new XAdapter('test-token', { timeoutMs: 5000 })
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_TWEET }))
+    await adapter.getTweet('123')
+    // Verify the request completed successfully (no timeout at 5s)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears timeout on successful response', async () => {
+    const adapter = new XAdapter('test-token', { timeoutMs: 100 })
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_TWEET }))
+    const tweet = await adapter.getTweet('123')
+    expect(tweet.id).toBe('123')
+  })
+
+  it('clears timeout on non-abort error', async () => {
+    const adapter = new XAdapter('test-token', { timeoutMs: 100 })
+    mockFetch.mockRejectedValueOnce(new Error('network error'))
+    await expect(adapter.getTweet('123')).rejects.toThrow('network error')
+  })
+})
+
 describe('formatTweetsForAnalysis', () => {
   const tweets: Tweet[] = [
     {

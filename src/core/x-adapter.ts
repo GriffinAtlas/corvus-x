@@ -1,4 +1,5 @@
 const BASE_URL = 'https://api.x.com/2'
+const DEFAULT_TIMEOUT_MS = 15_000
 
 export interface Tweet {
   id: string
@@ -48,7 +49,13 @@ export class XApiError extends Error {
 }
 
 export class XAdapter {
-  constructor(private bearerToken: string) {}
+  private bearerToken: string
+  private timeoutMs: number
+
+  constructor(bearerToken: string, options?: { timeoutMs?: number }) {
+    this.bearerToken = bearerToken
+    this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  }
 
   async getTweet(id: string): Promise<Tweet> {
     const params = new URLSearchParams({
@@ -127,9 +134,23 @@ export class XAdapter {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async request(path: string): Promise<any> {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${this.bearerToken}` },
-    })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+
+    let res: Response
+    try {
+      res = await fetch(`${BASE_URL}${path}`, {
+        headers: { Authorization: `Bearer ${this.bearerToken}` },
+        signal: controller.signal,
+      })
+    } catch (err) {
+      clearTimeout(timer)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new XApiError(0, `X API request timed out after ${this.timeoutMs}ms`)
+      }
+      throw err
+    }
+    clearTimeout(timer)
 
     if (res.status === 429) {
       const reset = res.headers.get('x-rate-limit-reset')
