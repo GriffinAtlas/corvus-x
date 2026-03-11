@@ -3,8 +3,16 @@ import type { GrokResponse, QueryOptions } from './types.js'
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'grok-4-1-fast': { input: 0.2, output: 0.5 },
-  'grok-4': { input: 3.0, output: 15.0 },
+  'grok-4-1-fast-reasoning': { input: 0.2, output: 0.5 },
+  'grok-4-1-fast-non-reasoning': { input: 0.2, output: 0.5 },
+  'grok-4.20-beta-0309-reasoning': { input: 2.0, output: 6.0 },
+  'grok-4.20-beta-0309-non-reasoning': { input: 2.0, output: 6.0 },
+  'grok-4.20-multi-agent-beta-0309': { input: 2.0, output: 6.0 },
+  'grok-code-fast-1': { input: 0.2, output: 1.5 },
+  'grok-4': { input: 2.0, output: 6.0 },
 }
+
+const TOOL_COST_PER_CALL = 0.005
 
 export const DEFAULT_MODEL = 'grok-4-1-fast'
 
@@ -112,33 +120,25 @@ export class GrokAdapter {
     if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
     messages.push({ role: 'user', content: prompt })
 
-    const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = []
+    const tools: unknown[] = []
     if (options.enableXSearch) {
-      tools.push({
-        type: 'function',
-        function: {
-          name: 'x_search',
-          description: 'Search X posts',
-          parameters: { type: 'object', properties: {} },
-        },
-      })
+      const tool: Record<string, unknown> = { type: 'x_search' }
+      if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
+      if (options.xSearchToDate) tool.to_date = options.xSearchToDate
+      if (options.xSearchHandles?.length) tool.allowed_x_handles = options.xSearchHandles
+      tools.push(tool)
     }
     if (options.enableWebSearch) {
-      tools.push({
-        type: 'function',
-        function: {
-          name: 'web_search',
-          description: 'Search the web',
-          parameters: { type: 'object', properties: {} },
-        },
-      })
+      tools.push({ type: 'web_search' })
     }
 
     const createParams = {
       model,
       messages,
       max_tokens: options.maxTokens ?? 2048,
-      ...(tools.length > 0 ? { tools } : {}),
+      ...(tools.length > 0
+        ? { tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] }
+        : {}),
     }
 
     let lastError: unknown
@@ -157,10 +157,12 @@ export class GrokAdapter {
         const text = response.choices[0]?.message?.content ?? ''
         const inputTokens = response.usage?.prompt_tokens ?? 0
         const outputTokens = response.usage?.completion_tokens ?? 0
+        const toolCallCount = response.choices[0]?.message?.tool_calls?.length ?? 0
         const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_MODEL]
-        const costUsd = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
+        const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
+        const costUsd = tokenCost + toolCallCount * TOOL_COST_PER_CALL
 
-        return { text, usage: { inputTokens, outputTokens, costUsd } }
+        return { text, usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount } }
       } catch (err) {
         clearTimeout(timer)
         lastError = err

@@ -4,7 +4,7 @@ import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
 import { formatOutput } from '../output.js'
 import type { GrokAdapter } from '../../core/grok-adapter.js'
-import type { CommandResult } from '../../core/types.js'
+import type { CommandResult, QueryOptions } from '../../core/types.js'
 
 const SYSTEM_PROMPT = `You are Corvus, an intelligence analyst monitoring X (Twitter) in real-time.
 Compare the current state of discourse to the previous snapshot.
@@ -19,6 +19,7 @@ Be extremely concise. No emoji. No markdown headers.`
 export interface WatchOptions {
   interval: number
   maxCycles: number
+  queryOptions?: Partial<QueryOptions>
   onUpdate: (result: CommandResult) => void
   onError: (err: Error) => void
   onStop: (summary: WatchSummary) => void
@@ -108,6 +109,7 @@ export class Watcher {
         systemPrompt: SYSTEM_PROMPT,
         enableXSearch: true,
         maxTokens: 2048,
+        ...this.options.queryOptions,
       })
 
       this.cycles++
@@ -140,8 +142,21 @@ export function registerWatchCommand(program: Command): void {
     .option('-i, --interval <seconds>', 'check interval in seconds', '60')
     .option('-n, --max <cycles>', 'maximum number of checks (0 = unlimited)', '0')
     .option('--cost', 'show estimated cost per cycle')
+    .option('--from <date>', 'filter x_search from date (YYYY-MM-DD)')
+    .option('--to <date>', 'filter x_search to date (YYYY-MM-DD)')
+    .option('--handle <name...>', 'filter x_search to specific handles (max 10)')
     .action(
-      async (topicParts: string[], options: { interval: string; max: string; cost?: boolean }) => {
+      async (
+        topicParts: string[],
+        options: {
+          interval: string
+          max: string
+          cost?: boolean
+          from?: string
+          to?: string
+          handle?: string[]
+        },
+      ) => {
         const topic = topicParts.join(' ')
         const intervalSec = Math.max(parseInt(options.interval, 10) || 60, 10)
         const maxCycles = Math.max(parseInt(options.max, 10) || 0, 0)
@@ -179,9 +194,22 @@ export function registerWatchCommand(program: Command): void {
         )
         console.log(t.muted('  press Ctrl+C to stop\n'))
 
+        const handles = options.handle?.length
+          ? options.handle.map((h) => h.replace(/^@/, ''))
+          : undefined
+        if (handles && handles.length > 10) {
+          console.log(t.error('\n  Maximum 10 handles allowed (xAI limit)\n'))
+          process.exit(1)
+        }
+
         const watcher = new Watcher(topic, {
           interval: intervalSec * 1000,
           maxCycles,
+          queryOptions: {
+            xSearchFromDate: options.from,
+            xSearchToDate: options.to,
+            xSearchHandles: handles,
+          },
           onUpdate: (result) => {
             console.log(t.muted(`  ── ${new Date().toLocaleTimeString()} ──`))
             console.log(formatOutput(result, 'table'))

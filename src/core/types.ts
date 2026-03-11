@@ -8,6 +8,7 @@ export interface GrokResponse {
     inputTokens: number
     outputTokens: number
     costUsd: number
+    toolCalls: number
   }
 }
 
@@ -17,6 +18,9 @@ export interface QueryOptions {
   enableWebSearch?: boolean
   systemPrompt?: string
   maxTokens?: number
+  xSearchFromDate?: string
+  xSearchToDate?: string
+  xSearchHandles?: string[]
 }
 
 export interface CommandResult {

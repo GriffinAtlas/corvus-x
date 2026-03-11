@@ -69,24 +69,50 @@ describe('GrokAdapter', () => {
     await adapter.query('trending?', { enableXSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].function.name).toBe('x_search')
-    expect(args.tools[0].type).toBe('function')
+    expect(args.tools[0].type).toBe('x_search')
+  })
+
+  it('passes x_search with date and handle params', async () => {
+    await adapter.query('trending?', {
+      enableXSearch: true,
+      xSearchFromDate: '2026-01-01',
+      xSearchToDate: '2026-03-01',
+      xSearchHandles: ['elonmusk', 'naval'],
+    })
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.tools).toHaveLength(1)
+    expect(args.tools[0]).toEqual({
+      type: 'x_search',
+      from_date: '2026-01-01',
+      to_date: '2026-03-01',
+      allowed_x_handles: ['elonmusk', 'naval'],
+    })
+  })
+
+  it('omits undefined x_search params', async () => {
+    await adapter.query('trending?', { enableXSearch: true, xSearchFromDate: '2026-01-01' })
+    const args = mockCreate.mock.calls[0][0]
+    const tool = args.tools[0]
+    expect(tool.type).toBe('x_search')
+    expect(tool.from_date).toBe('2026-01-01')
+    expect(tool.to_date).toBeUndefined()
+    expect(tool.allowed_x_handles).toBeUndefined()
   })
 
   it('passes web_search tool when enableWebSearch is true', async () => {
     await adapter.query('news?', { enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].function.name).toBe('web_search')
+    expect(args.tools[0].type).toBe('web_search')
   })
 
   it('passes both tools when both search options are true', async () => {
     await adapter.query('search all', { enableXSearch: true, enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(2)
-    const names = args.tools.map((t: { function: { name: string } }) => t.function.name)
-    expect(names).toContain('x_search')
-    expect(names).toContain('web_search')
+    const types = args.tools.map((t: { type: string }) => t.type)
+    expect(types).toContain('x_search')
+    expect(types).toContain('web_search')
   })
 
   it('omits tools property entirely when no search options', async () => {
@@ -112,7 +138,7 @@ describe('GrokAdapter', () => {
 
   it('calculates cost for grok-4 model', async () => {
     const result = await adapter.query('test', { model: 'grok-4' })
-    const expected = (100 * 3.0 + 50 * 15.0) / 1_000_000
+    const expected = (100 * 2.0 + 50 * 6.0) / 1_000_000
     expect(result.usage.costUsd).toBeCloseTo(expected, 10)
   })
 
@@ -120,6 +146,32 @@ describe('GrokAdapter', () => {
     const result = await adapter.query('test', { model: 'grok-future-99' })
     const expected = (100 * 0.2 + 50 * 0.5) / 1_000_000
     expect(result.usage.costUsd).toBeCloseTo(expected, 10)
+  })
+
+  it('includes tool call cost in total', async () => {
+    mockCreate.mockResolvedValueOnce(
+      mockResponse({
+        choices: [
+          {
+            message: {
+              content: 'response with tools',
+              tool_calls: [
+                { id: '1', type: 'function', function: { name: 'x_search', arguments: '{}' } },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+    const result = await adapter.query('test', { enableXSearch: true })
+    const tokenCost = (100 * 0.2 + 50 * 0.5) / 1_000_000
+    expect(result.usage.toolCalls).toBe(1)
+    expect(result.usage.costUsd).toBeCloseTo(tokenCost + 0.005, 10)
+  })
+
+  it('reports toolCalls as 0 when no tools used', async () => {
+    const result = await adapter.query('test')
+    expect(result.usage.toolCalls).toBe(0)
   })
 
   it('returns zero cost when usage has zero tokens', async () => {
