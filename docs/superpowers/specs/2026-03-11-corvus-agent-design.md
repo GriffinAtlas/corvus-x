@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-11
 **Author:** Roger Griffin / Claude
-**Status:** Draft
+**Status:** Reviewed
 **Scope:** Pipeline hardening + `corvus agent` command + presentation layer
 
 ---
@@ -56,7 +56,7 @@ All six `buildSnapshot` functions in `scan.ts`, `pulse.ts`, `trace.ts`, `gather.
 Modify `GrokAdapter.query()`:
 
 - Create an `AbortController` with a 30-second timeout via `setTimeout`
-- Pass `signal` to the OpenAI SDK `chat.completions.create()` call
+- Pass `signal` in the OpenAI SDK's request options (second argument): `this.client.chat.completions.create({ model, messages, ... }, { signal })`
 - On transient errors (HTTP 429, 500, 502, 503, or network errors with code `ETIMEDOUT`, `ECONNRESET`, `ECONNREFUSED`), retry once after a 2-second delay
 - On 429 specifically, if a `Retry-After` header is present and <= 10 seconds, wait that duration instead of 2s. If > 10s, do not retry — throw immediately with the reset time in the error message.
 - On non-transient errors (400, 401, 403, 404), throw immediately with no retry
@@ -83,7 +83,7 @@ const tweetIndex = tweets.indexOf(tweet)
 const score = scores.find((s) => s.index === tweetIndex)
 ```
 
-This matches how `computeKeyVoices` already works correctly at `metrics.ts:153`.
+This matches how `computeKeyVoices` already works correctly at `metrics.ts:~154` (the `scores.find((s) => s.index === i)` pattern).
 
 ### 2d. Include Impressions in Engagement Metrics
 
@@ -93,7 +93,86 @@ This matches how `computeKeyVoices` already works correctly at `metrics.ts:153`.
 
 `computeTopPosts`: include impressions in the engagement score used for sorting.
 
+**File:** `src/core/x-adapter.ts`
+
+`formatTweetsForAnalysis`: update the per-tweet format string to include impressions so Grok sees the same engagement model:
+```
+[0] @handle (12L 3RT 1R 450V): tweet text here
+```
+Where `V` = impressions/views. This keeps Grok's analysis consistent with the local engagement metric.
+
 All tests that assert specific engagement totals must be updated to include impressions.
+
+### 2e. Refactor `buildSnapshot` to Named Exports
+
+**Files:** `src/cli/commands/scan.ts`, `pulse.ts`, `trace.ts`, `gather.ts`, `read.ts`, `scope.ts`
+
+Each command's `buildSnapshot` is currently an inline closure inside the `.action()` callback, closing over CLI-parsed variables (`topic`, `maxResults`, `handle`, etc.). Refactor each into a named exported function with explicit parameters:
+
+```typescript
+// scan.ts
+export async function buildScanSnapshot(
+  deps: CommandDeps,
+  topic: string,
+  maxResults: number,
+  pages?: number,
+): Promise<BuildResult<ScanSnapshot>>
+
+// pulse.ts
+export async function buildPulseSnapshot(
+  deps: CommandDeps,
+  topic: string,
+  maxResults: number,
+  pages?: number,
+): Promise<BuildResult<PulseSnapshot>>
+
+// trace.ts
+export async function buildTraceSnapshot(
+  deps: CommandDeps,
+  topic: string,
+  maxResults: number,
+  pages?: number,
+): Promise<BuildResult<TraceSnapshot>>
+
+// gather.ts
+export async function buildGatherSnapshot(
+  deps: CommandDeps,
+  topic: string,
+  maxResults: number,
+  pages?: number,
+): Promise<BuildResult<GatherSnapshot>>
+
+// read.ts
+export async function buildReadSnapshot(
+  deps: CommandDeps,
+  tweetId: string,
+): Promise<BuildResult<ReadSnapshot>>
+
+// scope.ts
+export async function buildScopeSnapshot(
+  deps: CommandDeps,
+  handle: string,
+  tweetCount: number,
+): Promise<BuildResult<ScopeSnapshot>>
+```
+
+The shared return type:
+
+```typescript
+// types.ts
+interface BuildResult<T extends Snapshot> {
+  data: T
+  raw: string
+  cost: number
+  tweets: Tweet[]              // raw tweets fetched (empty for read/scope single-tweet)
+  scores: GrokTweetScore[]     // Grok's per-tweet scores (empty for read/scope)
+  newestTweetAt: number | null // epoch ms of newest tweet's createdAt
+}
+```
+
+Each command's `.action()` callback becomes a thin wrapper that calls the exported function and passes the result to `runStructuredCommand`. The `runStructuredCommand` interface changes to accept `BuildResult<T>` instead of `{ data, raw, cost }`.
+
+Commands that use `tweetAnalysis` (scan, pulse, trace, gather) populate `tweets` and `scores`. Commands that don't (read, scope) return empty arrays — the agent executor checks `result.tweets.length > 0` before aggregating.
 
 ---
 
@@ -105,11 +184,19 @@ All tests that assert specific engagement totals must be updated to include impr
 src/
   core/
     agent.ts              # AgentPlanner, AgentExecutor, AgentSynthesizer
+                          # Also contains orchestration types: AgentPlan, AgentStep,
+                          # AgentContext, AgentStepResult, ReplanDecision
+                          # (these are internal to the agent, not Grok schemas)
   cli/
     commands/agent.ts     # Commander registration, CLI options, rendering
     progress.ts           # StepProgress — multi-line in-place step tracker
     theme.ts              # Color palette, visual primitives, TTY detection
 ```
+
+Type placement:
+- `AgentPlan`, `AgentStep`, `AgentContext`, `AgentStepResult`, `ReplanDecision` → `src/core/agent.ts` (internal orchestration)
+- `AgentBrief`, `BriefAccount`, `BriefEvidence`, `ConfidenceScore` → `src/core/schemas.ts` (output shapes, part of `Snapshot` union)
+- `BuildResult<T>` → `src/core/types.ts` (shared across all commands)
 
 ### 3.2 Interfaces
 
@@ -148,6 +235,9 @@ interface AgentStepResult {
   snapshot: Snapshot
   cost: number
   durationMs: number
+  tweets: Tweet[]              // raw tweets from this step (empty for read/scope)
+  scores: GrokTweetScore[]     // per-tweet Grok scores (empty for read/scope)
+  newestTweetAt: number | null // epoch ms of newest tweet in this step
 }
 
 // ── Replan ──
@@ -155,6 +245,7 @@ interface AgentStepResult {
 type ReplanDecision =
   | { action: 'continue' }
   | { action: 'revise'; steps: AgentStep[] }
+// Any unrecognized `action` value is treated as 'continue'.
 
 // ── Brief ──
 
@@ -280,7 +371,9 @@ Rules:
 
 Response parsed with `parseGrokJson<Partial<AgentBrief>>`. The synthesizer fills in Grok-generated fields. Locally-computed fields are set by the executor:
 
-**Confidence** — computed in `metrics.ts`:
+**Confidence** — computed locally in `metrics.ts`. Uses only tweets and scores from steps that produce `tweetAnalysis` (scan, pulse, trace, gather). Steps from `read` and `scope` return empty `tweets`/`scores` arrays and are excluded from confidence computation. Read/scope results still contribute to the brief's qualitative analysis (via Grok's synthesizer) but not to the quantitative confidence score.
+
+Implementation in `metrics.ts`:
 
 ```typescript
 function computeConfidence(allTweets: Tweet[], allScores: GrokTweetScore[]): ConfidenceScore {
@@ -307,10 +400,31 @@ function computeConfidence(allTweets: Tweet[], allScores: GrokTweetScore[]): Con
 ```typescript
 function detectContradictions(results: AgentStepResult[]): string[] {
   const contradictions: string[] = []
-  // Compare sentiment across scan/pulse results for same topic
-  // Flag if top accounts diverge from crowd sentiment by > 0.3
-  // Flag if bull signals and bear signals are both strong
-  // Return human-readable description strings
+
+  // 1. Cross-step sentiment divergence: if two steps targeting overlapping
+  //    topics have sentiment averages differing by > 0.3, flag it.
+  //    Compare scan vs pulse, scan vs gather, pulse vs gather.
+  //    Example output: "Scan sentiment (-0.41) diverges from pulse (+0.08)
+  //    on the same topic"
+
+  // 2. Top accounts vs crowd: if the top 3 accounts by reach have an
+  //    average sentiment that differs from the overall crowd sentiment
+  //    by > 0.3, flag it.
+  //    Example: "Top 3 accounts bullish (+0.52 avg) against bearish
+  //    crowd consensus (-0.28)"
+
+  // 3. Bull/bear signal strength: if a pulse step has both bullSignals
+  //    and bearSignals with >= 3 entries each, flag the mixed signals.
+  //    Example: "Strong bull signals (4) and bear signals (3) both
+  //    present — market is contested"
+
+  // 4. Narrative vs sentiment mismatch: if the dominant narrative by
+  //    tweet count has sentiment opposite to the overall average
+  //    (signs differ), flag it.
+  //    Example: "Dominant narrative 'ETF outflows' is bearish (-0.52)
+  //    but overall sentiment is positive (+0.12)"
+
+  return contradictions
 }
 ```
 
@@ -332,7 +446,7 @@ async searchRecent(
 ): Promise<XSearchResult>
 ```
 
-When `pages > 1`, after the first response, if `nextToken` is present, make additional requests (up to `pages - 1` more) passing `next_token` as a query parameter. Concatenate all tweet and user arrays. Return the combined result.
+When `pages > 1`, after the first response, if `nextToken` is present, make additional requests (up to `pages - 1` more) passing `next_token` as a query parameter. Concatenate all tweet and user arrays. Deduplicate by tweet ID and user ID before returning (the X API can return overlapping results between pages if the index shifts during pagination).
 
 Individual commands keep `pages: 1` (no behavior change). Agent steps use `pages: 2` by default (200 tweets). A future `--deep` flag could set `pages: 3`.
 
@@ -351,6 +465,7 @@ Options:
 - `-n, --max-steps <n>` — step cap (default 8, min 2, max 12)
 - `-f, --format <type>` — `table` (default), `json`, `md`
 - `--no-replan` — disable adaptive replanning
+- `--budget <amount>` — cost cap in USD (default 0.10). Agent aborts if cumulative cost exceeds this.
 - `--cost` — show pricing info and exit
 
 ### 4.2 Fire-and-Forget Mode
@@ -359,7 +474,13 @@ The default. User runs the command, sees step progress update in-place, receives
 
 Progress display uses `StepProgress` class (Section 5.2) — each step gets its own line that transitions from pending to running to complete. Steps added by replanning are tagged `(lead)`. Steps that replaced original plan steps are tagged `(replan)`.
 
-No interaction. No prompts. Ctrl+C cancels cleanly.
+No interaction. No prompts.
+
+**Cost budget enforcement:** Before each step, the executor checks `context.totalCost` against the `--budget` value (default $0.10). If the next step would likely exceed the budget (estimated from average cost of completed steps), the executor stops, skips synthesis, and prints a cost summary of completed steps. The `--budget` flag accepts a decimal USD value (e.g., `--budget 0.05`).
+
+**Rate limit handling for X API:** If an X API call returns 429 (`XRateLimitError`), the executor pauses until `resetAt` (already available from the error object), then retries the same step. If `resetAt` is more than 60 seconds in the future, the executor skips the step and continues with remaining steps rather than blocking indefinitely. The skipped step is marked as `(rate-limited)` in the progress display.
+
+**Graceful shutdown (SIGINT):** On Ctrl+C, the executor stops after the current in-flight step completes (does not abort mid-API-call). It skips synthesis and prints a summary of completed steps with their individual costs and total cost. The `StepProgress` display clears its ANSI cursor state before printing the summary. Individual step snapshots already saved to disk are retained. No partial `AgentBrief` is produced — the user reruns the full agent or uses individual command snapshots.
 
 ### 4.3 Interactive Mode
 
@@ -450,7 +571,7 @@ export const LOGO = t.accent(`  ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═
 
 **Migration:** All existing `chalk.red(...)`, `chalk.green(...)`, `chalk.bold(...)`, `chalk.dim(...)` calls across `output.ts`, `run-command.ts`, and `repl.ts` are replaced with `t.negative(...)`, `t.positive(...)`, `t.heading(...)`, `t.muted(...)` respectively. This is a mechanical find-and-replace with no behavior change (the colors are identical). The purpose is a single source of truth for the palette.
 
-**`--no-color` flag:** Added to the root Commander program in `bin/corvus.ts`. When set, `chalk.level = 0` which disables all color. Combined with TTY detection: if `!isTTY`, chalk level is also set to 0 automatically.
+**`--no-color` flag:** Added to the root Commander program in `bin/corvus.ts`. When set, `chalk.level = 0` which disables all color. Combined with TTY detection: if `!isTTY`, chalk level is also set to 0 automatically. This means piping output (e.g., `corvus agent "question" | less`) strips colors by default — this is intentional and matches the behavior of tools like `ls` and `git`. Users who want color in a pipe can set `FORCE_COLOR=1` (supported natively by chalk 5.x).
 
 ### 5.2 Step Progress (`src/cli/progress.ts`)
 
@@ -477,10 +598,13 @@ Rendering:
 - Duration shown after checkmark: `✓ 3.2s` (muted)
 - Tags shown after target: `(lead)` in accent, `(replan)` in warning
 - On non-TTY: no ANSI cursor control. Steps print sequentially as they complete (one line per step, no overwriting).
+- Windows note: Windows Terminal (the default on Windows 11) has full ANSI support including cursor movement. Legacy conhost does not. The `isTTY` check from `theme.ts` is sufficient — legacy conhost users who pipe output or run in non-TTY contexts get the fallback automatically. No special Windows detection needed beyond `isTTY`.
 
 ### 5.3 Agent Brief Renderer
 
-Located in `src/cli/output.ts` as `renderAgentBrief(brief: AgentBrief): string`.
+Located in `src/cli/output.ts` as `renderAgentBrief(brief: AgentBrief, previousSentiment?: number): string`.
+
+The `previousSentiment` parameter is populated from the previous agent snapshot's `sentiment` field (loaded via `SnapshotStore.loadLatest` in the agent command, same pattern as other structured commands). If no previous snapshot exists, the "(was +0.12)" display is omitted.
 
 Structure:
 ```
@@ -539,7 +663,7 @@ All existing spinner text is replaced across every command:
 
 | File | Old | New |
 |---|---|---|
-| `ask.ts` | `scanning X...` | `ask` (no trailing dots) |
+| `ask.ts` | `scanning X...` | `ask · {truncated question}` |
 | `scan.ts` | `scanning X...` | `scan · {topic}` |
 | `pulse.ts` | `reading pulse...` | `pulse · {topic}` |
 | `trace.ts` | `tracing narrative...` | `trace · {topic}` |
@@ -634,16 +758,16 @@ The Grok synthesizer system prompt enforces:
 - `src/core/grok-adapter.ts` — add `parseGrokJson`, `GrokParseError`, retry/timeout logic
 - `src/core/x-adapter.ts` — add pagination to `searchRecent`
 - `src/core/metrics.ts` — fix `computeTopAccounts`, add impressions to engagement, add `computeConfidence`, `detectContradictions`
-- `src/core/schemas.ts` — add `AgentBrief`, `ConfidenceScore`, agent snapshot types, export `AGENT_MATCH_KEYS`
+- `src/core/schemas.ts` — add `AgentBrief` to the `Snapshot` union type, add `ConfidenceScore`, `BriefAccount`, `BriefEvidence` interfaces, export `AGENT_MATCH_KEYS`
 - `src/cli/output.ts` — add `renderAgentBrief`, migrate all chalk calls to theme, add `sentimentBar` to existing renderers
 - `src/cli/run-command.ts` — migrate chalk calls to theme
 - `src/cli/repl.ts` — migrate chalk calls to theme, remove spinner text
-- `src/cli/commands/scan.ts` — export `buildSnapshot`, use `parseGrokJson`, update spinner text
-- `src/cli/commands/pulse.ts` — export `buildSnapshot`, use `parseGrokJson`, update spinner text
-- `src/cli/commands/trace.ts` — export `buildSnapshot`, use `parseGrokJson`, update spinner text
-- `src/cli/commands/gather.ts` — export `buildSnapshot`, use `parseGrokJson`, update spinner text
-- `src/cli/commands/read.ts` — export `buildSnapshot`, use `parseGrokJson`, update spinner text
-- `src/cli/commands/scope.ts` — export `buildSnapshot`, use `parseGrokJson`, update spinner text
+- `src/cli/commands/scan.ts` — refactor to named `buildScanSnapshot` export, use `parseGrokJson`, return `BuildResult`, update spinner text
+- `src/cli/commands/pulse.ts` — refactor to named `buildPulseSnapshot` export, use `parseGrokJson`, return `BuildResult`, update spinner text
+- `src/cli/commands/trace.ts` — refactor to named `buildTraceSnapshot` export, use `parseGrokJson`, return `BuildResult`, update spinner text
+- `src/cli/commands/gather.ts` — refactor to named `buildGatherSnapshot` export, use `parseGrokJson`, return `BuildResult`, update spinner text
+- `src/cli/commands/read.ts` — refactor to named `buildReadSnapshot` export, use `parseGrokJson`, return `BuildResult`, update spinner text
+- `src/cli/commands/scope.ts` — refactor to named `buildScopeSnapshot` export, use `parseGrokJson`, return `BuildResult`, update spinner text
 - `bin/corvus.ts` — register agent command, add `--no-color` flag, add logo to help, reorganize help categories
 - `tests/core/metrics.test.ts` — update engagement totals, add bug regression test
 - `tests/core/grok-adapter.test.ts` — add parseGrokJson tests, retry tests
@@ -655,7 +779,7 @@ The Grok synthesizer system prompt enforces:
 - `src/core/cache.ts` — no changes
 - `src/core/differ.ts` — no changes
 - `src/core/snapshots.ts` — no changes
-- `src/core/types.ts` — no changes (agent uses its own types in schemas.ts)
+- `src/core/types.ts` — add `BuildResult<T>` interface
 - `src/infra/auth.ts` — no changes
 - `src/infra/config.ts` — no changes
 - `src/cli/commands/watch.ts` — no changes
@@ -669,8 +793,9 @@ The Grok synthesizer system prompt enforces:
 - 2a: JSON parse safety
 - 2b: Retry and timeout
 - 2c: Fix computeTopAccounts bug
-- 2d: Include impressions in engagement
-- Tests for all four fixes
+- 2d: Include impressions in engagement (including formatTweetsForAnalysis)
+- 2e: Refactor buildSnapshot to named exports with BuildResult<T>
+- Tests for all five changes
 - All 264 existing tests still pass
 
 ### Phase 2: Presentation Layer
@@ -713,3 +838,5 @@ Typical agent run with 5 command steps:
 | **Total** | | **~$0.006** |
 
 At grok-4-1-fast pricing ($0.20/M input, $0.50/M output), a typical agent run costs under $0.01. A deep investigation with 8 steps and 3 replans would cost ~$0.02-0.03.
+
+Note: These estimates are illustrative based on current `MODEL_PRICING` in `grok-adapter.ts`. Actual costs depend on response verbosity and may change if xAI adjusts pricing. The `--budget` flag provides a hard cap regardless of pricing changes.
