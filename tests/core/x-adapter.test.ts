@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { XAdapter, XRateLimitError, XApiError } from '../../src/core/x-adapter.js'
+import { XAdapter, XRateLimitError, XApiError, formatTweetsForAnalysis } from '../../src/core/x-adapter.js'
+import type { Tweet, XUser } from '../../src/core/x-adapter.js'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -117,14 +118,17 @@ describe('XAdapter', () => {
     expect(tweets).toEqual([])
   })
 
-  it('searchRecent returns tweets and nextToken', async () => {
+  it('searchRecent returns tweets, users, and nextToken', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({
       data: [RAW_TWEET],
+      includes: { users: [RAW_USER] },
       meta: { next_token: 'abc123' },
     }))
     const result = await adapter.searchRecent('AI agents')
     expect(result.tweets).toHaveLength(1)
     expect(result.tweets[0].text).toBe('AI agents are the future')
+    expect(result.users).toHaveLength(1)
+    expect(result.users[0].username).toBe('corvus_dev')
     expect(result.nextToken).toBe('abc123')
   })
 
@@ -149,7 +153,17 @@ describe('XAdapter', () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: null, meta: {} }))
     const result = await adapter.searchRecent('test')
     expect(result.tweets).toEqual([])
+    expect(result.users).toEqual([])
     expect(result.nextToken).toBeUndefined()
+  })
+
+  it('getUserById fetches user by ID', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_USER }))
+    const user = await adapter.getUserById('user_1')
+    expect(user.username).toBe('corvus_dev')
+    expect(user.followersCount).toBe(1200)
+    const url = mockFetch.mock.calls[0][0] as string
+    expect(url).toContain('/users/user_1')
   })
 
   it('throws XRateLimitError on 429', async () => {
@@ -238,5 +252,45 @@ describe('XAdapter', () => {
       expect((err as XApiError).status).toBe(200)
       expect((err as XApiError).message).toContain('invalid JSON')
     }
+  })
+})
+
+describe('formatTweetsForAnalysis', () => {
+  const tweets: Tweet[] = [
+    {
+      id: '1', text: 'Hello world', authorId: 'a1', createdAt: '2024-01-01',
+      metrics: { likes: 10, retweets: 5, replies: 2, impressions: 100 },
+    },
+    {
+      id: '2', text: 'Goodbye', authorId: 'a2', createdAt: '2024-01-02',
+      metrics: { likes: 20, retweets: 3, replies: 1, impressions: 200 },
+    },
+  ]
+  const users: XUser[] = [
+    { id: 'a1', username: 'alice', name: 'Alice', description: '', followersCount: 100, followingCount: 50, tweetCount: 10, verified: false },
+    { id: 'a2', username: 'bob', name: 'Bob', description: '', followersCount: 200, followingCount: 100, tweetCount: 20, verified: false },
+  ]
+
+  it('formats tweets with index and handle', () => {
+    const result = formatTweetsForAnalysis(tweets, users)
+    expect(result).toContain('[0] @alice')
+    expect(result).toContain('[1] @bob')
+  })
+
+  it('includes engagement metrics', () => {
+    const result = formatTweetsForAnalysis(tweets, users)
+    expect(result).toContain('10L 5RT 2R')
+  })
+
+  it('includes tweet text', () => {
+    const result = formatTweetsForAnalysis(tweets, users)
+    expect(result).toContain('Hello world')
+    expect(result).toContain('Goodbye')
+  })
+
+  it('falls back to authorId when user not found', () => {
+    const result = formatTweetsForAnalysis(tweets, [])
+    expect(result).toContain('@a1')
+    expect(result).toContain('@a2')
   })
 })

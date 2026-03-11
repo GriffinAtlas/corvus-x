@@ -10,12 +10,73 @@ vi.mock('openai', () => ({
   },
 }))
 
-vi.mock('../../../src/core/cache.js', () => ({
-  QueryCache: class {
-    get() { return null }
-    set() {}
+vi.mock('../../../src/core/snapshots.js', () => ({
+  SnapshotStore: class {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    save(_cmd: string, _topic: string, data: any, raw: string, cost: number) {
+      return { command: _cmd, topic: _topic, data, raw, timestamp: Date.now(), cost }
+    }
+    loadLatest() { return null }
+    loadAll() { return [] }
+    listTopics() { return [] }
   },
 }))
+
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
+
+function xSearchResponse(tweetCount = 2) {
+  const tweets = Array.from({ length: tweetCount }, (_, i) => ({
+    id: String(i + 1),
+    text: `Test tweet ${i + 1}`,
+    author_id: `author_${i + 1}`,
+    created_at: '2024-01-01T00:00:00Z',
+    public_metrics: {
+      retweet_count: 5,
+      reply_count: 2,
+      like_count: 10,
+      impression_count: 100,
+    },
+  }))
+  const users = Array.from({ length: tweetCount }, (_, i) => ({
+    id: `author_${i + 1}`,
+    username: `user${i + 1}`,
+    name: `User ${i + 1}`,
+    description: '',
+    public_metrics: {
+      followers_count: 1000 * (i + 1),
+      following_count: 500,
+      tweet_count: 100,
+    },
+    verified: false,
+  }))
+
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: () => Promise.resolve({
+      data: tweets,
+      includes: { users },
+      meta: { result_count: tweetCount },
+    }),
+    text: () => Promise.resolve(''),
+  }
+}
+
+function grokGatherResponse() {
+  const json = JSON.stringify({
+    tweetAnalysis: [{ index: 0, sentiment: 0.5, narrative: 'theme' }],
+    narratives: [{ theme: 'theme1', description: 'desc' }],
+    signals: ['signal'],
+    webContext: ['context 1'],
+    outlook: 'Looking positive',
+  })
+  return {
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 500, completion_tokens: 2000 },
+  }
+}
 
 describe('registerGatherCommand', () => {
   let program: Command
@@ -33,10 +94,11 @@ describe('registerGatherCommand', () => {
     })
     vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null | undefined) => {
       exitCode = typeof code === 'number' ? code : undefined
-      throw new Error(`process.exit(${code})`)
+      throw new Error('process.exit')
     })
 
     mockQuery.mockReset()
+    mockFetch.mockReset()
     exitCode = undefined
   })
 
@@ -56,67 +118,59 @@ describe('registerGatherCommand', () => {
       await program.parseAsync(['node', 'corvus', 'gather', 'AI regulation'])
     } catch { /* process.exit */ }
     expect(exitCode).toBe(1)
+    expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
 
-  it('--cost flag shows pricing', async () => {
+  it('--cost flag shows pricing without API call', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     await program.parseAsync(['node', 'corvus', 'gather', '--cost', 'topic'])
     expect(mockQuery).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
     expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
   })
 
-  it('enables both x_search and web_search', async () => {
+  it('successful gather prints outlook', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'gathered intelligence' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
-    await program.parseAsync(['node', 'corvus', 'gather', 'test'])
-    const args = mockQuery.mock.calls[0][0]
-    const toolNames = args.tools.map((t: { function: { name: string } }) => t.function.name)
-    expect(toolNames).toContain('x_search')
-    expect(toolNames).toContain('web_search')
-  })
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockFetch.mockResolvedValueOnce(xSearchResponse())
+    mockQuery.mockResolvedValueOnce(grokGatherResponse())
 
-  it('sets maxTokens to 6144 for comprehensive output', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'response' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
-    await program.parseAsync(['node', 'corvus', 'gather', 'test'])
-    expect(mockQuery.mock.calls[0][0].max_tokens).toBe(6144)
-  })
-
-  it('successful gather prints comprehensive output', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'Executive summary: AI regulation is accelerating...' } }],
-      usage: { prompt_tokens: 500, completion_tokens: 2000 },
-    })
     await program.parseAsync(['node', 'corvus', 'gather', 'AI', 'regulation'])
-    expect(logs.some((l) => l.includes('Executive summary'))).toBe(true)
+    const output = logs.join('\n')
+    expect(output).toContain('Outlook')
+    expect(output).toContain('Looking positive')
   })
 
   it('--format json produces valid JSON with command=gather', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'json gather' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockFetch.mockResolvedValueOnce(xSearchResponse())
+    mockQuery.mockResolvedValueOnce(grokGatherResponse())
+
     await program.parseAsync(['node', 'corvus', 'gather', '-f', 'json', 'test'])
     const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    expect(jsonLog).toBeDefined()
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('gather')
   })
 
   it('API error exits with code 1', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockRejectedValueOnce(new Error('insufficient quota'))
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockFetch.mockRejectedValueOnce(new Error('insufficient quota'))
     try {
       await program.parseAsync(['node', 'corvus', 'gather', 'test'])
     } catch { /* process.exit */ }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('insufficient quota'))).toBe(true)
+  })
+
+  it('errors when no X token is set', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    try {
+      await program.parseAsync(['node', 'corvus', 'gather', 'test'])
+    } catch { /* process.exit */ }
+    expect(exitCode).toBe(1)
+    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
   })
 })

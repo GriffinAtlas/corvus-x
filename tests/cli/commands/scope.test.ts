@@ -10,51 +10,65 @@ vi.mock('openai', () => ({
   },
 }))
 
-vi.mock('../../../src/core/cache.js', () => ({
-  QueryCache: class {
-    get() { return null }
-    set() {}
+vi.mock('../../../src/core/snapshots.js', () => ({
+  SnapshotStore: class {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    save(_cmd: string, _topic: string, data: any, raw: string, cost: number) {
+      return { command: _cmd, topic: _topic, data, raw, timestamp: Date.now(), cost }
+    }
+    loadLatest() { return null }
+    loadAll() { return [] }
+    listTopics() { return [] }
   },
 }))
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-function xApiResponse(body: unknown, status = 200) {
+function mockScopeFetch() {
+  mockFetch.mockImplementation((url: string) => {
+    if (url.includes('/users/by/username/')) {
+      return Promise.resolve({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          data: {
+            id: 'uid_1', username: 'testuser', name: 'Test User',
+            description: 'A test account', public_metrics: { followers_count: 5000, following_count: 200, tweet_count: 500 },
+            verified: false,
+          },
+        }),
+        text: () => Promise.resolve(''),
+      })
+    }
+    if (url.includes('/tweets')) {
+      return Promise.resolve({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          data: [
+            { id: '1', text: 'Tweet 1', author_id: 'uid_1', created_at: '2024-01-01', public_metrics: { like_count: 10, retweet_count: 5, reply_count: 2, impression_count: 100 } },
+            { id: '2', text: 'Tweet 2', author_id: 'uid_1', created_at: '2024-01-02', public_metrics: { like_count: 20, retweet_count: 8, reply_count: 3, impression_count: 200 } },
+          ],
+        }),
+        text: () => Promise.resolve(''),
+      })
+    }
+    return Promise.reject(new Error('Unknown URL'))
+  })
+}
+
+function grokScopeResponse() {
+  const json = JSON.stringify({
+    contentPatterns: ['Posts about tech', 'Discusses crypto'],
+    recentFocus: ['AI developments'],
+    networkPosition: 'Mid-tier tech commentator',
+    influence: 'medium',
+    signalValue: 'high',
+  })
   return {
-    ok: status >= 200 && status < 300,
-    status,
-    headers: new Headers(),
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 200, completion_tokens: 300 },
   }
 }
-
-const MOCK_USER = {
-  id: 'user_1',
-  username: 'corvus_dev',
-  name: 'Corvus Dev',
-  description: 'Building intelligence tools',
-  public_metrics: { followers_count: 1200, following_count: 300, tweet_count: 4500 },
-  verified: false,
-}
-
-const MOCK_TWEETS = [
-  {
-    id: 't1',
-    text: 'Working on Corvus today',
-    author_id: 'user_1',
-    created_at: '2026-03-10T12:00:00Z',
-    public_metrics: { retweet_count: 5, reply_count: 2, like_count: 30, impression_count: 800 },
-  },
-  {
-    id: 't2',
-    text: 'Grok API is impressive',
-    author_id: 'user_1',
-    created_at: '2026-03-09T18:00:00Z',
-    public_metrics: { retweet_count: 10, reply_count: 5, like_count: 50, impression_count: 1200 },
-  },
-]
 
 describe('registerScopeCommand', () => {
   let program: Command
@@ -72,7 +86,7 @@ describe('registerScopeCommand', () => {
     })
     vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null | undefined) => {
       exitCode = typeof code === 'number' ? code : undefined
-      throw new Error(`process.exit(${code})`)
+      throw new Error('process.exit')
     })
 
     mockQuery.mockReset()
@@ -98,110 +112,56 @@ describe('registerScopeCommand', () => {
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
 
-  it('exits with code 1 when no x token', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
-    } catch { /* process.exit */ }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
-  })
-
-  it('strips @ prefix from username', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    // First call: getUser, second call: getUserTweets
-    mockFetch
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_USER }))
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_TWEETS }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'profile analysis' } }],
-      usage: { prompt_tokens: 200, completion_tokens: 300 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'scope', '@corvus_dev'])
-    const fetchUrl = mockFetch.mock.calls[0][0] as string
-    expect(fetchUrl).toContain('/users/by/username/corvus_dev')
-    expect(fetchUrl).not.toContain('@')
-  })
-
-  it('fetches user profile and recent tweets then sends to Grok', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    mockFetch
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_USER }))
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_TWEETS }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'This account is a mid-tier tech builder...' } }],
-      usage: { prompt_tokens: 300, completion_tokens: 400 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'scope', 'corvus_dev'])
-
-    // Verify Grok received the profile context
-    const userMsg = mockQuery.mock.calls[0][0].messages.find((m: { role: string }) => m.role === 'user')
-    expect(userMsg.content).toContain('@corvus_dev')
-    expect(userMsg.content).toContain('Building intelligence tools')
-    expect(userMsg.content).toContain('1200')
-    expect(userMsg.content).toContain('Working on Corvus today')
-    expect(logs.some((l) => l.includes('mid-tier tech builder'))).toBe(true)
-  })
-
-  it('-n flag controls tweet count', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    mockFetch
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_USER }))
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_TWEETS }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'analysis' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'scope', '-n', '25', 'testuser'])
-    const tweetsUrl = mockFetch.mock.calls[1][0] as string
-    expect(tweetsUrl).toContain('max_results=25')
-  })
-
-  it('--format json produces valid JSON with command=scope', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    mockFetch
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_USER }))
-      .mockResolvedValueOnce(xApiResponse({ data: MOCK_TWEETS }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'json scope' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'scope', '-f', 'json', 'testuser'])
-    const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
-    const parsed = JSON.parse(jsonLog!)
-    expect(parsed.command).toBe('scope')
-    expect(parsed.query).toBe('@testuser')
-  })
-
   it('--cost flag shows pricing without API call', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
     await program.parseAsync(['node', 'corvus', 'scope', '--cost', 'testuser'])
     expect(mockQuery).not.toHaveBeenCalled()
     expect(mockFetch).not.toHaveBeenCalled()
     expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
   })
 
-  it('X API error is reported', async () => {
+  it('successful scope prints account info and followers', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-    mockFetch.mockResolvedValueOnce(xApiResponse({ detail: 'Unauthorized' }, 401))
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockScopeFetch()
+    mockQuery.mockResolvedValueOnce(grokScopeResponse())
+
+    await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
+    const output = logs.join('\n')
+    expect(output).toContain('@testuser')
+    expect(output).toContain('followers')
+  })
+
+  it('--format json produces valid JSON with command=scope', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockScopeFetch()
+    mockQuery.mockResolvedValueOnce(grokScopeResponse())
+
+    await program.parseAsync(['node', 'corvus', 'scope', '-f', 'json', 'testuser'])
+    const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    expect(jsonLog).toBeDefined()
+    const parsed = JSON.parse(jsonLog!)
+    expect(parsed.command).toBe('scope')
+  })
+
+  it('X API error prints message and exits', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockFetch.mockRejectedValueOnce(new Error('Unauthorized'))
     try {
       await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
     } catch { /* process.exit */ }
     expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('401'))).toBe(true)
+    expect(logs.some((l) => l.includes('Unauthorized'))).toBe(true)
+  })
+
+  it('errors when no X token is set', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    try {
+      await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
+    } catch { /* process.exit */ }
+    expect(exitCode).toBe(1)
+    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
   })
 })

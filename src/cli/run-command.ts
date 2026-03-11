@@ -139,33 +139,40 @@ export async function runStructuredCommand<T extends Snapshot>(
   const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
   const store = new SnapshotStore(ConfigManager.defaultDir())
 
-  const previous = store.loadLatest<T>(opts.command, opts.topic)
-  const built = await opts.buildSnapshot(deps)
-  spinner.stop()
+  try {
+    const previous = store.loadLatest<T>(opts.command, opts.topic)
+    const built = await opts.buildSnapshot(deps)
+    spinner.stop()
 
-  const stored = store.save(opts.command, opts.topic, built.data, built.raw, built.cost)
+    const stored = store.save(opts.command, opts.topic, built.data, built.raw, built.cost)
 
-  let diff: DiffLine[] = []
-  let timeSinceLast = 0
-  if (previous) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    diff = diffSnapshots(
-      previous.data as any,
-      stored.data as any,
-      opts.matchKeys,
-    )
-    timeSinceLast = stored.timestamp - previous.timestamp
+    let diff: DiffLine[] = []
+    let timeSinceLast = 0
+    if (previous) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      diff = diffSnapshots(
+        previous.data as any,
+        stored.data as any,
+        opts.matchKeys,
+      )
+      timeSinceLast = stored.timestamp - previous.timestamp
+    }
+
+    const result: StructuredCommandResult<T> = {
+      command: opts.command,
+      topic: opts.topic,
+      data: stored.data,
+      cost: built.cost,
+      timestamp: stored.timestamp,
+      diff,
+      timeSinceLast,
+    }
+
+    console.log(formatStructuredOutput(result, opts.format, opts.renderSnapshot))
+  } catch (err) {
+    spinner.stop()
+    const msg = err instanceof Error ? err.message : String(err)
+    console.log(chalk.red(`\n  Error: ${msg}\n`))
+    process.exit(1)
   }
-
-  const result: StructuredCommandResult<T> = {
-    command: opts.command,
-    topic: opts.topic,
-    data: stored.data,
-    cost: built.cost,
-    timestamp: stored.timestamp,
-    diff,
-    timeSinceLast,
-  }
-
-  console.log(formatStructuredOutput(result, opts.format, opts.renderSnapshot))
 }

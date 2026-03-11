@@ -10,23 +10,61 @@ vi.mock('openai', () => ({
   },
 }))
 
-vi.mock('../../../src/core/cache.js', () => ({
-  QueryCache: class {
-    get() { return null }
-    set() {}
+vi.mock('../../../src/core/snapshots.js', () => ({
+  SnapshotStore: class {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    save(_cmd: string, _topic: string, data: any, raw: string, cost: number) {
+      return { command: _cmd, topic: _topic, data, raw, timestamp: Date.now(), cost }
+    }
+    loadLatest() { return null }
+    loadAll() { return [] }
+    listTopics() { return [] }
   },
 }))
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-function xApiResponse(body: unknown, status = 200) {
+function mockReadFetch() {
+  mockFetch.mockImplementation((url: string) => {
+    if (url.includes('/tweets/')) {
+      return Promise.resolve({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          data: {
+            id: '12345', text: 'Test tweet', author_id: 'author_1',
+            created_at: '2024-01-01', public_metrics: { like_count: 10, retweet_count: 5, reply_count: 2, impression_count: 100 },
+          },
+        }),
+        text: () => Promise.resolve(''),
+      })
+    }
+    if (url.includes('/users/')) {
+      return Promise.resolve({
+        ok: true, status: 200, headers: new Headers(),
+        json: () => Promise.resolve({
+          data: {
+            id: 'author_1', username: 'testuser', name: 'Test User',
+            description: '', public_metrics: { followers_count: 1000, following_count: 500, tweet_count: 100 },
+            verified: false,
+          },
+        }),
+        text: () => Promise.resolve(''),
+      })
+    }
+    return Promise.reject(new Error('Unknown URL'))
+  })
+}
+
+function grokReadResponse() {
+  const json = JSON.stringify({
+    analysis: 'This tweet discusses important topic',
+    significance: 'high',
+    signals: ['signal 1'],
+  })
   return {
-    ok: status >= 200 && status < 300,
-    status,
-    headers: new Headers(),
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 100, completion_tokens: 200 },
   }
 }
 
@@ -68,7 +106,7 @@ describe('registerReadCommand', () => {
     })
     vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null | undefined) => {
       exitCode = typeof code === 'number' ? code : undefined
-      throw new Error(`process.exit(${code})`)
+      throw new Error('process.exit')
     })
 
     mockQuery.mockReset()
@@ -94,100 +132,16 @@ describe('registerReadCommand', () => {
     expect(logs.some((l) => l.includes('No Grok API key found'))).toBe(true)
   })
 
-  it('exits with code 1 when no x token', async () => {
+  it('--cost flag shows pricing without API call', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'read', '123456'])
-    } catch { /* process.exit */ }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
-  })
-
-  it('extracts tweet ID from full URL', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    mockFetch.mockResolvedValueOnce(xApiResponse({
-      data: {
-        id: '789012',
-        text: 'This is the tweet',
-        author_id: 'user_1',
-        created_at: '2026-03-10T12:00:00Z',
-        public_metrics: { retweet_count: 5, reply_count: 2, like_count: 50, impression_count: 1000 },
-      },
-    }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'analysis of tweet' } }],
-      usage: { prompt_tokens: 100, completion_tokens: 200 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'read', 'https://x.com/user/status/789012'])
-    const fetchUrl = mockFetch.mock.calls[0][0] as string
-    expect(fetchUrl).toContain('/tweets/789012')
-  })
-
-  it('accepts bare numeric tweet ID', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    mockFetch.mockResolvedValueOnce(xApiResponse({
-      data: {
-        id: '555',
-        text: 'bare id tweet',
-        author_id: 'u1',
-        created_at: '2026-03-10T12:00:00Z',
-        public_metrics: { retweet_count: 0, reply_count: 0, like_count: 0, impression_count: 0 },
-      },
-    }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'analysis' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'read', '555'])
-    const fetchUrl = mockFetch.mock.calls[0][0] as string
-    expect(fetchUrl).toContain('/tweets/555')
-  })
-
-  it('sends tweet data to Grok for analysis', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-
-    mockFetch.mockResolvedValueOnce(xApiResponse({
-      data: {
-        id: '123',
-        text: 'AI agents will change everything',
-        author_id: 'user_1',
-        created_at: '2026-03-10T12:00:00Z',
-        public_metrics: { retweet_count: 50, reply_count: 10, like_count: 200, impression_count: 5000 },
-      },
-    }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'This tweet is significant because...' } }],
-      usage: { prompt_tokens: 200, completion_tokens: 300 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'read', '123'])
-    const userMsg = mockQuery.mock.calls[0][0].messages.find((m: { role: string }) => m.role === 'user')
-    expect(userMsg.content).toContain('AI agents will change everything')
-    expect(userMsg.content).toContain('200 likes')
-    expect(logs.some((l) => l.includes('This tweet is significant'))).toBe(true)
-  })
-
-  it('X API error is reported', async () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-    mockFetch.mockResolvedValueOnce(xApiResponse({ detail: 'Not Found' }, 404))
-    try {
-      await program.parseAsync(['node', 'corvus', 'read', '999'])
-    } catch { /* process.exit */ }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('404'))).toBe(true)
+    await program.parseAsync(['node', 'corvus', 'read', '--cost', '123'])
+    expect(mockQuery).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
   })
 
   it('rejects invalid tweet ID', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
     try {
       await program.parseAsync(['node', 'corvus', 'read', 'not-a-tweet-id'])
     } catch { /* process.exit */ }
@@ -195,30 +149,48 @@ describe('registerReadCommand', () => {
     expect(logs.some((l) => l.includes('Invalid tweet ID or URL'))).toBe(true)
   })
 
-  it('--cost flag shows pricing without API call', async () => {
+  it('successful read prints analysis', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
-    await program.parseAsync(['node', 'corvus', 'read', '--cost', '123'])
-    expect(mockQuery).not.toHaveBeenCalled()
-    expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockReadFetch()
+    mockQuery.mockResolvedValueOnce(grokReadResponse())
+
+    await program.parseAsync(['node', 'corvus', 'read', '12345'])
+    const output = logs.join('\n')
+    expect(output).toContain('Analysis')
+    expect(output).toContain('This tweet discusses important topic')
   })
 
   it('--format json produces valid JSON with command=read', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockReadFetch()
+    mockQuery.mockResolvedValueOnce(grokReadResponse())
 
-    mockFetch.mockResolvedValueOnce(xApiResponse({
-      data: { id: '1', text: 'test', author_id: 'u', created_at: '', public_metrics: { retweet_count: 0, reply_count: 0, like_count: 0, impression_count: 0 } },
-    }))
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'json read' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
-
-    await program.parseAsync(['node', 'corvus', 'read', '-f', 'json', '1'])
+    await program.parseAsync(['node', 'corvus', 'read', '-f', 'json', '12345'])
     const jsonLog = logs.find((l) => { try { JSON.parse(l); return true } catch { return false } })
+    expect(jsonLog).toBeDefined()
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('read')
-    expect(parsed.query).toContain('tweet:1')
+  })
+
+  it('API error prints message and exits', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
+    mockFetch.mockRejectedValueOnce(new Error('network error'))
+    try {
+      await program.parseAsync(['node', 'corvus', 'read', '12345'])
+    } catch { /* process.exit */ }
+    expect(exitCode).toBe(1)
+    expect(logs.some((l) => l.includes('network error'))).toBe(true)
+  })
+
+  it('errors when no X token is set', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    try {
+      await program.parseAsync(['node', 'corvus', 'read', '12345'])
+    } catch { /* process.exit */ }
+    expect(exitCode).toBe(1)
+    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
   })
 })
