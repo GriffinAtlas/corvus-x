@@ -10,6 +10,7 @@ import { registerScopeCommand } from '../src/cli/commands/scope.js'
 import { registerTraceCommand } from '../src/cli/commands/trace.js'
 import { registerPulseCommand } from '../src/cli/commands/pulse.js'
 import { registerGatherCommand } from '../src/cli/commands/gather.js'
+import { registerWatchCommand } from '../src/cli/commands/watch.js'
 
 const program = new Command()
 
@@ -26,6 +27,7 @@ registerScopeCommand(program)
 registerTraceCommand(program)
 registerPulseCommand(program)
 registerGatherCommand(program)
+registerWatchCommand(program)
 
 program
   .command('repl')
