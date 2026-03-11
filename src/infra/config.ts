@@ -72,7 +72,7 @@ export class ConfigManager {
 
   save(config: CorvusConfig): void {
     this.ensureDir()
-    fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2))
+    fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2), { mode: 0o600 })
   }
 
   get dir(): string {

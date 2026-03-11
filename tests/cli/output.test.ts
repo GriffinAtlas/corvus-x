@@ -116,7 +116,7 @@ describe('formatOutput', () => {
 
     it('includes all fields in correct order', () => {
       const dataRow = formatOutput(makeResult(), 'csv').split('\n')[1]
-      expect(dataRow).toMatch(/^ask,/)
+      expect(dataRow).toMatch(/^"ask",/)
       expect(dataRow).toContain('0.001')
       expect(dataRow).toContain('false')
       expect(dataRow).toContain('1710000000000')

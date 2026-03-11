@@ -38,7 +38,7 @@ function formatCsv(result: CommandResult): string {
   const escape = (s: string) => `"${s.replace(/"/g, '""')}"`
   const header = 'command,query,response,cost,cached,timestamp'
   const row = [
-    result.command,
+    escape(result.command),
     escape(result.query),
     escape(result.response),
     result.cost.toString(),

@@ -40,7 +40,17 @@ export class QueryCache {
       return null
     }
 
-    const entry: CacheEntry = JSON.parse(raw)
+    let entry: CacheEntry
+    try {
+      entry = JSON.parse(raw)
+    } catch {
+      fs.unlinkSync(filePath)
+      return null
+    }
+    if (!Number.isFinite(entry.createdAt) || !Number.isFinite(entry.ttlMs)) {
+      fs.unlinkSync(filePath)
+      return null
+    }
     if (Date.now() > entry.createdAt + entry.ttlMs) {
       fs.unlinkSync(filePath)
       return null
@@ -63,42 +73,51 @@ export class QueryCache {
       ttlMs,
     }
 
-    fs.writeFileSync(path.join(this.cacheDir, `${key}.json`), JSON.stringify(entry, null, 2))
+    fs.writeFileSync(path.join(this.cacheDir, `${key}.json`), JSON.stringify(entry, null, 2), { mode: 0o600 })
     this.recordCost(costUsd, query)
   }
 
   clear(): number {
     let count = 0
+    let files: string[]
     try {
-      const files = fs.readdirSync(this.cacheDir)
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          fs.unlinkSync(path.join(this.cacheDir, file))
-          count++
-        }
-      }
+      files = fs.readdirSync(this.cacheDir)
     } catch {
-      // cache dir doesn't exist yet
+      return 0
+    }
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue
+      try {
+        fs.unlinkSync(path.join(this.cacheDir, file))
+        count++
+      } catch {
+        // skip files that can't be deleted
+      }
     }
     return count
   }
 
   evictExpired(): number {
     let count = 0
+    let files: string[]
     try {
-      const files = fs.readdirSync(this.cacheDir)
-      const now = Date.now()
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue
+      files = fs.readdirSync(this.cacheDir)
+    } catch {
+      return 0
+    }
+    const now = Date.now()
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue
+      try {
         const raw = fs.readFileSync(path.join(this.cacheDir, file), 'utf-8')
         const entry: CacheEntry = JSON.parse(raw)
-        if (now > entry.createdAt + entry.ttlMs) {
+        if (!Number.isFinite(entry.createdAt) || !Number.isFinite(entry.ttlMs) || now > entry.createdAt + entry.ttlMs) {
           fs.unlinkSync(path.join(this.cacheDir, file))
           count++
         }
+      } catch {
+        // skip corrupted or locked files
       }
-    } catch {
-      // cache dir doesn't exist yet
     }
     return count
   }
@@ -123,7 +142,7 @@ export class QueryCache {
     }
 
     fs.mkdirSync(path.dirname(this.ledgerPath), { recursive: true })
-    fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger, null, 2))
+    fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger, null, 2), { mode: 0o600 })
   }
 
   private hashKey(command: string, query: string): string {

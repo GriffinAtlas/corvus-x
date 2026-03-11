@@ -92,12 +92,17 @@ export class XAdapter {
 
     if (res.status === 429) {
       const reset = res.headers.get('x-rate-limit-reset')
-      throw new XRateLimitError(new Date(Number(reset) * 1000))
+      const resetSec = Number(reset)
+      const resetDate = Number.isFinite(resetSec) && resetSec > 0
+        ? new Date(resetSec * 1000)
+        : new Date(Date.now() + 15 * 60 * 1000)
+      throw new XRateLimitError(resetDate)
     }
 
     if (!res.ok) {
       const body = await res.text()
-      throw new XApiError(res.status, `X API ${res.status}: ${body}`)
+      const truncated = body.length > 200 ? body.slice(0, 200) + '...' : body
+      throw new XApiError(res.status, `X API ${res.status}: ${truncated}`)
     }
 
     return res.json()

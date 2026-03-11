@@ -77,6 +77,7 @@ export class Watcher {
   }
 
   stop(): void {
+    if (!this.running) return
     this.running = false
     if (this.timer) {
       clearTimeout(this.timer)
