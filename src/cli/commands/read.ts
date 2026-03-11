@@ -2,7 +2,10 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import { runStructuredCommand } from '../run-command.js'
 import { renderRead } from '../output.js'
+import { parseGrokJson } from '../../core/grok-adapter.js'
 import type { GrokReadResponse, ReadSnapshot, MatchKeys } from '../../core/schemas.js'
+import type { BuildResult } from '../../core/types.js'
+import type { CommandDeps } from '../run-command.js'
 import type { OutputFormat } from '../output.js'
 
 const SYSTEM_PROMPT = `You are an intelligence analyst analyzing a specific tweet. Return ONLY a JSON object:
@@ -24,6 +27,49 @@ export function extractTweetId(input: string): string | null {
   if (urlMatch) return urlMatch[1]
   if (/^\d+$/.test(input)) return input
   return null
+}
+
+export async function buildReadSnapshot(
+  deps: CommandDeps,
+  tweetId: string,
+): Promise<BuildResult<ReadSnapshot>> {
+  if (!deps.x) throw new Error('X API token required for read. Run: corvus auth setup')
+
+  const tweet = await deps.x.getTweet(tweetId)
+  const author = await deps.x.getUserById(tweet.authorId).catch(() => null)
+
+  const tweetContext = [
+    `Tweet by @${author?.username ?? tweet.authorId}`,
+    `Posted: ${tweet.createdAt}`,
+    `Text: ${tweet.text}`,
+    `Metrics: ${tweet.metrics.likes} likes, ${tweet.metrics.retweets} RTs, ${tweet.metrics.replies} replies, ${tweet.metrics.impressions} impressions`,
+  ].join('\n')
+
+  const response = await deps.grok.query(`Analyze this tweet:\n\n${tweetContext}`, {
+    systemPrompt: SYSTEM_PROMPT,
+  })
+
+  const grok = parseGrokJson<GrokReadResponse>(response.text)
+
+  return {
+    data: {
+      tweet: {
+        id: tweet.id,
+        author: author?.username ?? tweet.authorId,
+        text: tweet.text,
+        engagement: tweet.metrics,
+        postedAt: tweet.createdAt,
+      },
+      analysis: grok.analysis,
+      significance: grok.significance,
+      signals: grok.signals,
+    },
+    raw: response.text,
+    cost: response.usage.costUsd,
+    tweets: [],
+    scores: [],
+    newestTweetAt: null,
+  }
 }
 
 export function registerReadCommand(program: Command): void {
@@ -48,45 +94,10 @@ export function registerReadCommand(program: Command): void {
         topic: `tweet:${tweetId}`,
         format: options.format,
         cost: options.cost,
-        spinnerText: 'reading tweet...',
+        spinnerText: `read · ${tweetId}`,
         matchKeys: READ_MATCH_KEYS,
         renderSnapshot: renderRead,
-        buildSnapshot: async (deps) => {
-          if (!deps.x) throw new Error('X API token required for read. Run: corvus auth setup')
-
-          const tweet = await deps.x.getTweet(tweetId)
-          const author = await deps.x.getUserById(tweet.authorId).catch(() => null)
-
-          const tweetContext = [
-            `Tweet by @${author?.username ?? tweet.authorId}`,
-            `Posted: ${tweet.createdAt}`,
-            `Text: ${tweet.text}`,
-            `Metrics: ${tweet.metrics.likes} likes, ${tweet.metrics.retweets} RTs, ${tweet.metrics.replies} replies, ${tweet.metrics.impressions} impressions`,
-          ].join('\n')
-
-          const response = await deps.grok.query(`Analyze this tweet:\n\n${tweetContext}`, {
-            systemPrompt: SYSTEM_PROMPT,
-          })
-
-          const grok = JSON.parse(response.text) as GrokReadResponse
-
-          return {
-            data: {
-              tweet: {
-                id: tweet.id,
-                author: author?.username ?? tweet.authorId,
-                text: tweet.text,
-                engagement: tweet.metrics,
-                postedAt: tweet.createdAt,
-              },
-              analysis: grok.analysis,
-              significance: grok.significance,
-              signals: grok.signals,
-            },
-            raw: response.text,
-            cost: response.usage.costUsd,
-          }
-        },
+        buildSnapshot: (deps) => buildReadSnapshot(deps, tweetId),
       })
     })
 }

@@ -46,9 +46,10 @@ describe('computeBaseMetrics', () => {
     const tweets = [makeTweet({ id: '1', authorId: 'a', metrics: { likes: 10, retweets: 5, replies: 3, impressions: 100 } })]
     const result = computeBaseMetrics(tweets)
     expect(result.tweetCount).toBe(1)
-    expect(result.totalEngagement).toBe(18)
+    // 10 + 5 + 3 + 100 = 118
+    expect(result.totalEngagement).toBe(118)
     expect(result.uniqueAuthors).toBe(1)
-    expect(result.engagementPerTweet).toBe(18)
+    expect(result.engagementPerTweet).toBe(118)
   })
 
   it('computes metrics for multiple tweets with distinct authors', () => {
@@ -59,9 +60,10 @@ describe('computeBaseMetrics', () => {
     ]
     const result = computeBaseMetrics(tweets)
     expect(result.tweetCount).toBe(3)
-    expect(result.totalEngagement).toBe(18)
+    // (10+2+0+50) + (4+1+1+30) + (0+0+0+10) = 62+36+10 = 108
+    expect(result.totalEngagement).toBe(108)
     expect(result.uniqueAuthors).toBe(3)
-    expect(result.engagementPerTweet).toBe(6)
+    expect(result.engagementPerTweet).toBe(36)
   })
 
   it('counts unique authors correctly when same author has multiple tweets', () => {
@@ -81,8 +83,8 @@ describe('computeBaseMetrics', () => {
       makeTweet({ id: '3', authorId: 'c', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 5 } }),
     ]
     const result = computeBaseMetrics(tweets)
-    // total = 2, count = 3, 2/3 = 0.666... rounds to 1
-    expect(result.engagementPerTweet).toBe(Math.round(2 / 3))
+    // total = (1+5) + (0+5) + (1+5) = 17, count = 3, 17/3 = 5.666... rounds to 6
+    expect(result.engagementPerTweet).toBe(Math.round(17 / 3))
   })
 })
 
@@ -183,6 +185,30 @@ describe('computeTopAccounts', () => {
     expect(result.length).toBe(5)
   })
 
+  it('sums correct per-tweet sentiment for multi-tweet authors', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a' }),
+      makeTweet({ id: '2', authorId: 'a' }),
+      makeTweet({ id: '3', authorId: 'b' }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.2, narrative: 'x' },
+      { index: 1, sentiment: 0.8, narrative: 'x' },
+      { index: 2, sentiment: -0.4, narrative: 'x' },
+    ]
+    const users: XUser[] = [
+      makeUser({ id: 'a', username: 'alice', followersCount: 500 }),
+      makeUser({ id: 'b', username: 'bob', followersCount: 2000 }),
+    ]
+    const result = computeTopAccounts(tweets, scores, users)
+    const alice = result.find((r) => r.handle === 'alice')!
+    const bob = result.find((r) => r.handle === 'bob')!
+    // alice: (0.2 + 0.8) / 2 = 0.5
+    expect(alice.avgSentiment).toBe(0.5)
+    // bob: -0.4 / 1 = -0.4
+    expect(bob.avgSentiment).toBe(-0.4)
+  })
+
   it('sorts by followers when post counts are equal', () => {
     const tweets = [
       makeTweet({ id: '1', authorId: 'a' }),
@@ -254,9 +280,11 @@ describe('computeTopPosts', () => {
     ]
     const result = computeTopPosts(tweets, users)
     expect(result[0].id).toBe('2')
-    expect(result[0].engagement).toBe(170)
+    // 100 + 50 + 20 + 1000 = 1170
+    expect(result[0].engagement).toBe(1170)
     expect(result[1].id).toBe('1')
-    expect(result[1].engagement).toBe(1)
+    // 1 + 0 + 0 + 10 = 11
+    expect(result[1].engagement).toBe(11)
   })
 
   it('truncates text at 200 characters with ellipsis', () => {

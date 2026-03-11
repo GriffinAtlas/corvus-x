@@ -11,7 +11,7 @@ import type {
 export function computeBaseMetrics(tweets: Tweet[]): BaseMetrics {
   const tweetCount = tweets.length
   const totalEngagement = tweets.reduce(
-    (sum, t) => sum + t.metrics.likes + t.metrics.retweets + t.metrics.replies,
+    (sum, t) => sum + t.metrics.likes + t.metrics.retweets + t.metrics.replies + t.metrics.impressions,
     0,
   )
   const uniqueAuthors = new Set(tweets.map((t) => t.authorId)).size
@@ -60,11 +60,12 @@ export function computeTopAccounts(
 
   const authorStats = new Map<string, { count: number; sentimentSum: number; authorId: string }>()
 
-  for (const tweet of tweets) {
+  for (let i = 0; i < tweets.length; i++) {
+    const tweet = tweets[i]
     const existing = authorStats.get(tweet.authorId) ?? { count: 0, sentimentSum: 0, authorId: tweet.authorId }
     existing.count++
 
-    const score = scores.find((s) => s.index < tweets.length && tweets[s.index]?.authorId === tweet.authorId)
+    const score = scores.find((s) => s.index === i)
     if (score) existing.sentimentSum += score.sentiment
 
     authorStats.set(tweet.authorId, existing)
@@ -132,7 +133,7 @@ export function computeTopPosts(
       id: t.id,
       author: userMap.get(t.authorId)?.username ?? t.authorId,
       text: t.text.length > 200 ? t.text.slice(0, 200) + '...' : t.text,
-      engagement: t.metrics.likes + t.metrics.retweets + t.metrics.replies,
+      engagement: t.metrics.likes + t.metrics.retweets + t.metrics.replies + t.metrics.impressions,
     }))
     .sort((a, b) => b.engagement - a.engagement)
     .slice(0, limit)

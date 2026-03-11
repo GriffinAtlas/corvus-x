@@ -157,6 +157,73 @@ describe('XAdapter', () => {
     expect(result.nextToken).toBeUndefined()
   })
 
+  it('searchRecent paginates across multiple pages', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({
+        data: [{ ...RAW_TWEET, id: '100' }],
+        includes: { users: [RAW_USER] },
+        meta: { next_token: 'page2' },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: [{ ...RAW_TWEET, id: '200' }],
+        includes: { users: [RAW_USER] },
+        meta: {},
+      }))
+
+    const result = await adapter.searchRecent('test', 10, 2)
+    expect(result.tweets).toHaveLength(2)
+    expect(result.tweets[0].id).toBe('100')
+    expect(result.tweets[1].id).toBe('200')
+  })
+
+  it('searchRecent deduplicates tweets across pages', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({
+        data: [RAW_TWEET],
+        includes: { users: [RAW_USER] },
+        meta: { next_token: 'page2' },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: [RAW_TWEET],
+        includes: { users: [RAW_USER] },
+        meta: {},
+      }))
+
+    const result = await adapter.searchRecent('test', 10, 2)
+    expect(result.tweets).toHaveLength(1)
+    expect(result.users).toHaveLength(1)
+  })
+
+  it('searchRecent stops early when no nextToken', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      data: [RAW_TWEET],
+      includes: { users: [RAW_USER] },
+      meta: {},
+    }))
+
+    const result = await adapter.searchRecent('test', 10, 3)
+    expect(result.tweets).toHaveLength(1)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('searchRecent passes next_token as query param', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({
+        data: [{ ...RAW_TWEET, id: '1' }],
+        includes: { users: [] },
+        meta: { next_token: 'tok123' },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: [{ ...RAW_TWEET, id: '2' }],
+        includes: { users: [] },
+        meta: {},
+      }))
+
+    await adapter.searchRecent('test', 10, 2)
+    const secondUrl = mockFetch.mock.calls[1][0] as string
+    expect(secondUrl).toContain('next_token=tok123')
+  })
+
   it('getUserById fetches user by ID', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_USER }))
     const user = await adapter.getUserById('user_1')
@@ -279,7 +346,7 @@ describe('formatTweetsForAnalysis', () => {
 
   it('includes engagement metrics', () => {
     const result = formatTweetsForAnalysis(tweets, users)
-    expect(result).toContain('10L 5RT 2R')
+    expect(result).toContain('10L 5RT 2R 100V')
   })
 
   it('includes tweet text', () => {

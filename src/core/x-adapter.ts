@@ -80,20 +80,46 @@ export class XAdapter {
     return (data.data ?? []).map(parseTweet)
   }
 
-  async searchRecent(query: string, maxResults = 10): Promise<XSearchResult> {
-    const params = new URLSearchParams({
-      query,
-      'tweet.fields': 'created_at,public_metrics,author_id',
-      'expansions': 'author_id',
-      'user.fields': 'username,name,description,public_metrics,verified',
-      max_results: String(Math.min(Math.max(maxResults, 10), 100)),
-    })
-    const data = await this.request(`/tweets/search/recent?${params}`)
-    return {
-      tweets: (data.data ?? []).map(parseTweet),
-      users: (data.includes?.users ?? []).map(parseUser),
-      nextToken: data.meta?.next_token,
+  async searchRecent(query: string, maxResults = 10, pages = 1): Promise<XSearchResult> {
+    const perPage = Math.min(Math.max(maxResults, 10), 100)
+    const allTweets: Tweet[] = []
+    const seenTweetIds = new Set<string>()
+    const allUsers: XUser[] = []
+    const seenUserIds = new Set<string>()
+    let nextToken: string | undefined
+
+    for (let page = 0; page < pages; page++) {
+      const params = new URLSearchParams({
+        query,
+        'tweet.fields': 'created_at,public_metrics,author_id',
+        'expansions': 'author_id',
+        'user.fields': 'username,name,description,public_metrics,verified',
+        max_results: String(perPage),
+      })
+      if (nextToken) params.set('next_token', nextToken)
+
+      const data = await this.request(`/tweets/search/recent?${params}`)
+      const pageTweets: Tweet[] = (data.data ?? []).map(parseTweet)
+      const pageUsers: XUser[] = (data.includes?.users ?? []).map(parseUser)
+
+      for (const tweet of pageTweets) {
+        if (!seenTweetIds.has(tweet.id)) {
+          seenTweetIds.add(tweet.id)
+          allTweets.push(tweet)
+        }
+      }
+      for (const user of pageUsers) {
+        if (!seenUserIds.has(user.id)) {
+          seenUserIds.add(user.id)
+          allUsers.push(user)
+        }
+      }
+
+      nextToken = data.meta?.next_token
+      if (!nextToken) break
     }
+
+    return { tweets: allTweets, users: allUsers, nextToken }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,7 +157,7 @@ export function formatTweetsForAnalysis(tweets: Tweet[], users: XUser[]): string
     .map((t, i) => {
       const user = userMap.get(t.authorId)
       const handle = user?.username ?? t.authorId
-      const eng = `${t.metrics.likes}L ${t.metrics.retweets}RT ${t.metrics.replies}R`
+      const eng = `${t.metrics.likes}L ${t.metrics.retweets}RT ${t.metrics.replies}R ${t.metrics.impressions}V`
       return `[${i}] @${handle} (${eng}): ${t.text}`
     })
     .join('\n')

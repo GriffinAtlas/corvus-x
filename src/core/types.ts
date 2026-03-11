@@ -1,5 +1,6 @@
-import type { Snapshot } from './schemas.js'
+import type { Snapshot, GrokTweetScore } from './schemas.js'
 import type { DiffLine } from './differ.js'
+import type { Tweet } from './x-adapter.js'
 
 export interface GrokResponse {
   text: string
@@ -35,4 +36,13 @@ export interface StructuredCommandResult<T extends Snapshot = Snapshot> {
   timestamp: number
   diff: DiffLine[]
   timeSinceLast: number
+}
+
+export interface BuildResult<T extends Snapshot> {
+  data: T
+  raw: string
+  cost: number
+  tweets: Tweet[]
+  scores: GrokTweetScore[]
+  newestTweetAt: number | null
 }

@@ -8,7 +8,7 @@ import { QueryCache } from '../core/cache.js'
 import { SnapshotStore } from '../core/snapshots.js'
 import { diffSnapshots } from '../core/differ.js'
 import { formatOutput, formatStructuredOutput } from './output.js'
-import type { GrokResponse, CommandResult, StructuredCommandResult } from '../core/types.js'
+import type { GrokResponse, CommandResult, StructuredCommandResult, BuildResult } from '../core/types.js'
 import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
 import type { DiffLine } from '../core/differ.js'
@@ -106,7 +106,7 @@ export interface RunStructuredCommandOptions<T extends Snapshot> {
   spinnerText: string
   matchKeys: MatchKeys
   renderSnapshot: (data: T) => string
-  buildSnapshot: (deps: CommandDeps) => Promise<{ data: T; raw: string; cost: number }>
+  buildSnapshot: (deps: CommandDeps) => Promise<BuildResult<T>>
 }
 
 export async function runStructuredCommand<T extends Snapshot>(
