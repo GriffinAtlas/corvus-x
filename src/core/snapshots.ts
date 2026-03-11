@@ -1,7 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import type { Snapshot, StoredSnapshot } from './schemas.js'
+import type { Snapshot, StoredSnapshot, GrokTweetScore } from './schemas.js'
+import type { Tweet } from './x-adapter.js'
 
 const MAX_SNAPSHOTS_PER_TOPIC = 50
 
@@ -18,6 +19,8 @@ export class SnapshotStore {
     data: T,
     raw: string,
     cost: number,
+    tweets?: Tweet[],
+    scores?: GrokTweetScore[],
   ): StoredSnapshot<T> {
     const dir = this.topicDir(command, topic)
     fs.mkdirSync(dir, { recursive: true })
@@ -29,6 +32,8 @@ export class SnapshotStore {
       raw,
       timestamp: Date.now(),
       cost,
+      ...(tweets?.length ? { tweets } : {}),
+      ...(scores?.length ? { scores } : {}),
     }
 
     fs.writeFileSync(path.join(dir, `${snapshot.timestamp}.json`), JSON.stringify(snapshot), {

@@ -170,4 +170,40 @@ describe('SnapshotStore', () => {
     expect(loaded!.topic).toBe('shape-test')
     expect(loaded!.data).toEqual({ sentiment: 0.8 })
   })
+
+  it('save persists tweets and scores when provided', () => {
+    freshStore()
+    const tweets = [
+      {
+        id: '1',
+        text: 'hello',
+        authorId: 'a1',
+        createdAt: '2026-03-10T00:00:00Z',
+        metrics: { likes: 1, retweets: 0, replies: 0, impressions: 10 },
+      },
+    ]
+    const scores = [{ index: 0, sentiment: 0.5, narrative: 'test' }]
+    store.save('scan', 'tweets-test', { ok: true } as any, 'raw', 0.001, tweets, scores)
+    const loaded = store.loadLatest('scan', 'tweets-test')
+    expect(loaded!.tweets).toHaveLength(1)
+    expect(loaded!.tweets![0].id).toBe('1')
+    expect(loaded!.scores).toHaveLength(1)
+    expect(loaded!.scores![0].sentiment).toBe(0.5)
+  })
+
+  it('save omits tweets and scores when empty', () => {
+    freshStore()
+    store.save('scan', 'no-tweets', { ok: true } as any, 'raw', 0.001, [], [])
+    const loaded = store.loadLatest('scan', 'no-tweets')
+    expect(loaded!.tweets).toBeUndefined()
+    expect(loaded!.scores).toBeUndefined()
+  })
+
+  it('save omits tweets and scores when undefined', () => {
+    freshStore()
+    store.save('scan', 'undef-tweets', { ok: true } as any, 'raw', 0.001)
+    const loaded = store.loadLatest('scan', 'undef-tweets')
+    expect(loaded!.tweets).toBeUndefined()
+    expect(loaded!.scores).toBeUndefined()
+  })
 })

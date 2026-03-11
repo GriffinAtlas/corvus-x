@@ -232,6 +232,8 @@ export interface StoredSnapshot<T extends Snapshot = Snapshot> {
   raw: string
   timestamp: number
   cost: number
+  tweets?: import('./x-adapter.js').Tweet[]
+  scores?: GrokTweetScore[]
 }
 
 // ── Diff match keys ──

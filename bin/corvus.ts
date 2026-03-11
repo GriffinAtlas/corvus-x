@@ -30,6 +30,7 @@ import { registerGatherCommand } from '../src/cli/commands/gather.js'
 import { registerWatchCommand } from '../src/cli/commands/watch.js'
 import { registerHistoryCommand } from '../src/cli/commands/history.js'
 import { registerAgentCommand } from '../src/cli/commands/agent.js'
+import { registerExportCommand } from '../src/cli/commands/export.js'
 
 const program = new Command()
 
@@ -56,6 +57,7 @@ registerPulseCommand(program)
 registerGatherCommand(program)
 registerWatchCommand(program)
 registerHistoryCommand(program)
+registerExportCommand(program)
 
 program
   .command('repl')

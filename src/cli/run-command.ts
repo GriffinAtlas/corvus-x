@@ -147,7 +147,15 @@ export async function runStructuredCommand<T extends Snapshot>(
     const built = await opts.buildSnapshot(deps)
     spinner.stop()
 
-    const stored = store.save(opts.command, opts.topic, built.data, built.raw, built.cost)
+    const stored = store.save(
+      opts.command,
+      opts.topic,
+      built.data,
+      built.raw,
+      built.cost,
+      built.tweets,
+      built.scores,
+    )
 
     let diff: DiffLine[] = []
     let timeSinceLast = 0
