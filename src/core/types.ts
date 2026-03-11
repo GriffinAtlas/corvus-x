@@ -1,3 +1,6 @@
+import type { Snapshot } from './schemas.js'
+import type { DiffLine } from './differ.js'
+
 export interface GrokResponse {
   text: string
   usage: {
@@ -22,4 +25,14 @@ export interface CommandResult {
   cost: number
   cached: boolean
   timestamp: number
+}
+
+export interface StructuredCommandResult<T extends Snapshot = Snapshot> {
+  command: string
+  topic: string
+  data: T
+  cost: number
+  timestamp: number
+  diff: DiffLine[]
+  timeSinceLast: number
 }
