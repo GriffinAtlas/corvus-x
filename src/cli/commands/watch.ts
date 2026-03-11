@@ -1,6 +1,9 @@
 import { Command } from 'commander'
+import chalk from 'chalk'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
+import { formatOutput } from '../output.js'
+import type { GrokAdapter } from '../../core/grok-adapter.js'
 import type { CommandResult } from '../../core/types.js'
 
 const SYSTEM_PROMPT = `You are Corvus, an intelligence analyst monitoring X (Twitter) in real-time.
@@ -42,28 +45,25 @@ export class Watcher {
   ) {}
 
   async start(grokKey: string): Promise<void> {
-    const { GrokAdapter } = await import('../../core/grok-adapter.js')
-    const grok = new GrokAdapter(grokKey)
+    const { GrokAdapter: Grok } = await import('../../core/grok-adapter.js')
+    const grok = new Grok(grokKey)
 
     this.running = true
     this.startTime = Date.now()
     this.cycles = 0
     this.totalCost = 0
 
-    // Run first check immediately
     await this.check(grok)
 
-    // Check if first run already hit the limit
     if (this.options.maxCycles > 0 && this.cycles >= this.options.maxCycles) {
       this.stop()
       return
     }
 
-    // Schedule next check only after current one completes (no pile-up)
     this.scheduleNext(grok)
   }
 
-  private scheduleNext(grok: import('../../core/grok-adapter.js').GrokAdapter): void {
+  private scheduleNext(grok: GrokAdapter): void {
     if (!this.running) return
     this.timer = setTimeout(async () => {
       if (!this.running) return
@@ -95,7 +95,7 @@ export class Watcher {
     return this.running
   }
 
-  private async check(grok: import('../../core/grok-adapter.js').GrokAdapter): Promise<void> {
+  private async check(grok: GrokAdapter): Promise<void> {
     try {
       const prompt = this.previousSnapshot
         ? `Monitor X for changes on: ${this.topic}\n\nPrevious snapshot:\n${this.previousSnapshot}`
@@ -111,16 +111,14 @@ export class Watcher {
       this.totalCost += response.usage.costUsd
       this.previousSnapshot = response.text
 
-      const result: CommandResult = {
+      this.options.onUpdate({
         command: 'watch',
         query: this.topic,
         response: response.text,
         cost: response.usage.costUsd,
         cached: false,
         timestamp: Date.now(),
-      }
-
-      this.options.onUpdate(result)
+      })
     } catch (err) {
       this.options.onError(err instanceof Error ? err : new Error(String(err)))
     }
@@ -139,8 +137,6 @@ export function registerWatchCommand(program: Command): void {
       const intervalSec = Math.max(parseInt(options.interval, 10) || 60, 10)
       const maxCycles = Math.max(parseInt(options.max, 10) || 0, 0)
       const auth = new AuthManager(ConfigManager.defaultDir())
-
-      const chalk = (await import('chalk')).default
 
       const grokKey = auth.getGrokKey()
       if (!grokKey) {
@@ -166,8 +162,6 @@ export function registerWatchCommand(program: Command): void {
         return
       }
 
-      const { formatOutput } = await import('../output.js')
-
       console.log(chalk.bold(`\n  watching: ${topic}`))
       console.log(chalk.dim(`  interval: ${intervalSec}s${maxCycles > 0 ? `, max ${maxCycles} cycles` : ''}`))
       console.log(chalk.dim('  press Ctrl+C to stop\n'))
@@ -187,7 +181,6 @@ export function registerWatchCommand(program: Command): void {
         },
       })
 
-      // Handle Ctrl+C gracefully
       process.on('SIGINT', () => {
         watcher.stop()
         process.exit(0)

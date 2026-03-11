@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import chalk from 'chalk'
 import { runCommand } from '../run-command.js'
 import type { OutputFormat } from '../output.js'
 
@@ -26,7 +27,6 @@ export function registerReadCommand(program: Command): void {
     .action(async (input: string, options: { format: OutputFormat; cost?: boolean }) => {
       const tweetId = extractTweetId(input)
       if (!tweetId) {
-        const chalk = (await import('chalk')).default
         console.log(chalk.red(`\n  Invalid tweet ID or URL: ${input}\n  Use a numeric ID or a URL like https://x.com/user/status/123456\n`))
         process.exit(1)
       }

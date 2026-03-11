@@ -48,8 +48,8 @@ function runStatus(): void {
 
   console.log('\n  corvus auth status')
   console.log('  ──────────────────')
-  console.log(`  Grok API:  ${auth.hasGrokKey() ? '✓ configured' : '✗ not set'}`)
-  console.log(`  X API:     ${auth.hasXToken() ? '✓ configured' : '✗ not set (optional)'}`)
+  console.log(`  Grok API:  ${auth.getGrokKey() ? '✓ configured' : '✗ not set'}`)
+  console.log(`  X API:     ${auth.getXToken() ? '✓ configured' : '✗ not set (optional)'}`)
   console.log()
 }
 

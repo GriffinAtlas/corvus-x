@@ -1,9 +1,12 @@
+import chalk from 'chalk'
+import ora from 'ora'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
+import { GrokAdapter } from '../core/grok-adapter.js'
+import { XAdapter } from '../core/x-adapter.js'
 import { QueryCache } from '../core/cache.js'
+import { formatOutput } from './output.js'
 import type { GrokResponse, CommandResult } from '../core/types.js'
-import type { GrokAdapter } from '../core/grok-adapter.js'
-import type { XAdapter } from '../core/x-adapter.js'
 import type { OutputFormat } from './output.js'
 
 export interface CommandDeps {
@@ -22,7 +25,6 @@ export interface RunCommandOptions {
 }
 
 export async function runCommand(opts: RunCommandOptions): Promise<void> {
-  const chalk = (await import('chalk')).default
   const auth = new AuthManager(ConfigManager.defaultDir())
 
   const grokKey = auth.getGrokKey()
@@ -49,7 +51,6 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
   const cache = new QueryCache(ConfigManager.defaultDir())
   const cached = cache.get(opts.command, opts.query)
   if (cached) {
-    const { formatOutput } = await import('./output.js')
     const result: CommandResult = {
       command: opts.command,
       query: opts.query,
@@ -62,17 +63,9 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
     return
   }
 
-  const [{ default: ora }, { GrokAdapter: GrokAdapterClass }, { XAdapter: XAdapterClass }, { formatOutput }] =
-    await Promise.all([
-      import('ora'),
-      import('../core/grok-adapter.js'),
-      import('../core/x-adapter.js'),
-      import('./output.js'),
-    ])
-
   const deps: CommandDeps = {
-    grok: new GrokAdapterClass(grokKey),
-    x: xToken ? new XAdapterClass(xToken) : null,
+    grok: new GrokAdapter(grokKey),
+    x: xToken ? new XAdapter(xToken) : null,
   }
 
   const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()

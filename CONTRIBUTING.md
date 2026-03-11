@@ -79,13 +79,6 @@ docs: what changed — context
 4. Open a PR with a clear title and description
 5. Keep PRs focused — one feature or fix per PR
 
-## Issues
-
-Use GitHub Issues for bug reports and feature requests. Include:
-
-- **Bugs:** steps to reproduce, expected vs actual behavior, Node.js version
-- **Features:** use case, proposed behavior
-
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).

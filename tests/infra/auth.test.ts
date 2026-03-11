@@ -79,34 +79,6 @@ describe('AuthManager', () => {
     expect(auth.getGrokKey()).toBe('env-only-key')
   })
 
-  it('hasGrokKey returns true when key exists', () => {
-    auth.setGrokKey('xai-key')
-    expect(auth.hasGrokKey()).toBe(true)
-  })
-
-  it('hasGrokKey returns false when no key', () => {
-    expect(auth.hasGrokKey()).toBe(false)
-  })
-
-  it('hasXToken returns true when token exists', () => {
-    auth.setXToken('x-token')
-    expect(auth.hasXToken()).toBe(true)
-  })
-
-  it('hasXToken returns false when no token', () => {
-    expect(auth.hasXToken()).toBe(false)
-  })
-
-  it('hasGrokKey returns true when set via env var', () => {
-    vi.stubEnv('CORVUS_GROK_KEY', 'env-key')
-    expect(auth.hasGrokKey()).toBe(true)
-  })
-
-  it('hasXToken returns true when set via env var', () => {
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'env-token')
-    expect(auth.hasXToken()).toBe(true)
-  })
-
   it('returns null and warns when credentials file is corrupted', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '{{{not json')

@@ -124,6 +124,6 @@ describe('QueryCache', () => {
     expect(files).toHaveLength(1)
     const parsed = JSON.parse(fs.readFileSync(path.join(tmpDir, 'cache', files[0]), 'utf-8'))
     expect(parsed.response).toBe('response')
-    expect(parsed.key).toBe(files[0].replace('.json', ''))
+    expect(parsed.command).toBe('ask')
   })
 })

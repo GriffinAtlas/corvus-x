@@ -18,20 +18,6 @@ function mockResponse(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function mockStream(chunks: Record<string, unknown>[] = []) {
-  mockCreate.mockResolvedValueOnce({
-    [Symbol.asyncIterator]: async function* () {
-      for (const chunk of chunks) yield chunk
-    },
-  })
-}
-
-async function collect(stream: AsyncIterable<string>): Promise<string[]> {
-  const result: string[] = []
-  for await (const chunk of stream) result.push(chunk)
-  return result
-}
-
 describe('GrokAdapter', () => {
   let adapter: GrokAdapter
 
@@ -184,66 +170,5 @@ describe('GrokAdapter', () => {
   it('propagates network errors', async () => {
     mockCreate.mockRejectedValueOnce(new Error('fetch failed'))
     await expect(adapter.query('test')).rejects.toThrow('fetch failed')
-  })
-
-  it('yields content chunks from stream', async () => {
-    mockStream([
-      { choices: [{ delta: { content: 'Hello' } }] },
-      { choices: [{ delta: { content: ' world' } }] },
-      { choices: [{ delta: { content: '!' } }] },
-    ])
-    expect(await collect(adapter.stream('test'))).toEqual(['Hello', ' world', '!'])
-  })
-
-  it('skips chunks with null content', async () => {
-    mockStream([
-      { choices: [{ delta: { content: 'data' } }] },
-      { choices: [{ delta: { content: null } }] },
-      { choices: [{ delta: {} }] },
-      { choices: [{ delta: { content: 'more' } }] },
-    ])
-    expect(await collect(adapter.stream('test'))).toEqual(['data', 'more'])
-  })
-
-  it('yields nothing for empty stream', async () => {
-    mockStream()
-    expect(await collect(adapter.stream('test'))).toEqual([])
-  })
-
-  it('stream passes stream: true to API', async () => {
-    mockStream()
-    await collect(adapter.stream('test'))
-    expect(mockCreate.mock.calls[0][0].stream).toBe(true)
-  })
-
-  it('stream uses custom model', async () => {
-    mockStream()
-    await collect(adapter.stream('test', { model: 'grok-4' }))
-    expect(mockCreate.mock.calls[0][0].model).toBe('grok-4')
-  })
-
-  it('stream passes x_search tool when enableXSearch is true', async () => {
-    mockStream()
-    await collect(adapter.stream('test', { enableXSearch: true }))
-    const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].function.name).toBe('x_search')
-  })
-
-  it('stream passes both tools when both search options set', async () => {
-    mockStream()
-    await collect(adapter.stream('test', { enableXSearch: true, enableWebSearch: true }))
-    expect(mockCreate.mock.calls[0][0].tools).toHaveLength(2)
-  })
-
-  it('stream omits tools when no search options', async () => {
-    mockStream()
-    await collect(adapter.stream('test'))
-    expect(mockCreate.mock.calls[0][0].tools).toBeUndefined()
-  })
-
-  it('stream propagates API errors', async () => {
-    mockCreate.mockRejectedValueOnce(new Error('stream error'))
-    await expect(adapter.stream('test').next()).rejects.toThrow('stream error')
   })
 })

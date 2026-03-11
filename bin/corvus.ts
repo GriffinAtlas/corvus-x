@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander'
-import { VERSION } from '../src/index.js'
+import { readFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { registerAuthCommand } from '../src/cli/commands/auth.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const VERSION = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')).version
 import { registerAskCommand } from '../src/cli/commands/ask.js'
 import { registerScanCommand } from '../src/cli/commands/scan.js'
 import { registerReadCommand } from '../src/cli/commands/read.js'

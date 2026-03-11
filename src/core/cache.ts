@@ -3,7 +3,6 @@ import path from 'path'
 import crypto from 'crypto'
 
 export interface CacheEntry {
-  key: string
   command: string
   query: string
   response: string
@@ -18,7 +17,8 @@ export interface CostLedger {
   entries: { timestamp: number; costUsd: number; query: string }[]
 }
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const DEFAULT_TTL_MS = 5 * 60 * 1000
+const MAX_LEDGER_ENTRIES = 1000
 
 export class QueryCache {
   private cacheDir: string
@@ -30,8 +30,7 @@ export class QueryCache {
   }
 
   get(command: string, query: string): CacheEntry | null {
-    const key = this.hashKey(command, query)
-    const filePath = path.join(this.cacheDir, `${key}.json`)
+    const filePath = path.join(this.cacheDir, `${this.hashKey(command, query)}.json`)
 
     let raw: string
     try {
@@ -60,20 +59,14 @@ export class QueryCache {
   }
 
   set(command: string, query: string, response: string, costUsd: number, ttlMs = DEFAULT_TTL_MS): void {
-    const key = this.hashKey(command, query)
     fs.mkdirSync(this.cacheDir, { recursive: true })
 
-    const entry: CacheEntry = {
-      key,
-      command,
-      query,
-      response,
-      costUsd,
-      createdAt: Date.now(),
-      ttlMs,
-    }
-
-    fs.writeFileSync(path.join(this.cacheDir, `${key}.json`), JSON.stringify(entry, null, 2), { mode: 0o600 })
+    const entry: CacheEntry = { command, query, response, costUsd, createdAt: Date.now(), ttlMs }
+    fs.writeFileSync(
+      path.join(this.cacheDir, `${this.hashKey(command, query)}.json`),
+      JSON.stringify(entry),
+      { mode: 0o600 },
+    )
     this.recordCost(costUsd, query)
   }
 
@@ -90,9 +83,7 @@ export class QueryCache {
       try {
         fs.unlinkSync(path.join(this.cacheDir, file))
         count++
-      } catch {
-        // skip files that can't be deleted
-      }
+      } catch { /* skip */ }
     }
     return count
   }
@@ -109,15 +100,12 @@ export class QueryCache {
     for (const file of files) {
       if (!file.endsWith('.json')) continue
       try {
-        const raw = fs.readFileSync(path.join(this.cacheDir, file), 'utf-8')
-        const entry: CacheEntry = JSON.parse(raw)
+        const entry: CacheEntry = JSON.parse(fs.readFileSync(path.join(this.cacheDir, file), 'utf-8'))
         if (!Number.isFinite(entry.createdAt) || !Number.isFinite(entry.ttlMs) || now > entry.createdAt + entry.ttlMs) {
           fs.unlinkSync(path.join(this.cacheDir, file))
           count++
         }
-      } catch {
-        // skip corrupted or locked files
-      }
+      } catch { /* skip */ }
     }
     return count
   }
@@ -135,14 +123,11 @@ export class QueryCache {
     ledger.totalUsd += costUsd
     ledger.queryCount++
     ledger.entries.push({ timestamp: Date.now(), costUsd, query })
-
-    // keep last 1000 entries
-    if (ledger.entries.length > 1000) {
-      ledger.entries = ledger.entries.slice(-1000)
+    if (ledger.entries.length > MAX_LEDGER_ENTRIES) {
+      ledger.entries = ledger.entries.slice(-MAX_LEDGER_ENTRIES)
     }
-
     fs.mkdirSync(path.dirname(this.ledgerPath), { recursive: true })
-    fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger, null, 2), { mode: 0o600 })
+    fs.writeFileSync(this.ledgerPath, JSON.stringify(ledger), { mode: 0o600 })
   }
 
   private hashKey(command: string, query: string): string {

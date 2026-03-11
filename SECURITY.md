@@ -32,10 +32,3 @@ The following areas are in scope for security reports:
 - **Cache poisoning** — manipulated cache entries affecting output
 - **Dependency vulnerabilities** — known CVEs in direct dependencies
 
-## Design Decisions
-
-- Credentials are stored with restrictive file permissions (0600 on Unix)
-- Environment variables (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`) take precedence over file-based credentials
-- API keys are never logged, cached, or included in error output
-- The cache stores query responses only, never credentials
-- All external API calls use HTTPS

@@ -18,17 +18,13 @@ export class GrokAdapter {
     })
   }
 
-  private buildMessages(
-    prompt: string,
-    options: QueryOptions,
-  ): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  async query(prompt: string, options: QueryOptions = {}): Promise<GrokResponse> {
+    const model = options.model ?? DEFAULT_MODEL
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
     if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
     messages.push({ role: 'user', content: prompt })
-    return messages
-  }
 
-  private buildTools(options: QueryOptions): OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = []
     if (options.enableXSearch) {
       tools.push({
@@ -42,16 +38,10 @@ export class GrokAdapter {
         function: { name: 'web_search', description: 'Search the web', parameters: { type: 'object', properties: {} } },
       })
     }
-    return tools
-  }
-
-  async query(prompt: string, options: QueryOptions = {}): Promise<GrokResponse> {
-    const model = options.model ?? DEFAULT_MODEL
-    const tools = this.buildTools(options)
 
     const response = await this.client.chat.completions.create({
       model,
-      messages: this.buildMessages(prompt, options),
+      messages,
       max_tokens: options.maxTokens ?? 2048,
       ...(tools.length > 0 ? { tools } : {}),
     })
@@ -63,23 +53,5 @@ export class GrokAdapter {
     const costUsd = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
 
     return { text, usage: { inputTokens, outputTokens, costUsd } }
-  }
-
-  async *stream(prompt: string, options: QueryOptions = {}): AsyncGenerator<string> {
-    const model = options.model ?? DEFAULT_MODEL
-    const tools = this.buildTools(options)
-
-    const response = await this.client.chat.completions.create({
-      model,
-      messages: this.buildMessages(prompt, options),
-      max_tokens: options.maxTokens ?? 2048,
-      stream: true,
-      ...(tools.length > 0 ? { tools } : {}),
-    })
-
-    for await (const chunk of response) {
-      const content = chunk.choices[0]?.delta?.content
-      if (content) yield content
-    }
   }
 }

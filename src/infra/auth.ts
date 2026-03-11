@@ -29,14 +29,6 @@ export class AuthManager {
     this.updateCreds((c) => (c.xBearerToken = token))
   }
 
-  hasGrokKey(): boolean {
-    return this.getGrokKey() !== null
-  }
-
-  hasXToken(): boolean {
-    return this.getXToken() !== null
-  }
-
   private readCreds(): Credentials {
     let raw: string
     try {

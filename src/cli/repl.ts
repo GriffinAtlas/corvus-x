@@ -1,4 +1,6 @@
 import { createInterface, Interface } from 'readline'
+import chalk from 'chalk'
+import ora from 'ora'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -31,7 +33,6 @@ const COMMANDS: Record<string, string> = {
 }
 
 export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
-  const chalk = (await import('chalk')).default
   const auth = new AuthManager(ConfigManager.defaultDir())
 
   const grokKey = auth.getGrokKey()
@@ -68,13 +69,13 @@ export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
     }
 
     if (input.startsWith('/')) {
-      const handled = handleSlashCommand(input, ctx, rl, chalk)
+      const handled = handleSlashCommand(input, ctx, rl)
       if (handled === 'exit') return
       rl.prompt()
       return
     }
 
-    await handleQuery(input, ctx, chalk)
+    await handleQuery(input, ctx)
     rl.prompt()
   })
 
@@ -86,13 +87,7 @@ export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
   })
 }
 
-function handleSlashCommand(
-  input: string,
-  ctx: ReplContext,
-  rl: Interface,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chalk: any,
-): 'exit' | void {
+function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'exit' | void {
   const [cmd, ...args] = input.split(' ')
 
   switch (cmd) {
@@ -149,17 +144,10 @@ function handleSlashCommand(
   }
 }
 
-async function handleQuery(
-  input: string,
-  ctx: ReplContext,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  chalk: any,
-): Promise<void> {
-  const ora = (await import('ora')).default
+async function handleQuery(input: string, ctx: ReplContext): Promise<void> {
   const spinner = ora({ text: 'thinking...', indent: 2 }).start()
 
   try {
-    // Check cache first
     const cached = ctx.cache.get('repl', input)
     if (cached) {
       spinner.stop()
