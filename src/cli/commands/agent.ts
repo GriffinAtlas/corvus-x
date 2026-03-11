@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import readline from 'readline'
-import { t, LOGO } from '../theme.js'
+import { t, revealCrow } from '../theme.js'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
 import { GrokAdapter, MODEL_PRICING, DEFAULT_MODEL } from '../../core/grok-adapter.js'
@@ -144,7 +144,7 @@ export function registerAgentCommand(program: Command): void {
         }
 
         console.log('')
-        console.log(LOGO)
+        await revealCrow()
         console.log('')
 
         console.log(t.muted(`  planning: ${question}`))
