@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (200 tests)
+npm test                     # vitest run (264 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -32,15 +32,19 @@ npm run format               # prettier
 bin/corvus.ts                # entrypoint — registers all commands, calls program.parse()
 src/
   cli/
-    commands/                # ask, scan, read, scope, trace, pulse, gather, watch, auth
-    run-command.ts           # IMPORTANT: shared runner — auth, cache, spinner, error handling
-    output.ts                # formatOutput() — table, json, csv, md
+    commands/                # ask, scan, read, scope, trace, pulse, gather, watch, auth, history
+    run-command.ts           # IMPORTANT: shared runner — runCommand() for prose, runStructuredCommand() for data-first
+    output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers
     repl.ts                  # interactive session with readline
   core/
     grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai
-    x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search)
+    x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis)
     cache.ts                 # QueryCache — file-based with SHA-256 keys, TTL, cost ledger
-    types.ts                 # GrokResponse, QueryOptions, CommandResult, etc.
+    schemas.ts               # Grok JSON response shapes, computed snapshot interfaces, match keys
+    snapshots.ts             # SnapshotStore — timestamped JSON snapshots with auto-prune
+    metrics.ts               # Pure compute functions — baseMetrics, sentiment, topAccounts, etc.
+    differ.ts                # Generic structured diff engine for snapshot comparison
+    types.ts                 # GrokResponse, QueryOptions, CommandResult, StructuredCommandResult
   infra/
     auth.ts                  # AuthManager — env vars take precedence over ~/.corvus/credentials.json
     config.ts                # ConfigManager — manages ~/.corvus/ directory
@@ -49,8 +53,9 @@ tests/                       # mirrors src/ structure 1:1
 
 ## Key Patterns
 
-- **All 7 query commands** (ask, scan, read, scope, trace, pulse, gather) use `runCommand()` from `run-command.ts`. To add a new command: create the file, define a system prompt, pick tool flags, call `runCommand()`, register in `bin/corvus.ts`.
-- **Cache** is wired into all commands via `runCommand()`. Tests mock it with a no-op class.
+- **Data-first pipeline** — 6 commands (scan, pulse, trace, gather, read, scope) use `runStructuredCommand()`: FETCH (X API) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command still uses `runCommand()` for prose output.
+- **Snapshots** — each structured command stores timestamped JSON snapshots in `~/.corvus/snapshots/`. On re-run, the differ compares current vs previous snapshot and shows changes.
+- **Cache** is wired into prose commands via `runCommand()`. Structured commands use snapshots instead.
 - **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`), falls back to `~/.corvus/credentials.json`.
 - **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.
 - **Tests** mock `openai` and `fetch` globally. Never make real API calls.
