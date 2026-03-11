@@ -3,7 +3,7 @@
 ## Supported Versions
 
 | Version | Supported |
-|---------|-----------|
+| ------- | --------- |
 | 0.1.x   | Yes       |
 
 ## Reporting a Vulnerability
@@ -13,6 +13,7 @@ If you discover a security vulnerability in Corvus, please report it responsibly
 **Email:** roger@griffinatlas.us
 
 **Please include:**
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -31,4 +32,3 @@ The following areas are in scope for security reports:
 - **Command injection** — user input passed unsafely to shell or APIs
 - **Cache poisoning** — manipulated cache entries affecting output
 - **Dependency vulnerabilities** — known CVEs in direct dependencies
-

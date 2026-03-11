@@ -17,16 +17,16 @@ Corvus is an open-source CLI agent that gathers and synthesizes intelligence fro
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Language | TypeScript (ES2022, strict mode) |
-| Runtime | Node.js >= 18 |
-| AI | Grok API via OpenAI SDK (`grok-4-1-fast`) |
-| Data | X API v2 (tweets, users, metrics) |
-| CLI | Commander |
-| Testing | Vitest (227 tests) |
-| Linting | ESLint + Prettier |
-| Module System | ESM (`"type": "module"`) |
+| Layer         | Technology                                |
+| ------------- | ----------------------------------------- |
+| Language      | TypeScript (ES2022, strict mode)          |
+| Runtime       | Node.js >= 18                             |
+| AI            | Grok API via OpenAI SDK (`grok-4-1-fast`) |
+| Data          | X API v2 (tweets, users, metrics)         |
+| CLI           | Commander                                 |
+| Testing       | Vitest (438 tests)                        |
+| Linting       | ESLint + Prettier                         |
+| Module System | ESM (`"type": "module"`)                  |
 
 ## Install
 
@@ -41,6 +41,7 @@ corvus auth setup
 ```
 
 You'll need:
+
 - **Grok API key** from [console.x.ai](https://console.x.ai) (required)
 - **X API bearer token** from [developer.x.com](https://developer.x.com) (optional — enables `read` and `scope` commands)
 
@@ -52,6 +53,19 @@ export CORVUS_X_BEARER_TOKEN=AAA...
 ```
 
 ## Commands
+
+### `agent` — Autonomous investigation
+
+Chains multiple commands, follows leads, cross-references results, and produces a BLUF intelligence brief.
+
+```bash
+corvus agent "what's happening with AI regulation in the EU?"
+corvus agent -i "who are the key players in the bitcoin ETF debate?"   # interactive mode
+corvus agent -n 12 --budget 0.25 "trace the OpenAI drama timeline"    # custom limits
+corvus agent --cost "any question"                                     # preview pricing
+```
+
+Options: `-i` interactive (plan approval), `-n` max steps (2-12), `--budget` cost cap in USD, `--no-replan` disable adaptive replanning.
 
 ### `ask` — Question X discourse
 
@@ -133,16 +147,24 @@ corvus repl --format json
 
 REPL commands: `/help`, `/format <type>`, `/history`, `/cost`, `/clear`, `/exit`
 
+### `history` — View snapshot history
+
+Browse stored snapshots from previous command runs.
+
+```bash
+corvus history
+```
+
 ## Output Formats
 
 All commands support `-f` / `--format`:
 
-| Format | Description |
-|--------|-------------|
+| Format  | Description                                      |
+| ------- | ------------------------------------------------ |
 | `table` | Default. Clean terminal output with cost display |
-| `json` | Machine-readable JSON |
-| `csv` | CSV with headers |
-| `md` | Markdown |
+| `json`  | Machine-readable JSON                            |
+| `csv`   | CSV with headers                                 |
+| `md`    | Markdown                                         |
 
 ## Cost Tracking
 
@@ -157,31 +179,39 @@ corvus/
   bin/corvus.ts            # CLI entrypoint
   src/
     cli/
-      commands/            # ask, scan, read, scope, trace, pulse, gather, watch, auth
-      run-command.ts       # shared auth/cache/spinner/error runner
-      output.ts            # table, json, csv, md formatters
+      commands/            # agent, ask, scan, read, scope, trace, pulse, gather, watch, auth, history
+      run-command.ts       # shared runner — runCommand() for prose, runStructuredCommand() for data-first
+      output.ts            # table, json, md formatters + per-command snapshot renderers
+      progress.ts          # StepProgress — multi-line in-place step tracker for agent runs
+      theme.ts             # color palette, TTY detection, visual primitives
       repl.ts              # interactive session
     core/
-      grok-adapter.ts      # Grok API via OpenAI SDK
-      x-adapter.ts         # X API v2 client
-      cache.ts             # file-based query cache with TTL
+      agent.ts             # AgentPlanner, AgentExecutor, AgentSynthesizer
+      grok-adapter.ts      # Grok API via OpenAI SDK, retry/timeout, parseGrokJson
+      x-adapter.ts         # X API v2 client (tweets, users, search, pagination)
+      schemas.ts           # Grok JSON response shapes, snapshot interfaces, match keys
+      snapshots.ts         # timestamped JSON snapshots with auto-prune
+      metrics.ts           # pure compute — sentiment, confidence, contradictions
+      differ.ts            # structured diff engine for snapshot comparison
+      cache.ts             # file-based query cache with SHA-256 keys, TTL
       types.ts             # shared types
     infra/
       auth.ts              # credential storage (env > file)
       config.ts            # config directory management
-  tests/                   # mirrors src/ structure, 227 tests
+  tests/                   # mirrors src/ structure, 438 tests
 ```
 
 ## Configuration
 
 All runtime data is stored in `~/.corvus/`:
 
-| File | Purpose |
-|------|---------|
-| `config.json` | General configuration |
-| `credentials.json` | API keys (file permissions: 0600) |
-| `cost-ledger.json` | Cumulative API spend tracking |
-| `cache/` | Query response cache (TTL-based) |
+| File               | Purpose                                         |
+| ------------------ | ----------------------------------------------- |
+| `config.json`      | General configuration                           |
+| `credentials.json` | API keys (file permissions: 0600)               |
+| `cost-ledger.json` | Cumulative API spend tracking                   |
+| `cache/`           | Query response cache (TTL-based)                |
+| `snapshots/`       | Timestamped command snapshots for diff tracking |
 
 ## License
 
