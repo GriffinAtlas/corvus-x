@@ -6,7 +6,7 @@ export type OutputFormat = 'table' | 'json' | 'csv' | 'md'
 export function formatOutput(result: CommandResult, format: OutputFormat): string {
   switch (format) {
     case 'json':
-      return formatJson(result)
+      return JSON.stringify(result, null, 2)
     case 'csv':
       return formatCsv(result)
     case 'md':
@@ -18,35 +18,20 @@ export function formatOutput(result: CommandResult, format: OutputFormat): strin
 }
 
 function formatTable(result: CommandResult): string {
-  const lines: string[] = []
-  lines.push('')
-  lines.push(`  ${chalk.bold(result.command)} ${chalk.dim('·')} ${result.query}`)
-  lines.push(`  ${chalk.dim('───────────────────────────────────────────')}`)
-  lines.push('')
-  lines.push(`  ${result.response.split('\n').join('\n  ')}`)
-  lines.push('')
-  if (!result.cached) {
-    lines.push(`  ${chalk.dim(`cost: $${result.cost.toFixed(4)}`)}`)
-  } else {
-    lines.push(`  ${chalk.dim('(cached)')}`)
-  }
-  lines.push('')
-  return lines.join('\n')
-}
+  const cost = result.cached
+    ? chalk.dim('(cached)')
+    : chalk.dim(`cost: $${result.cost.toFixed(4)}`)
 
-function formatJson(result: CommandResult): string {
-  return JSON.stringify(
-    {
-      command: result.command,
-      query: result.query,
-      response: result.response,
-      cost: result.cost,
-      cached: result.cached,
-      timestamp: result.timestamp,
-    },
-    null,
-    2,
-  )
+  return [
+    '',
+    `  ${chalk.bold(result.command)} ${chalk.dim('·')} ${result.query}`,
+    `  ${chalk.dim('───────────────────────────────────────────')}`,
+    '',
+    `  ${result.response.split('\n').join('\n  ')}`,
+    '',
+    `  ${cost}`,
+    '',
+  ].join('\n')
 }
 
 function formatCsv(result: CommandResult): string {
@@ -64,14 +49,14 @@ function formatCsv(result: CommandResult): string {
 }
 
 function formatMarkdown(result: CommandResult): string {
-  const lines: string[] = []
-  lines.push(`## ${result.command}`)
-  lines.push('')
-  lines.push(`**Query:** ${result.query}`)
-  lines.push('')
-  lines.push(result.response)
-  lines.push('')
-  lines.push(`---`)
-  lines.push(`*Cost: $${result.cost.toFixed(4)} | ${result.cached ? 'cached' : 'live'}*`)
-  return lines.join('\n')
+  return [
+    `## ${result.command}`,
+    '',
+    `**Query:** ${result.query}`,
+    '',
+    result.response,
+    '',
+    `---`,
+    `*Cost: $${result.cost.toFixed(4)} | ${result.cached ? 'cached' : 'live'}*`,
+  ].join('\n')
 }

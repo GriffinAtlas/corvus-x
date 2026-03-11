@@ -18,45 +18,139 @@ describe('AuthManager', () => {
     vi.unstubAllEnvs()
   })
 
-  it('returns null when no key is stored', async () => {
-    const key = await auth.getGrokKey()
-    expect(key).toBeNull()
+  it('returns null when no grok key is stored', () => {
+    expect(auth.getGrokKey()).toBeNull()
   })
 
-  it('stores and retrieves grok key', async () => {
-    await auth.setGrokKey('xai-test-key-123')
-    const key = await auth.getGrokKey()
-    expect(key).toBe('xai-test-key-123')
+  it('returns null when no x token is stored', () => {
+    expect(auth.getXToken()).toBeNull()
   })
 
-  it('stores and retrieves x bearer token', async () => {
-    await auth.setXToken('bearer-test-456')
-    const token = await auth.getXToken()
-    expect(token).toBe('bearer-test-456')
+  it('stores and retrieves grok key', () => {
+    auth.setGrokKey('xai-test-key-123')
+    expect(auth.getGrokKey()).toBe('xai-test-key-123')
   })
 
-  it('env var overrides stored key', async () => {
-    await auth.setGrokKey('stored-key')
+  it('stores and retrieves x bearer token', () => {
+    auth.setXToken('bearer-test-456')
+    expect(auth.getXToken()).toBe('bearer-test-456')
+  })
+
+  it('overwrites an existing grok key', () => {
+    auth.setGrokKey('old-key')
+    auth.setGrokKey('new-key')
+    expect(auth.getGrokKey()).toBe('new-key')
+  })
+
+  it('overwrites an existing x token', () => {
+    auth.setXToken('old-token')
+    auth.setXToken('new-token')
+    expect(auth.getXToken()).toBe('new-token')
+  })
+
+  it('setting grok key does not clobber x token', () => {
+    auth.setXToken('my-x-token')
+    auth.setGrokKey('my-grok-key')
+    expect(auth.getXToken()).toBe('my-x-token')
+    expect(auth.getGrokKey()).toBe('my-grok-key')
+  })
+
+  it('setting x token does not clobber grok key', () => {
+    auth.setGrokKey('my-grok-key')
+    auth.setXToken('my-x-token')
+    expect(auth.getGrokKey()).toBe('my-grok-key')
+    expect(auth.getXToken()).toBe('my-x-token')
+  })
+
+  it('env var overrides stored grok key', () => {
+    auth.setGrokKey('stored-key')
     vi.stubEnv('CORVUS_GROK_KEY', 'env-key')
-
-    const key = await auth.getGrokKey()
-    expect(key).toBe('env-key')
+    expect(auth.getGrokKey()).toBe('env-key')
   })
 
-  it('env var overrides stored x token', async () => {
-    await auth.setXToken('stored-token')
+  it('env var overrides stored x token', () => {
+    auth.setXToken('stored-token')
     vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'env-token')
-
-    const token = await auth.getXToken()
-    expect(token).toBe('env-token')
+    expect(auth.getXToken()).toBe('env-token')
   })
 
-  it('hasGrokKey returns true when key exists', async () => {
-    await auth.setGrokKey('xai-key')
-    expect(await auth.hasGrokKey()).toBe(true)
+  it('env var works even when no file exists', () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'env-only-key')
+    expect(auth.getGrokKey()).toBe('env-only-key')
   })
 
-  it('hasGrokKey returns false when no key', async () => {
-    expect(await auth.hasGrokKey()).toBe(false)
+  it('hasGrokKey returns true when key exists', () => {
+    auth.setGrokKey('xai-key')
+    expect(auth.hasGrokKey()).toBe(true)
+  })
+
+  it('hasGrokKey returns false when no key', () => {
+    expect(auth.hasGrokKey()).toBe(false)
+  })
+
+  it('hasXToken returns true when token exists', () => {
+    auth.setXToken('x-token')
+    expect(auth.hasXToken()).toBe(true)
+  })
+
+  it('hasXToken returns false when no token', () => {
+    expect(auth.hasXToken()).toBe(false)
+  })
+
+  it('hasGrokKey returns true when set via env var', () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'env-key')
+    expect(auth.hasGrokKey()).toBe(true)
+  })
+
+  it('hasXToken returns true when set via env var', () => {
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'env-token')
+    expect(auth.hasXToken()).toBe(true)
+  })
+
+  it('returns null and warns when credentials file is corrupted', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '{{{not json')
+    expect(auth.getGrokKey()).toBeNull()
+    expect(auth.getXToken()).toBeNull()
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted'))
+    errSpy.mockRestore()
+  })
+
+  it('returns null and warns when credentials file is empty', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '')
+    expect(auth.getGrokKey()).toBeNull()
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted'))
+    errSpy.mockRestore()
+  })
+
+  it('returns null when credentials file contains empty object', () => {
+    fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '{}')
+    expect(auth.getGrokKey()).toBeNull()
+    expect(auth.getXToken()).toBeNull()
+  })
+
+  it('can write after corrupted file exists', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    fs.writeFileSync(path.join(tmpDir, 'credentials.json'), 'garbage')
+    auth.setGrokKey('recovered-key')
+    expect(auth.getGrokKey()).toBe('recovered-key')
+    errSpy.mockRestore()
+  })
+
+  it('creates base directory if it does not exist', () => {
+    const nested = path.join(tmpDir, 'deep', 'nested', 'dir')
+    const deepAuth = new AuthManager(nested)
+    deepAuth.setGrokKey('test-key')
+    expect(fs.existsSync(nested)).toBe(true)
+    expect(deepAuth.getGrokKey()).toBe('test-key')
+  })
+
+  it('writes credentials as valid JSON on disk', () => {
+    auth.setGrokKey('disk-key')
+    auth.setXToken('disk-token')
+    const parsed = JSON.parse(fs.readFileSync(path.join(tmpDir, 'credentials.json'), 'utf-8'))
+    expect(parsed.grokKey).toBe('disk-key')
+    expect(parsed.xBearerToken).toBe('disk-token')
   })
 })

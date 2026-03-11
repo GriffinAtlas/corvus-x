@@ -1,4 +1,5 @@
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 
 export interface CorvusConfig {
@@ -23,6 +24,10 @@ const DEFAULT_CONFIG: CorvusConfig = {
   },
 }
 
+function defaults(): CorvusConfig {
+  return structuredClone(DEFAULT_CONFIG)
+}
+
 export class ConfigManager {
   private configPath: string
 
@@ -30,44 +35,43 @@ export class ConfigManager {
     this.configPath = path.join(baseDir, 'config.json')
   }
 
+  private ensureDir(): void {
+    fs.mkdirSync(this.baseDir, { recursive: true })
+  }
+
   load(): CorvusConfig {
-    if (!fs.existsSync(this.baseDir)) {
-      fs.mkdirSync(this.baseDir, { recursive: true })
-    }
+    this.ensureDir()
 
-    if (!fs.existsSync(this.configPath)) {
-      return {
-        ...DEFAULT_CONFIG,
-        display: { ...DEFAULT_CONFIG.display },
-        budget: { ...DEFAULT_CONFIG.budget },
-      }
-    }
-
+    let raw: string
     try {
-      const raw = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'))
-      return {
-        activeProfile: raw.activeProfile ?? DEFAULT_CONFIG.activeProfile,
-        display: {
-          animation: raw.display?.animation ?? DEFAULT_CONFIG.display.animation,
-          defaultFormat: raw.display?.defaultFormat ?? DEFAULT_CONFIG.display.defaultFormat,
-        },
-        budget: {
-          sessionMaxUsd: raw.budget?.sessionMaxUsd ?? DEFAULT_CONFIG.budget.sessionMaxUsd,
-        },
-      }
+      raw = fs.readFileSync(this.configPath, 'utf-8')
     } catch {
-      return {
-        ...DEFAULT_CONFIG,
-        display: { ...DEFAULT_CONFIG.display },
-        budget: { ...DEFAULT_CONFIG.budget },
-      }
+      return defaults() // file doesn't exist yet — expected on first run
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsed: any
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      console.error(`  warning: ${this.configPath} is corrupted, using defaults`)
+      return defaults()
+    }
+
+    return {
+      activeProfile: parsed.activeProfile ?? DEFAULT_CONFIG.activeProfile,
+      display: {
+        animation: parsed.display?.animation ?? DEFAULT_CONFIG.display.animation,
+        defaultFormat: parsed.display?.defaultFormat ?? DEFAULT_CONFIG.display.defaultFormat,
+      },
+      budget: {
+        sessionMaxUsd: parsed.budget?.sessionMaxUsd ?? DEFAULT_CONFIG.budget.sessionMaxUsd,
+      },
     }
   }
 
   save(config: CorvusConfig): void {
-    if (!fs.existsSync(this.baseDir)) {
-      fs.mkdirSync(this.baseDir, { recursive: true })
-    }
+    this.ensureDir()
     fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2))
   }
 
@@ -76,6 +80,6 @@ export class ConfigManager {
   }
 
   static defaultDir(): string {
-    return path.join(process.env.HOME ?? process.env.USERPROFILE ?? '.', '.corvus')
+    return path.join(os.homedir(), '.corvus')
   }
 }

@@ -13,61 +13,50 @@ function prompt(question: string): Promise<string> {
   })
 }
 
+async function runSetup(): Promise<void> {
+  const auth = new AuthManager(ConfigManager.defaultDir())
+
+  console.log('\n  corvus auth setup')
+  console.log('  ─────────────────\n')
+
+  console.log('  You need a Grok API key from https://console.x.ai\n')
+  const grokKey = await prompt('  Grok API key: ')
+
+  if (!grokKey) {
+    console.log('\n  Grok API key is required. Aborting.')
+    process.exit(1)
+  }
+
+  auth.setGrokKey(grokKey)
+  console.log('  ✓ Grok key saved\n')
+
+  const addX = await prompt('  Add X API bearer token? (optional) [y/N]: ')
+  if (addX.toLowerCase() === 'y') {
+    console.log('\n  Get your token at https://developer.x.com\n')
+    const xToken = await prompt('  X Bearer Token: ')
+    if (xToken) {
+      auth.setXToken(xToken)
+      console.log('  ✓ X API token saved\n')
+    }
+  }
+
+  console.log("  ✓ Ready. Try: corvus ask \"what's trending in AI?\"\n")
+}
+
+function runStatus(): void {
+  const auth = new AuthManager(ConfigManager.defaultDir())
+
+  console.log('\n  corvus auth status')
+  console.log('  ──────────────────')
+  console.log(`  Grok API:  ${auth.hasGrokKey() ? '✓ configured' : '✗ not set'}`)
+  console.log(`  X API:     ${auth.hasXToken() ? '✓ configured' : '✗ not set (optional)'}`)
+  console.log()
+}
+
 export function registerAuthCommand(program: Command): void {
   const auth = program.command('auth').description('Set up API keys')
 
-  auth
-    .command('setup')
-    .description('Interactive API key setup')
-    .action(async () => {
-      const baseDir = ConfigManager.defaultDir()
-      const authManager = new AuthManager(baseDir)
-
-      console.log('\n  corvus auth setup')
-      console.log('  ─────────────────\n')
-
-      console.log('  You need a Grok API key from https://console.x.ai\n')
-      const grokKey = await prompt('  Grok API key: ')
-
-      if (!grokKey) {
-        console.log('\n  Grok API key is required. Aborting.')
-        process.exit(1)
-      }
-
-      await authManager.setGrokKey(grokKey)
-      console.log('  ✓ Grok key saved\n')
-
-      const addX = await prompt('  Add X API bearer token? (optional) [y/N]: ')
-      if (addX.toLowerCase() === 'y') {
-        console.log('\n  Get your token at https://developer.x.com\n')
-        const xToken = await prompt('  X Bearer Token: ')
-        if (xToken) {
-          await authManager.setXToken(xToken)
-          console.log('  ✓ X API token saved\n')
-        }
-      }
-
-      console.log("  ✓ Ready. Try: corvus ask \"what's trending in AI?\"\n")
-    })
-
-  auth
-    .command('status')
-    .description('Show current auth status')
-    .action(async () => {
-      const baseDir = ConfigManager.defaultDir()
-      const authManager = new AuthManager(baseDir)
-
-      const hasGrok = await authManager.hasGrokKey()
-      const hasX = await authManager.hasXToken()
-
-      console.log('\n  corvus auth status')
-      console.log('  ──────────────────')
-      console.log(`  Grok API:  ${hasGrok ? '✓ configured' : '✗ not set'}`)
-      console.log(`  X API:     ${hasX ? '✓ configured' : '✗ not set (optional)'}`)
-      console.log()
-    })
-
-  auth.action(async () => {
-    await auth.commands.find((c) => c.name() === 'setup')?.parseAsync([], { from: 'user' })
-  })
+  auth.command('setup').description('Interactive API key setup').action(runSetup)
+  auth.command('status').description('Show current auth status').action(runStatus)
+  auth.action(runSetup)
 }
