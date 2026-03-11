@@ -84,6 +84,24 @@ function grokGatherResponse() {
   }
 }
 
+function grokOnlyGatherResponse() {
+  const json = JSON.stringify({
+    tweetCount: 15,
+    uniqueAuthors: 8,
+    estimatedEngagement: 2000,
+    tweetAnalysis: [{ index: 0, sentiment: 0.4, narrative: 'theme1' }],
+    narratives: [{ theme: 'theme1', description: 'grok desc' }],
+    topPosts: [{ id: '1', author: 'user1', text: 'top post', engagement: 500 }],
+    signals: ['grok signal'],
+    webContext: ['grok context'],
+    outlook: 'Grok outlook',
+  })
+  return {
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 500, completion_tokens: 2000 },
+  }
+}
+
 describe('registerGatherCommand', () => {
   let program: Command
   let logs: string[]
@@ -182,14 +200,15 @@ describe('registerGatherCommand', () => {
     expect(logs.some((l) => l.includes('insufficient quota'))).toBe(true)
   })
 
-  it('errors when no X token is set', async () => {
+  it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'gather', 'test'])
-    } catch {
-      /* process.exit */
-    }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
+    mockQuery.mockResolvedValueOnce(grokOnlyGatherResponse())
+
+    await program.parseAsync(['node', 'corvus', 'gather', 'test'])
+    expect(exitCode).toBeUndefined()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const output = logs.join('\n')
+    expect(output).toContain('Outlook')
   })
 })

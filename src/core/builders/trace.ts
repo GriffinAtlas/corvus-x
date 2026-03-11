@@ -1,7 +1,9 @@
 import { computeBaseMetrics } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
+import { computeGrokOnlyMetrics } from './grok-only.js'
 import type { GrokTraceResponse, TraceSnapshot } from '../schemas.js'
+import type { GrokOnlyTraceResponse } from './grok-only.js'
 import type { Tweet, XUser } from '../x-adapter.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -17,6 +19,23 @@ Rules:
 - originIndex: index of the earliest/originating tweet, or null if unclear.
 - phases: group tweets by spread phase (emergence, amplification, mainstream, etc.).
 - mutations: how the narrative evolved as it spread (0-5 entries).
+- Return ONLY valid JSON.`
+
+const GROK_ONLY_PROMPT = `You are an intelligence analyst tracing how a narrative spreads on X. Search X for posts about the given narrative, then trace its spread. Return ONLY a JSON object:
+{
+  "tweetCount": 25,
+  "uniqueAuthors": 15,
+  "estimatedEngagement": 5000,
+  "tweetAnalysis": [{ "index": 0, "sentiment": 0.5, "narrative": "theme" }],
+  "origin": { "account": "username", "date": "2026-03-10", "tweetId": "123", "content": "original post" },
+  "timeline": [{ "phase": "emergence", "tweetCount": 5, "keyAmplifiers": ["user1"], "timeframe": "Mar 10 morning" }],
+  "mutations": [{ "original": "original framing", "variant": "evolved framing" }]
+}
+Rules:
+- Search X for posts about this narrative. Analyze the spread pattern.
+- origin: the earliest/originating post, or null if unclear.
+- timeline: phases of spread (emergence, amplification, mainstream, etc.).
+- mutations: how the narrative evolved (0-5 entries).
 - Return ONLY valid JSON.`
 
 function buildTraceData(
@@ -73,9 +92,19 @@ export async function buildTraceSnapshot(
   maxResults: number,
   pages = 1,
 ): Promise<BuildResult<TraceSnapshot>> {
-  if (!deps.x) throw new Error('X API token required for trace. Run: corvus auth setup')
+  if (deps.x) {
+    return buildTraceFromXApi(deps, topic, maxResults, pages)
+  }
+  return buildTraceFromGrok(deps, topic)
+}
 
-  const { tweets, users } = await deps.x.searchRecent(topic, maxResults, pages)
+async function buildTraceFromXApi(
+  deps: CorvusDeps,
+  topic: string,
+  maxResults: number,
+  pages: number,
+): Promise<BuildResult<TraceSnapshot>> {
+  const { tweets, users } = await deps.x!.searchRecent(topic, maxResults, pages)
   if (tweets.length === 0) throw new Error(`No tweets found for "${topic}"`)
 
   const userMap = new Map(users.map((u) => [u.id, u]))
@@ -101,5 +130,37 @@ export async function buildTraceSnapshot(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt,
+  }
+}
+
+async function buildTraceFromGrok(
+  deps: CorvusDeps,
+  topic: string,
+): Promise<BuildResult<TraceSnapshot>> {
+  const response = await deps.grok.query(
+    `Trace the spread of this narrative on X: "${topic}"`,
+    { systemPrompt: GROK_ONLY_PROMPT, enableXSearch: true, maxTokens: 4096 },
+  )
+
+  const grok = parseGrokJson<GrokOnlyTraceResponse>(response.text)
+  const metrics = computeGrokOnlyMetrics(grok.tweetCount, grok.uniqueAuthors, grok.estimatedEngagement)
+
+  return {
+    data: {
+      metrics,
+      origin: grok.origin,
+      timeline: grok.timeline ?? [],
+      mutations: grok.mutations ?? [],
+      reach: {
+        totalTweets: metrics.tweetCount,
+        totalEngagement: metrics.totalEngagement,
+        uniqueAuthors: metrics.uniqueAuthors,
+      },
+    },
+    raw: response.text,
+    cost: response.usage.costUsd,
+    tweets: [],
+    scores: grok.tweetAnalysis,
+    newestTweetAt: null,
   }
 }

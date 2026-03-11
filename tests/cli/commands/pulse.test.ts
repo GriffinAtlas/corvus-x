@@ -82,6 +82,22 @@ function grokPulseResponse() {
   }
 }
 
+function grokOnlyPulseResponse() {
+  const json = JSON.stringify({
+    tweetCount: 10,
+    uniqueAuthors: 5,
+    estimatedEngagement: 500,
+    tweetAnalysis: [{ index: 0, sentiment: 0.4, narrative: 'theme' }],
+    bullSignals: ['grok bull'],
+    bearSignals: ['grok bear'],
+    keyVoices: [{ handle: 'user1', sentiment: 0.5, reach: 1000 }],
+  })
+  return {
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 200, completion_tokens: 300 },
+  }
+}
+
 describe('registerPulseCommand', () => {
   let program: Command
   let logs: string[]
@@ -180,14 +196,15 @@ describe('registerPulseCommand', () => {
     expect(logs.some((l) => l.includes('connection refused'))).toBe(true)
   })
 
-  it('errors when no X token is set', async () => {
+  it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'pulse', 'test'])
-    } catch {
-      /* process.exit */
-    }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
+    mockQuery.mockResolvedValueOnce(grokOnlyPulseResponse())
+
+    await program.parseAsync(['node', 'corvus', 'pulse', 'test'])
+    expect(exitCode).toBeUndefined()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const output = logs.join('\n')
+    expect(output).toContain('Bull Signals')
   })
 })

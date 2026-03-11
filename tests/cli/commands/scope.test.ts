@@ -106,6 +106,31 @@ function grokScopeResponse() {
   }
 }
 
+function grokOnlyScopeResponse() {
+  const json = JSON.stringify({
+    account: {
+      handle: 'testuser',
+      followers: 5000,
+      following: 200,
+      tweetCount: 500,
+    },
+    recentActivity: {
+      avgEngagement: 50,
+      postsAnalyzed: 10,
+      topTweet: { id: '1', text: 'Top post', engagement: 200 },
+    },
+    contentPatterns: ['Grok pattern 1'],
+    recentFocus: ['Grok focus'],
+    networkPosition: 'Grok network position',
+    influence: 'medium',
+    signalValue: 'high',
+  })
+  return {
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 200, completion_tokens: 300 },
+  }
+}
+
 describe('registerScopeCommand', () => {
   let program: Command
   let logs: string[]
@@ -203,14 +228,15 @@ describe('registerScopeCommand', () => {
     expect(logs.some((l) => l.includes('Unauthorized'))).toBe(true)
   })
 
-  it('errors when no X token is set', async () => {
+  it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
-    } catch {
-      /* process.exit */
-    }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
+    mockQuery.mockResolvedValueOnce(grokOnlyScopeResponse())
+
+    await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])
+    expect(exitCode).toBeUndefined()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const output = logs.join('\n')
+    expect(output).toContain('@testuser')
   })
 })

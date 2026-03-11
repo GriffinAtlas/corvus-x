@@ -83,6 +83,22 @@ function grokTraceResponse() {
   }
 }
 
+function grokOnlyTraceResponse() {
+  const json = JSON.stringify({
+    tweetCount: 10,
+    uniqueAuthors: 5,
+    estimatedEngagement: 500,
+    tweetAnalysis: [{ index: 0, sentiment: 0.3, narrative: 'spread' }],
+    origin: { account: 'source_user', date: '2024-01-01', tweetId: '999', content: 'original post' },
+    timeline: [{ phase: 'emergence', tweetCount: 3, keyAmplifiers: ['user1'], timeframe: 'morning' }],
+    mutations: [{ original: 'original', variant: 'evolved' }],
+  })
+  return {
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 200, completion_tokens: 300 },
+  }
+}
+
 describe('registerTraceCommand', () => {
   let program: Command
   let logs: string[]
@@ -180,14 +196,15 @@ describe('registerTraceCommand', () => {
     expect(logs.some((l) => l.includes('timeout'))).toBe(true)
   })
 
-  it('errors when no X token is set', async () => {
+  it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'trace', 'test'])
-    } catch {
-      /* process.exit */
-    }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
+    mockQuery.mockResolvedValueOnce(grokOnlyTraceResponse())
+
+    await program.parseAsync(['node', 'corvus', 'trace', 'test'])
+    expect(exitCode).toBeUndefined()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const output = logs.join('\n')
+    expect(output).toContain('Reach:')
   })
 })

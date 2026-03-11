@@ -90,6 +90,25 @@ function grokReadResponse() {
   }
 }
 
+function grokOnlyReadResponse() {
+  const json = JSON.stringify({
+    tweet: {
+      id: '12345',
+      author: 'testuser',
+      text: 'Grok found this tweet',
+      engagement: { likes: 10, retweets: 5, replies: 2, impressions: 100 },
+      postedAt: '2024-01-01T00:00:00Z',
+    },
+    analysis: 'Grok-only analysis of the tweet',
+    significance: 'medium',
+    signals: ['grok signal'],
+  })
+  return {
+    choices: [{ message: { content: json } }],
+    usage: { prompt_tokens: 100, completion_tokens: 200 },
+  }
+}
+
 describe('extractTweetId', () => {
   it('extracts ID from x.com URL', () => {
     expect(extractTweetId('https://x.com/user/status/123456')).toBe('123456')
@@ -220,14 +239,15 @@ describe('registerReadCommand', () => {
     expect(logs.some((l) => l.includes('network error'))).toBe(true)
   })
 
-  it('errors when no X token is set', async () => {
+  it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    try {
-      await program.parseAsync(['node', 'corvus', 'read', '12345'])
-    } catch {
-      /* process.exit */
-    }
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('X API token required'))).toBe(true)
+    mockQuery.mockResolvedValueOnce(grokOnlyReadResponse())
+
+    await program.parseAsync(['node', 'corvus', 'read', '12345'])
+    expect(exitCode).toBeUndefined()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const output = logs.join('\n')
+    expect(output).toContain('Analysis')
   })
 })
