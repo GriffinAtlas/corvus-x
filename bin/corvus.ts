@@ -27,4 +27,13 @@ registerTraceCommand(program)
 registerPulseCommand(program)
 registerGatherCommand(program)
 
+program
+  .command('repl')
+  .description('Start an interactive intelligence session')
+  .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
+  .action(async (options: { format: string }) => {
+    const { startRepl } = await import('../src/cli/repl.js')
+    await startRepl(options.format as 'table' | 'json' | 'csv' | 'md')
+  })
+
 program.parse()
