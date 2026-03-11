@@ -1,38 +1,88 @@
 import { Command } from 'commander'
-import { runCommand } from '../run-command.js'
+import { runStructuredCommand } from '../run-command.js'
+import { renderGather } from '../output.js'
+import {
+  computeBaseMetrics,
+  computeSentiment,
+  computeTopPosts,
+  computeNarratives,
+} from '../../core/metrics.js'
+import { GATHER_MATCH_KEYS } from '../../core/schemas.js'
+import { formatTweetsForAnalysis } from '../../core/x-adapter.js'
+import type { GrokGatherResponse, GatherSnapshot } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
 
-const SYSTEM_PROMPT = `You are Corvus, an intelligence analyst compiling a comprehensive intelligence brief from X (Twitter) and web sources.
-Gather all available intelligence on the given topic. Produce a thorough brief:
-- Executive summary: the single most important thing to know right now
-- X discourse: dominant narratives, key voices, engagement patterns, sentiment
-- Web context: relevant news, developments, or events driving the conversation
-- Network analysis: which communities are engaged? Any coordinated activity?
-- Source assessment: which sources are most credible? Any notable bias or agenda?
-- Forward look: what's likely to happen next? What to watch for?
-Be thorough but direct. No emoji. No markdown headers. Use plain text with clear section breaks.`
+const SYSTEM_PROMPT = `You are an intelligence analyst compiling a comprehensive brief. Analyze the tweets below and return ONLY a JSON object:
+{
+  "tweetAnalysis": [{ "index": 0, "sentiment": 0.5, "narrative": "theme" }],
+  "narratives": [{ "theme": "name", "description": "brief description" }],
+  "signals": ["notable observation"],
+  "webContext": ["relevant context from web"],
+  "outlook": "forward-looking assessment"
+}
+Rules:
+- One entry per tweet in tweetAnalysis, referenced by index.
+- narratives: 3-7 themes with descriptions.
+- signals: 3-5 key observations.
+- webContext: 2-4 items of relevant web context (news, events, developments).
+- outlook: 1-2 sentence forward-looking assessment.
+- Return ONLY valid JSON.`
 
 export function registerGatherCommand(program: Command): void {
   program
     .command('gather <topic...>')
     .description('Comprehensive intelligence gathering on a topic')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
+    .option('-n, --count <n>', 'max tweets to analyze', '50')
     .option('--cost', 'show estimated cost before executing')
-    .action(async (topicParts: string[], options: { format: OutputFormat; cost?: boolean }) => {
-      const topic = topicParts.join(' ')
-      await runCommand({
-        command: 'gather',
-        query: topic,
-        format: options.format,
-        cost: options.cost,
-        spinnerText: 'gathering intelligence...',
-        execute: (deps) =>
-          deps.grok.query(`Compile a comprehensive intelligence brief on: ${topic}`, {
-            systemPrompt: SYSTEM_PROMPT,
-            enableXSearch: true,
-            enableWebSearch: true,
-            maxTokens: 6144,
-          }),
-      })
-    })
+    .action(
+      async (
+        topicParts: string[],
+        options: { format: OutputFormat; count: string; cost?: boolean },
+      ) => {
+        const topic = topicParts.join(' ')
+        const maxResults = Math.min(parseInt(options.count, 10) || 50, 100)
+
+        await runStructuredCommand<GatherSnapshot>({
+          command: 'gather',
+          topic,
+          format: options.format,
+          cost: options.cost,
+          spinnerText: 'gathering intelligence...',
+          matchKeys: GATHER_MATCH_KEYS,
+          renderSnapshot: renderGather,
+          buildSnapshot: async (deps) => {
+            if (!deps.x) throw new Error('X API token required for gather. Run: corvus auth setup')
+
+            const { tweets, users } = await deps.x.searchRecent(topic, maxResults)
+            if (tweets.length === 0) throw new Error(`No tweets found for "${topic}"`)
+
+            const tweetBlock = formatTweetsForAnalysis(tweets, users)
+            const response = await deps.grok.query(
+              `Compile intelligence brief on "${topic}" from these ${tweets.length} tweets:\n\n${tweetBlock}`,
+              { systemPrompt: SYSTEM_PROMPT, enableWebSearch: true, maxTokens: 6144 },
+            )
+
+            const grok = JSON.parse(response.text) as GrokGatherResponse
+            const metrics = computeBaseMetrics(tweets)
+            const sentiment = computeSentiment(grok.tweetAnalysis)
+            const topPosts = computeTopPosts(tweets, users)
+            const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
+
+            return {
+              data: {
+                metrics,
+                sentiment,
+                topPosts,
+                narratives,
+                webContext: grok.webContext,
+                outlook: grok.outlook,
+              },
+              raw: response.text,
+              cost: response.usage.costUsd,
+            }
+          },
+        })
+      },
+    )
 }

@@ -55,6 +55,14 @@ export class XAdapter {
     return parseTweet(data.data)
   }
 
+  async getUserById(id: string): Promise<XUser> {
+    const params = new URLSearchParams({
+      'user.fields': 'description,public_metrics,verified',
+    })
+    const data = await this.request(`/users/${id}?${params}`)
+    return parseUser(data.data)
+  }
+
   async getUser(username: string): Promise<XUser> {
     const params = new URLSearchParams({
       'user.fields': 'description,public_metrics,verified',
@@ -115,6 +123,18 @@ export class XAdapter {
       throw new XApiError(res.status, `X API ${res.status}: invalid JSON in response`)
     }
   }
+}
+
+export function formatTweetsForAnalysis(tweets: Tweet[], users: XUser[]): string {
+  const userMap = new Map(users.map((u) => [u.id, u]))
+  return tweets
+    .map((t, i) => {
+      const user = userMap.get(t.authorId)
+      const handle = user?.username ?? t.authorId
+      const eng = `${t.metrics.likes}L ${t.metrics.retweets}RT ${t.metrics.replies}R`
+      return `[${i}] @${handle} (${eng}): ${t.text}`
+    })
+    .join('\n')
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

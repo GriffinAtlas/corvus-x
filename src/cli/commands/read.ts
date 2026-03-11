@@ -1,15 +1,23 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { runCommand } from '../run-command.js'
+import { runStructuredCommand } from '../run-command.js'
+import { renderRead } from '../output.js'
+import type { GrokReadResponse, ReadSnapshot, MatchKeys } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
 
-const SYSTEM_PROMPT = `You are Corvus, an intelligence analyst reading and analyzing X (Twitter) content.
-You've been given raw tweet data. Analyze it:
-- What is the author saying and why does it matter?
-- Context: what conversation or trend is this part of?
-- Engagement analysis: is this resonating? With whom?
-- Signal assessment: is this noise, signal, or counter-signal?
-Be direct. No emoji. No markdown headers. Use plain text with line breaks.`
+const SYSTEM_PROMPT = `You are an intelligence analyst analyzing a specific tweet. Return ONLY a JSON object:
+{
+  "analysis": "detailed analysis of content, context, and significance",
+  "significance": "high",
+  "signals": ["notable observation"]
+}
+Rules:
+- analysis: 2-4 sentences on what this tweet means and why it matters.
+- significance: "high", "medium", or "low".
+- signals: 2-4 notable observations or implications.
+- Return ONLY valid JSON.`
+
+const READ_MATCH_KEYS: MatchKeys = {}
 
 export function extractTweetId(input: string): string | null {
   const urlMatch = input.match(/\/status\/(\d+)/)
@@ -27,31 +35,57 @@ export function registerReadCommand(program: Command): void {
     .action(async (input: string, options: { format: OutputFormat; cost?: boolean }) => {
       const tweetId = extractTweetId(input)
       if (!tweetId) {
-        console.log(chalk.red(`\n  Invalid tweet ID or URL: ${input}\n  Use a numeric ID or a URL like https://x.com/user/status/123456\n`))
+        console.log(
+          chalk.red(
+            `\n  Invalid tweet ID or URL: ${input}\n  Use a numeric ID or a URL like https://x.com/user/status/123456\n`,
+          ),
+        )
         process.exit(1)
       }
 
-      await runCommand({
+      await runStructuredCommand<ReadSnapshot>({
         command: 'read',
-        query: `tweet:${tweetId}`,
+        topic: `tweet:${tweetId}`,
         format: options.format,
         cost: options.cost,
         spinnerText: 'reading tweet...',
-        requiresXToken: true,
-        execute: async (deps) => {
-          const tweet = await deps.x!.getTweet(tweetId)
+        matchKeys: READ_MATCH_KEYS,
+        renderSnapshot: renderRead,
+        buildSnapshot: async (deps) => {
+          if (!deps.x) throw new Error('X API token required for read. Run: corvus auth setup')
+
+          const tweet = await deps.x.getTweet(tweetId)
+          const author = await deps.x.getUserById(tweet.authorId).catch(() => null)
+
           const tweetContext = [
-            `Tweet ID: ${tweet.id}`,
-            `Author: ${tweet.authorId}`,
+            `Tweet by @${author?.username ?? tweet.authorId}`,
             `Posted: ${tweet.createdAt}`,
             `Text: ${tweet.text}`,
             `Metrics: ${tweet.metrics.likes} likes, ${tweet.metrics.retweets} RTs, ${tweet.metrics.replies} replies, ${tweet.metrics.impressions} impressions`,
           ].join('\n')
 
-          return deps.grok.query(`Analyze this tweet:\n\n${tweetContext}`, {
+          const response = await deps.grok.query(`Analyze this tweet:\n\n${tweetContext}`, {
             systemPrompt: SYSTEM_PROMPT,
-            enableXSearch: true,
           })
+
+          const grok = JSON.parse(response.text) as GrokReadResponse
+
+          return {
+            data: {
+              tweet: {
+                id: tweet.id,
+                author: author?.username ?? tweet.authorId,
+                text: tweet.text,
+                engagement: tweet.metrics,
+                postedAt: tweet.createdAt,
+              },
+              analysis: grok.analysis,
+              significance: grok.significance,
+              signals: grok.signals,
+            },
+            raw: response.text,
+            cost: response.usage.costUsd,
+          }
         },
       })
     })

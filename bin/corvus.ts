@@ -26,6 +26,7 @@ import { registerTraceCommand } from '../src/cli/commands/trace.js'
 import { registerPulseCommand } from '../src/cli/commands/pulse.js'
 import { registerGatherCommand } from '../src/cli/commands/gather.js'
 import { registerWatchCommand } from '../src/cli/commands/watch.js'
+import { registerHistoryCommand } from '../src/cli/commands/history.js'
 
 const program = new Command()
 
@@ -43,6 +44,7 @@ registerTraceCommand(program)
 registerPulseCommand(program)
 registerGatherCommand(program)
 registerWatchCommand(program)
+registerHistoryCommand(program)
 
 program
   .command('repl')
