@@ -26,6 +26,7 @@ export interface XUser {
 
 export interface XSearchResult {
   tweets: Tweet[]
+  users: XUser[]
   nextToken?: string
 }
 
@@ -75,11 +76,14 @@ export class XAdapter {
     const params = new URLSearchParams({
       query,
       'tweet.fields': 'created_at,public_metrics,author_id',
+      'expansions': 'author_id',
+      'user.fields': 'username,name,description,public_metrics,verified',
       max_results: String(Math.min(Math.max(maxResults, 10), 100)),
     })
     const data = await this.request(`/tweets/search/recent?${params}`)
     return {
       tweets: (data.data ?? []).map(parseTweet),
+      users: (data.includes?.users ?? []).map(parseUser),
       nextToken: data.meta?.next_token,
     }
   }
