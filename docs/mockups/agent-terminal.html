@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Corvus Agent — Terminal Mockup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 48px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    color: #7C3AED;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+
+  .terminal {
+    background: #0d0d1a;
+    border-radius: 12px;
+    width: 720px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(124, 58, 237, 0.15), 0 0 0 1px rgba(124, 58, 237, 0.1);
+  }
+
+  .titlebar {
+    background: #16162a;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+
+  .titlebar-text {
+    font-family: 'JetBrains Mono', monospace;
+    color: #555;
+    font-size: 12px;
+    margin-left: 8px;
+  }
+
+  .body {
+    padding: 24px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #c4c4d4;
+  }
+
+  .prompt { color: #555; }
+  .cmd { color: #e0e0e0; font-weight: 700; }
+  .accent { color: #7C3AED; }
+  .green { color: #4ade80; }
+  .red { color: #f87171; }
+  .yellow { color: #fbbf24; }
+  .dim { color: #555; }
+  .bold { font-weight: 700; color: #e0e0e0; }
+  .white { color: #e0e0e0; }
+
+  .section { margin-top: 16px; }
+  .indent { padding-left: 24px; }
+  .indent2 { padding-left: 48px; }
+
+  .step-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .step-left { display: flex; gap: 8px; }
+  .step-right { text-align: right; min-width: 100px; }
+
+  .bar-track {
+    display: inline-block;
+    letter-spacing: -1px;
+  }
+  .bar-fill { color: #f87171; }
+  .bar-empty { color: #2a2a3e; }
+  .bar-fill-green { color: #4ade80; }
+
+  .box {
+    margin: 16px 20px;
+    border: 1px solid #7C3AED;
+    border-radius: 6px;
+    padding: 12px 16px;
+    background: rgba(124, 58, 237, 0.05);
+  }
+
+  .box-signal {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e0e0e0;
+    line-height: 1.6;
+  }
+
+  .divider {
+    margin: 12px 0;
+    border: none;
+    border-top: 1px solid #2a2a3e;
+  }
+
+  .logo {
+    color: #7C3AED;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .bullet { padding-left: 24px; padding-bottom: 3px; }
+  .bullet::before { content: ''; }
+
+  .footer {
+    padding-left: 24px;
+    padding-top: 8px;
+    color: #555;
+    font-size: 12px;
+  }
+
+  .label { margin-top: 48px; font-family: 'JetBrains Mono', monospace; color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Corvus Agent — Terminal Mockup</h1>
+
+<!-- ═══════════════ MOCKUP 1: FIRE AND FORGET ═══════════════ -->
+
+<div class="label">Fire-and-forget mode (default)</div>
+
+<div class="terminal">
+  <div class="titlebar">
+    <div class="dot r"></div>
+    <div class="dot y"></div>
+    <div class="dot g"></div>
+    <span class="titlebar-text">corvus — agent</span>
+  </div>
+  <div class="body">
+
+    <div>
+      <span class="prompt">$ </span><span class="cmd">corvus agent</span> <span class="white">"What's happening with bitcoin sentiment?"</span>
+    </div>
+
+    <div class="section" style="padding-left:24px;">
+      <div class="logo">
+        ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═╗<br>
+        ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗<br>
+        ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝
+      </div>
+      <div class="dim" style="margin-top:4px;">agent <span class="accent">·</span> investigating...</div>
+    </div>
+
+    <div class="section">
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[1/6]</span> <span class="white">scanning bitcoin</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">3.2s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[2/6]</span> <span class="white">pulsing bitcoin</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">2.8s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[3/6]</span> <span class="white">scoping @whale_alert</span> <span class="accent">(lead)</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">3.1s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[4/6]</span> <span class="white">scoping @CryptoCapo</span> <span class="accent">(lead)</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">2.9s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[5/6]</span> <span class="white">tracing "bitcoin ETF outflows"</span> <span class="yellow">(replan)</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">4.0s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[6/6]</span> <span class="white">synthesizing brief</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">2.4s</span></span>
+      </div>
+    </div>
+
+    <!-- BLUF Signal Box -->
+    <div class="box">
+      <div class="box-signal">
+        Bitcoin sentiment has turned <span class="red">bearish (-0.38)</span> over the past 24h,<br>
+        driven by ETF outflow narratives and 3 whale accounts reversing positions.
+      </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="section indent">
+      <div>
+        <span class="bold">Sentiment</span>&nbsp;&nbsp;
+        <span class="red">-0.38</span> avg&nbsp;&nbsp;
+        <span class="bar-track"><span class="bar-empty">████████</span><span class="bar-fill">████████████</span></span>&nbsp;&nbsp;
+        <span class="dim">(was +0.12)</span>
+      </div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Key Findings</div>
+      <div class="bullet">  <span class="dim">·</span> Dominant narrative: <span class="white">"ETF outflows signal institutional exit"</span> <span class="dim">— 43 tweets, -0.52 avg</span></div>
+      <div class="bullet">  <span class="dim">·</span> Counter-narrative: <span class="white">"Accumulation phase"</span> <span class="dim">— 18 tweets, +0.31 avg</span></div>
+      <div class="bullet">  <span class="dim">·</span> Key reversal: <span class="red">@whale_alert</span>, <span class="red">@CryptoCapo</span>, <span class="red">@PeterSchiff</span> <span class="dim">— all shifted bearish in 24h</span></div>
+      <div class="bullet">  <span class="dim">·</span> Bull holdout: <span class="green">@sabortoothSTF</span> <span class="dim">still accumulating, 12K engagement, +0.68 sentiment</span></div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Top Voices</div>
+      <div class="bullet">  <span class="white">@whale_alert</span>&nbsp;&nbsp;<span class="dim">847K reach</span>&nbsp;&nbsp;<span class="red">-0.71</span>&nbsp;&nbsp;<span class="dim">"3 large BTC transfers to exchanges in 4h"</span></div>
+      <div class="bullet">  <span class="white">@CryptoCapo</span>&nbsp;&nbsp;<span class="dim">312K reach</span>&nbsp;&nbsp;<span class="red">-0.64</span>&nbsp;&nbsp;<span class="dim">"Structure looks like August 2024 before the drop"</span></div>
+      <div class="bullet">  <span class="white">@sabortoothSTF</span>&nbsp;&nbsp;<span class="dim">89K reach</span>&nbsp;&nbsp;<span class="green">+0.68</span>&nbsp;&nbsp;<span class="dim">"Buying every dip. On-chain says accumulate."</span></div>
+    </div>
+
+    <div class="section indent">
+      <div><span class="yellow">⚠</span> <span class="bold">Contradiction</span></div>
+      <div class="indent" style="padding-left:24px;"><span class="dim">Scan consensus is bearish, but pulse detected 2 high-reach accounts</span></div>
+      <div class="indent" style="padding-left:24px;"><span class="dim">pushing "buy the dip" with significant engagement (8.2K combined).</span></div>
+      <div class="indent" style="padding-left:24px;"><span class="dim">Smart money may be diverging from crowd sentiment.</span></div>
+    </div>
+
+    <div class="section indent">
+      <div>
+        <span class="bold">Confidence</span>&nbsp;&nbsp;
+        <span class="bar-track"><span class="bar-fill-green">██████████████</span><span class="bar-empty">██████</span></span>&nbsp;&nbsp;
+        <span class="white">0.72</span>&nbsp;&nbsp;
+        <span class="dim">moderate — mixed signals reduce certainty</span>
+      </div>
+    </div>
+
+    <hr class="divider" style="margin: 16px 20px;">
+
+    <div class="footer">
+      6 steps · 18.4s · 147 tweets analyzed · 4 accounts profiled · $0.021
+    </div>
+
+    <div style="height:16px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MOCKUP 2: INTERACTIVE MODE ═══════════════ -->
+
+<div class="label">Interactive mode (--interactive)</div>
+
+<div class="terminal">
+  <div class="titlebar">
+    <div class="dot r"></div>
+    <div class="dot y"></div>
+    <div class="dot g"></div>
+    <span class="titlebar-text">corvus — agent --interactive</span>
+  </div>
+  <div class="body">
+
+    <div>
+      <span class="prompt">$ </span><span class="cmd">corvus agent -i</span> <span class="white">"Who are the key voices in AI agent discourse?"</span>
+    </div>
+
+    <div class="section" style="padding-left:24px;">
+      <div class="logo">
+        ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═╗<br>
+        ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗<br>
+        ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝
+      </div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Plan</div>
+      <div>&nbsp;&nbsp;<span class="dim">1.</span> <span class="white">scan</span> <span class="dim">"AI agents"</span> <span class="dim">— map the discourse landscape</span></div>
+      <div>&nbsp;&nbsp;<span class="dim">2.</span> <span class="white">pulse</span> <span class="dim">"AI agents"</span> <span class="dim">— identify key voices and momentum</span></div>
+      <div>&nbsp;&nbsp;<span class="dim">3.</span> <span class="white">trace</span> <span class="dim">"AI agent frameworks"</span> <span class="dim">— track narrative origins</span></div>
+      <div>&nbsp;&nbsp;<span class="dim">4.</span> <span class="white">gather</span> <span class="dim">"AI agents"</span> <span class="dim">— deep analysis with web context</span></div>
+    </div>
+
+    <div class="section indent">
+      <span class="accent">Proceed?</span> <span class="dim">[Y/n/edit]</span> <span class="white">y</span>
+    </div>
+
+    <div class="section">
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[1/4]</span> <span class="white">scanning "AI agents"</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">3.8s</span></span>
+      </div>
+    </div>
+
+    <div class="section indent">
+      <div class="dim" style="border-left: 2px solid #7C3AED; padding-left: 12px;">
+        Found <span class="white">@shawmakesmagic</span> (elizaOS, 47K reach) and <span class="white">@jxnlco</span> (instructor, 31K reach)<br>
+        dominating the conversation. <span class="accent">Add scope on both?</span> <span class="dim">[Y/n]</span> <span class="white">y</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[2/6]</span> <span class="white">pulsing "AI agents"</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">2.6s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[3/6]</span> <span class="white">scoping @shawmakesmagic</span> <span class="accent">(lead)</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">3.2s</span></span>
+      </div>
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[4/6]</span> <span class="white">scoping @jxnlco</span> <span class="accent">(lead)</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">2.9s</span></span>
+      </div>
+    </div>
+
+    <div class="section indent">
+      <div class="dim" style="border-left: 2px solid #7C3AED; padding-left: 12px;">
+        Scan + pulse + 2 scopes cover the voices well.<br>
+        <span class="accent">Skip remaining steps?</span> <span class="dim">[y/N]</span> <span class="white">y</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="step-row">
+        <span class="step-left"><span class="dim">[5/5]</span> <span class="white">synthesizing brief</span></span>
+        <span class="step-right"><span class="green">✓</span> <span class="dim">2.1s</span></span>
+      </div>
+    </div>
+
+    <!-- BLUF -->
+    <div class="box">
+      <div class="box-signal">
+        AI agent discourse is <span class="green">surging (+0.61)</span> — dominated by framework builders<br>
+        @shawmakesmagic (elizaOS) and @jxnlco (instructor), with sentiment split<br>
+        between open-source optimism and enterprise skepticism.
+      </div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Key Voices</div>
+      <div class="bullet">  <span class="white">@shawmakesmagic</span>&nbsp;&nbsp;<span class="dim">47K reach · elizaOS creator</span>&nbsp;&nbsp;<span class="green">+0.82</span></div>
+      <div class="bullet" style="padding-left:72px;"><span class="dim">"elizaOS 2.0 ships next week — multi-agent orchestration is the unlock"</span></div>
+      <div class="bullet">  <span class="white">@jxnlco</span>&nbsp;&nbsp;<span class="dim">31K reach · instructor maintainer</span>&nbsp;&nbsp;<span class="green">+0.71</span></div>
+      <div class="bullet" style="padding-left:72px;"><span class="dim">"Structured outputs changed everything. Agents are finally reliable."</span></div>
+      <div class="bullet">  <span class="white">@kaborosu</span>&nbsp;&nbsp;<span class="dim">22K reach · enterprise AI</span>&nbsp;&nbsp;<span class="red">-0.34</span></div>
+      <div class="bullet" style="padding-left:72px;"><span class="dim">"90% of agent demos are toy apps. Show me production deployments."</span></div>
+      <div class="bullet">  <span class="white">@swyx</span>&nbsp;&nbsp;<span class="dim">18K reach · AI ecosystem</span>&nbsp;&nbsp;<span class="green">+0.55</span></div>
+      <div class="bullet" style="padding-left:72px;"><span class="dim">"The agent stack is finally converging. MCP + tool use + memory."</span></div>
+    </div>
+
+    <div class="section indent">
+      <div>
+        <span class="bold">Confidence</span>&nbsp;&nbsp;
+        <span class="bar-track"><span class="bar-fill-green">████████████████</span><span class="bar-empty">████</span></span>&nbsp;&nbsp;
+        <span class="white">0.84</span>&nbsp;&nbsp;
+        <span class="dim">high — strong signal consistency</span>
+      </div>
+    </div>
+
+    <hr class="divider" style="margin: 16px 20px;">
+
+    <div class="footer">
+      5 steps · 14.6s · 98 tweets analyzed · 2 accounts profiled · $0.016
+    </div>
+
+    <div style="height:16px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MOCKUP 3: EXISTING COMMAND WITH THEME ═══════════════ -->
+
+<div class="label">Existing command with new theme (corvus scan)</div>
+
+<div class="terminal">
+  <div class="titlebar">
+    <div class="dot r"></div>
+    <div class="dot y"></div>
+    <div class="dot g"></div>
+    <span class="titlebar-text">corvus — scan</span>
+  </div>
+  <div class="body">
+
+    <div>
+      <span class="prompt">$ </span><span class="cmd">corvus scan</span> <span class="white">bitcoin --count 50</span>
+    </div>
+
+    <div class="section indent">
+      <span class="bold">scan</span> <span class="dim">·</span> <span class="white">bitcoin</span>
+    </div>
+    <div class="indent"><span class="dim">─────────────────────────────────────────────</span></div>
+
+    <div class="section indent">
+      <span class="white">Tweets:</span> <span class="white">50</span>&nbsp;&nbsp;
+      <span class="white">Engagement:</span> <span class="white">34,219</span>&nbsp;&nbsp;
+      <span class="white">Authors:</span> <span class="white">38</span>&nbsp;&nbsp;
+      <span class="white">Avg:</span> <span class="white">684/tweet</span>
+    </div>
+
+    <div class="section indent">
+      <span class="white">Sentiment:</span> <span class="red">-0.38</span> avg&nbsp;&nbsp;
+      <span class="bar-track"><span class="bar-empty">████████</span><span class="bar-fill">████████████</span></span>&nbsp;&nbsp;
+      (<span class="green">+12</span> / <span class="dim">21</span> / <span class="red">-17</span>)
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Top Accounts</div>
+      <div class="bullet">  @whale_alert&nbsp;&nbsp;3 posts&nbsp;&nbsp;<span class="dim">847K followers</span>&nbsp;&nbsp;<span class="red">-0.71</span></div>
+      <div class="bullet">  @CryptoCapo&nbsp;&nbsp;2 posts&nbsp;&nbsp;<span class="dim">312K followers</span>&nbsp;&nbsp;<span class="red">-0.64</span></div>
+      <div class="bullet">  @sabortoothSTF&nbsp;&nbsp;4 posts&nbsp;&nbsp;<span class="dim">89K followers</span>&nbsp;&nbsp;<span class="green">+0.68</span></div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Narratives</div>
+      <div class="bullet">  ETF outflows signal institutional exit&nbsp;&nbsp;<span class="dim">18 tweets</span>&nbsp;&nbsp;<span class="red">-0.52</span></div>
+      <div class="bullet" style="padding-left:48px;"><span class="dim">Large funds reducing BTC exposure ahead of macro uncertainty</span></div>
+      <div class="bullet">  Accumulation phase&nbsp;&nbsp;<span class="dim">12 tweets</span>&nbsp;&nbsp;<span class="green">+0.31</span></div>
+      <div class="bullet" style="padding-left:48px;"><span class="dim">On-chain metrics suggest smart money buying the dip</span></div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Signals</div>
+      <div class="bullet">  <span class="dim">·</span> 3 whale-sized BTC transfers to exchanges in past 4 hours</div>
+      <div class="bullet">  <span class="dim">·</span> ETF outflow volume highest since August 2024</div>
+      <div class="bullet">  <span class="dim">·</span> Funding rate turning negative on major perpetual exchanges</div>
+    </div>
+
+    <div class="section indent">
+      <div class="dim" style="border-left: 2px solid #2a2a3e; padding-left: 12px;">
+        <span class="accent">Δ</span> vs 2h ago:&nbsp;&nbsp;sentiment <span class="red">-0.18</span> → <span class="red">-0.38</span>&nbsp;&nbsp;·&nbsp;&nbsp;+2 bearish accounts&nbsp;&nbsp;·&nbsp;&nbsp;new narrative: "ETF outflows"
+      </div>
+    </div>
+
+    <div class="section indent">
+      <span class="dim">cost: $0.004</span>
+    </div>
+
+    <div style="height:16px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MOCKUP 4: HELP WITH BRANDING ═══════════════ -->
+
+<div class="label">corvus --help with branding</div>
+
+<div class="terminal">
+  <div class="titlebar">
+    <div class="dot r"></div>
+    <div class="dot y"></div>
+    <div class="dot g"></div>
+    <span class="titlebar-text">corvus — help</span>
+  </div>
+  <div class="body">
+
+    <div>
+      <span class="prompt">$ </span><span class="cmd">corvus --help</span>
+    </div>
+
+    <div class="section" style="padding-left:24px;">
+      <div class="logo">
+        ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═╗<br>
+        ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗<br>
+        ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝
+      </div>
+      <div class="dim" style="margin-top:4px;">AI-powered X intelligence in your terminal</div>
+      <div class="dim">v0.1.0</div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Intelligence</div>
+      <div class="bullet">  <span class="accent">agent</span> <span class="dim">&lt;question&gt;</span>&nbsp;&nbsp;&nbsp;<span class="dim">Autonomous multi-step investigation</span></div>
+      <div class="bullet">  <span class="white">ask</span> <span class="dim">&lt;question&gt;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Ask a question about X discourse</span></div>
+      <div class="bullet">  <span class="white">scan</span> <span class="dim">&lt;topic&gt;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Scan discourse on a topic</span></div>
+      <div class="bullet">  <span class="white">pulse</span> <span class="dim">&lt;topic&gt;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Sentiment, bull/bear signals, key voices</span></div>
+      <div class="bullet">  <span class="white">trace</span> <span class="dim">&lt;narrative&gt;</span>&nbsp;&nbsp;<span class="dim">Trace the spread of a narrative</span></div>
+      <div class="bullet">  <span class="white">gather</span> <span class="dim">&lt;topic&gt;</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Deep intelligence with web context</span></div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Analysis</div>
+      <div class="bullet">  <span class="white">read</span> <span class="dim">&lt;tweet-id&gt;</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Analyze a specific tweet</span></div>
+      <div class="bullet">  <span class="white">scope</span> <span class="dim">&lt;username&gt;</span>&nbsp;&nbsp;&nbsp;<span class="dim">Profile analysis of an X account</span></div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Session</div>
+      <div class="bullet">  <span class="white">repl</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Interactive intelligence session</span></div>
+      <div class="bullet">  <span class="white">watch</span> <span class="dim">&lt;topic&gt;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Live-monitor a topic</span></div>
+      <div class="bullet">  <span class="white">history</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">View stored snapshots</span></div>
+    </div>
+
+    <div class="section indent">
+      <div class="bold">Setup</div>
+      <div class="bullet">  <span class="white">auth</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">Configure API keys</span></div>
+    </div>
+
+    <div style="height:16px;"></div>
+  </div>
+</div>
+
+<div style="height:60px;"></div>
+
+</body>
+</html>
