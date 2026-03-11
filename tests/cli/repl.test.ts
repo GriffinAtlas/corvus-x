@@ -9,6 +9,13 @@ vi.mock('openai', () => ({
   },
 }))
 
+vi.mock('../../src/core/cache.js', () => ({
+  QueryCache: class {
+    get() { return null }
+    set() {}
+  },
+}))
+
 // Mock readline to simulate user input
 class MockReadline extends EventEmitter {
   output: string[] = []
@@ -78,147 +85,117 @@ describe('REPL', () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    // startRepl is async but sets up the readline listener
-    // We need to trigger close after it starts
-    const replPromise = startRepl()
-    // Give it a tick to set up
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     expect(logs.some((l) => l.includes('corvus interactive'))).toBe(true)
     expect(mockRl.promptCalled).toBeGreaterThan(0)
 
-    // Clean up
     mockRl.close()
-    await replPromise
   })
 
   it('/help shows available commands', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/help')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(logs.some((l) => l.includes('/help'))).toBe(true)
     expect(logs.some((l) => l.includes('/exit'))).toBe(true)
     expect(logs.some((l) => l.includes('/format'))).toBe(true)
 
     mockRl.close()
-    await replPromise
   })
 
   it('/cost shows session cost', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/cost')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(logs.some((l) => l.includes('session cost') && l.includes('$0.0000'))).toBe(true)
 
     mockRl.close()
-    await replPromise
   })
 
   it('/history shows empty history initially', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/history')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(logs.some((l) => l.includes('no queries yet'))).toBe(true)
 
     mockRl.close()
-    await replPromise
   })
 
   it('/format sets output format', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/format json')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(logs.some((l) => l.includes('format set to json'))).toBe(true)
 
     mockRl.close()
-    await replPromise
   })
 
   it('/format rejects invalid format', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/format xml')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(logs.some((l) => l.includes('invalid format'))).toBe(true)
 
     mockRl.close()
-    await replPromise
   })
 
   it('unknown slash command shows error', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/bogus')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(logs.some((l) => l.includes('unknown command'))).toBe(true)
 
     mockRl.close()
-    await replPromise
   })
 
   it('/exit closes the REPL', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('/exit')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(mockRl.closed).toBe(true)
-    await replPromise
   })
 
   it('empty input re-prompts', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     const { startRepl } = await import('../../src/cli/repl.js')
 
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     const before = mockRl.promptCalled
     mockRl.simulateLine('')
-    await new Promise((r) => setTimeout(r, 10))
 
     expect(mockRl.promptCalled).toBe(before + 1)
 
     mockRl.close()
-    await replPromise
   })
 
   it('sends query to Grok and displays result', async () => {
@@ -229,16 +206,15 @@ describe('REPL', () => {
     })
 
     const { startRepl } = await import('../../src/cli/repl.js')
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('what is trending in AI?')
-    await new Promise((r) => setTimeout(r, 50))
 
-    expect(logs.some((l) => l.includes('AI agents are trending heavily'))).toBe(true)
+    await vi.waitFor(() => {
+      expect(logs.some((l) => l.includes('AI agents are trending heavily'))).toBe(true)
+    })
 
     mockRl.close()
-    await replPromise
   })
 
   it('handles API errors gracefully in REPL', async () => {
@@ -246,18 +222,18 @@ describe('REPL', () => {
     mockQuery.mockRejectedValueOnce(new Error('rate limit'))
 
     const { startRepl } = await import('../../src/cli/repl.js')
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('test query')
-    await new Promise((r) => setTimeout(r, 50))
 
-    expect(logs.some((l) => l.includes('rate limit'))).toBe(true)
+    await vi.waitFor(() => {
+      expect(logs.some((l) => l.includes('rate limit'))).toBe(true)
+    })
+
     // REPL should still be alive (not crashed)
     expect(mockRl.closed).toBe(false)
 
     mockRl.close()
-    await replPromise
   })
 
   it('shows session summary on close', async () => {
@@ -268,14 +244,20 @@ describe('REPL', () => {
     })
 
     const { startRepl } = await import('../../src/cli/repl.js')
-    const replPromise = startRepl()
-    await new Promise((r) => setTimeout(r, 10))
+    await startRepl()
 
     mockRl.simulateLine('test')
-    await new Promise((r) => setTimeout(r, 50))
+
+    await vi.waitFor(() => {
+      expect(mockQuery).toHaveBeenCalled()
+    })
+
+    // Wait for the async handler to finish processing
+    await vi.waitFor(() => {
+      expect(logs.some((l) => l.includes('response'))).toBe(true)
+    })
 
     mockRl.close()
-    await replPromise
 
     expect(logs.some((l) => l.includes('session:') && l.includes('1 queries'))).toBe(true)
   })

@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Command } from 'commander'
-import { registerReadCommand } from '../../../src/cli/commands/read.js'
+import { registerReadCommand, extractTweetId } from '../../../src/cli/commands/read.js'
 
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
     chat = { completions: { create: mockQuery } }
     constructor() {}
+  },
+}))
+
+vi.mock('../../../src/core/cache.js', () => ({
+  QueryCache: class {
+    get() { return null }
+    set() {}
   },
 }))
 
@@ -22,6 +29,28 @@ function xApiResponse(body: unknown, status = 200) {
     text: () => Promise.resolve(JSON.stringify(body)),
   }
 }
+
+describe('extractTweetId', () => {
+  it('extracts ID from x.com URL', () => {
+    expect(extractTweetId('https://x.com/user/status/123456')).toBe('123456')
+  })
+
+  it('extracts ID from twitter.com URL', () => {
+    expect(extractTweetId('https://twitter.com/user/status/789')).toBe('789')
+  })
+
+  it('accepts bare numeric ID', () => {
+    expect(extractTweetId('123456789')).toBe('123456789')
+  })
+
+  it('returns null for non-numeric non-URL input', () => {
+    expect(extractTweetId('not-a-tweet')).toBeNull()
+  })
+
+  it('returns null for empty string', () => {
+    expect(extractTweetId('')).toBeNull()
+  })
+})
 
 describe('registerReadCommand', () => {
   let program: Command
@@ -154,6 +183,24 @@ describe('registerReadCommand', () => {
     } catch { /* process.exit */ }
     expect(exitCode).toBe(1)
     expect(logs.some((l) => l.includes('404'))).toBe(true)
+  })
+
+  it('rejects invalid tweet ID', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
+    try {
+      await program.parseAsync(['node', 'corvus', 'read', 'not-a-tweet-id'])
+    } catch { /* process.exit */ }
+    expect(exitCode).toBe(1)
+    expect(logs.some((l) => l.includes('Invalid tweet ID or URL'))).toBe(true)
+  })
+
+  it('--cost flag shows pricing without API call', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
+    await program.parseAsync(['node', 'corvus', 'read', '--cost', '123'])
+    expect(mockQuery).not.toHaveBeenCalled()
+    expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
   })
 
   it('--format json produces valid JSON with command=read', async () => {

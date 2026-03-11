@@ -10,6 +10,13 @@ vi.mock('openai', () => ({
   },
 }))
 
+vi.mock('../../../src/core/cache.js', () => ({
+  QueryCache: class {
+    get() { return null }
+    set() {}
+  },
+}))
+
 describe('registerPulseCommand', () => {
   let program: Command
   let logs: string[]

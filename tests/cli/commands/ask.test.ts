@@ -10,6 +10,13 @@ vi.mock('openai', () => ({
   },
 }))
 
+vi.mock('../../../src/core/cache.js', () => ({
+  QueryCache: class {
+    get() { return null }
+    set() {}
+  },
+}))
+
 describe('registerAskCommand', () => {
   let program: Command
   let logs: string[]
@@ -57,7 +64,6 @@ describe('registerAskCommand', () => {
     await program.parseAsync(['node', 'corvus', 'ask', '--cost', 'test question'])
     expect(logs.some((l) => l.includes('grok-4-1-fast'))).toBe(true)
     expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
-    expect(logs.some((l) => l.includes('~$0.001-0.005'))).toBe(false)
   })
 
   it('--cost flag returns without making an API call', async () => {

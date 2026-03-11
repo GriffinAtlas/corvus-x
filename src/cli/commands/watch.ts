@@ -29,7 +29,7 @@ export interface WatchSummary {
 }
 
 export class Watcher {
-  private timer: ReturnType<typeof setInterval> | null = null
+  private timer: ReturnType<typeof setTimeout> | null = null
   private running = false
   private cycles = 0
   private totalCost = 0
@@ -59,12 +59,19 @@ export class Watcher {
       return
     }
 
-    // Then schedule periodic checks
-    this.timer = setInterval(async () => {
+    // Schedule next check only after current one completes (no pile-up)
+    this.scheduleNext(grok)
+  }
+
+  private scheduleNext(grok: import('../../core/grok-adapter.js').GrokAdapter): void {
+    if (!this.running) return
+    this.timer = setTimeout(async () => {
       if (!this.running) return
       await this.check(grok)
       if (this.options.maxCycles > 0 && this.cycles >= this.options.maxCycles) {
         this.stop()
+      } else {
+        this.scheduleNext(grok)
       }
     }, this.options.interval)
   }
@@ -72,7 +79,7 @@ export class Watcher {
   stop(): void {
     this.running = false
     if (this.timer) {
-      clearInterval(this.timer)
+      clearTimeout(this.timer)
       this.timer = null
     }
     this.options.onStop({

@@ -10,6 +10,13 @@ vi.mock('openai', () => ({
   },
 }))
 
+vi.mock('../../../src/core/cache.js', () => ({
+  QueryCache: class {
+    get() { return null }
+    set() {}
+  },
+}))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -176,6 +183,15 @@ describe('registerScopeCommand', () => {
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('scope')
     expect(parsed.query).toBe('@testuser')
+  })
+
+  it('--cost flag shows pricing without API call', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'x-token')
+    await program.parseAsync(['node', 'corvus', 'scope', '--cost', 'testuser'])
+    expect(mockQuery).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(logs.some((l) => l.includes('/M tokens'))).toBe(true)
   })
 
   it('X API error is reported', async () => {
