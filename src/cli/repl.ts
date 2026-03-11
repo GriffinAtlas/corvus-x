@@ -1,6 +1,6 @@
 import { createInterface, Interface } from 'readline'
-import chalk from 'chalk'
 import ora from 'ora'
+import { t } from './theme.js'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -37,7 +37,7 @@ export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
 
   const grokKey = auth.getGrokKey()
   if (!grokKey) {
-    console.log(chalk.red('\n  No Grok API key found. Run: corvus auth setup\n'))
+    console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
     process.exit(1)
   }
 
@@ -50,13 +50,13 @@ export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
     history: [],
   }
 
-  console.log(chalk.bold('\n  corvus interactive'))
-  console.log(chalk.dim('  type a question, or /help for commands\n'))
+  console.log(t.heading('\n  corvus interactive'))
+  console.log(t.muted('  type a question, or /help for commands\n'))
 
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk.dim('  corvus> '),
+    prompt: t.muted('  corvus> '),
   })
 
   rl.prompt()
@@ -82,7 +82,7 @@ export async function startRepl(format: OutputFormat = 'table'): Promise<void> {
   rl.on('close', () => {
     const totalCost = ctx.history.reduce((sum, r) => sum + r.cost, 0)
     if (ctx.history.length > 0) {
-      console.log(chalk.dim(`\n  session: ${ctx.history.length} queries, $${totalCost.toFixed(4)} total\n`))
+      console.log(t.muted(`\n  session: ${ctx.history.length} queries, $${totalCost.toFixed(4)} total\n`))
     }
   })
 }
@@ -94,7 +94,7 @@ function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'ex
     case '/help':
       console.log('')
       for (const [k, v] of Object.entries(COMMANDS)) {
-        console.log(`  ${chalk.bold(k.padEnd(20))} ${chalk.dim(v)}`)
+        console.log(`  ${t.heading(k.padEnd(20))} ${t.muted(v)}`)
       }
       console.log('')
       break
@@ -104,20 +104,20 @@ function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'ex
       const fmt = args[0] as OutputFormat
       if (valid.includes(fmt)) {
         ctx.format = fmt
-        console.log(chalk.dim(`  format set to ${fmt}`))
+        console.log(t.muted(`  format set to ${fmt}`))
       } else {
-        console.log(chalk.red(`  invalid format. options: ${valid.join(', ')}`))
+        console.log(t.error(`  invalid format. options: ${valid.join(', ')}`))
       }
       break
     }
 
     case '/history':
       if (ctx.history.length === 0) {
-        console.log(chalk.dim('  no queries yet'))
+        console.log(t.muted('  no queries yet'))
       } else {
         console.log('')
         for (const [i, r] of ctx.history.entries()) {
-          console.log(`  ${chalk.dim(`${i + 1}.`)} ${r.query} ${chalk.dim(`($${r.cost.toFixed(4)})`)}`)
+          console.log(`  ${t.muted(`${i + 1}.`)} ${r.query} ${t.muted(`($${r.cost.toFixed(4)})`)}`)
         }
         console.log('')
       }
@@ -125,7 +125,7 @@ function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'ex
 
     case '/cost': {
       const total = ctx.history.reduce((sum, r) => sum + r.cost, 0)
-      console.log(chalk.dim(`  session cost: $${total.toFixed(4)} across ${ctx.history.length} queries`))
+      console.log(t.muted(`  session cost: $${total.toFixed(4)} across ${ctx.history.length} queries`))
       break
     }
 
@@ -140,12 +140,12 @@ function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'ex
       return 'exit'
 
     default:
-      console.log(chalk.red(`  unknown command: ${cmd}. type /help`))
+      console.log(t.error(`  unknown command: ${cmd}. type /help`))
   }
 }
 
 async function handleQuery(input: string, ctx: ReplContext): Promise<void> {
-  const spinner = ora({ text: 'thinking...', indent: 2 }).start()
+  const spinner = ora({ text: '', indent: 2 }).start()
 
   try {
     const cached = ctx.cache.get('repl', input)
@@ -188,6 +188,6 @@ async function handleQuery(input: string, ctx: ReplContext): Promise<void> {
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)
-    console.log(chalk.red(`  error: ${msg}`))
+    console.log(t.error(`  error: ${msg}`))
   }
 }

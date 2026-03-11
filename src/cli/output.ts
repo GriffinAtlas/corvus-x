@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import { t, divider } from './theme.js'
 import { formatDiffLines } from '../core/differ.js'
 import type { CommandResult, StructuredCommandResult } from '../core/types.js'
 import type {
@@ -31,13 +31,13 @@ export function formatOutput(result: CommandResult, format: OutputFormat): strin
 
 function formatTable(result: CommandResult): string {
   const cost = result.cached
-    ? chalk.dim('(cached)')
-    : chalk.dim(`cost: $${result.cost.toFixed(4)}`)
+    ? t.muted('(cached)')
+    : t.muted(`cost: $${result.cost.toFixed(4)}`)
 
   return [
     '',
-    `  ${chalk.bold(result.command)} ${chalk.dim('·')} ${result.query}`,
-    `  ${chalk.dim('───────────────────────────────────────────')}`,
+    `  ${t.heading(result.command)} ${t.muted('·')} ${result.query}`,
+    `  ${divider()}`,
     '',
     `  ${result.response.split('\n').join('\n  ')}`,
     '',
@@ -112,19 +112,19 @@ export function formatStructuredOutput<T extends Snapshot>(
     default: {
       const parts: string[] = [
         '',
-        `  ${chalk.bold(result.command)} ${chalk.dim('·')} ${result.topic}`,
-        `  ${chalk.dim('───────────────────────────────────────────')}`,
+        `  ${t.heading(result.command)} ${t.muted('·')} ${result.topic}`,
+        `  ${divider()}`,
         '',
         renderSnapshot(result.data),
       ]
 
       const diffText = formatDiffLines(result.diff, result.timeSinceLast)
       if (diffText) {
-        parts.push(chalk.dim(diffText))
+        parts.push(t.muted(diffText))
       }
 
       parts.push('')
-      parts.push(`  ${chalk.dim(`cost: $${result.cost.toFixed(4)}`)}`)
+      parts.push(`  ${t.muted(`cost: $${result.cost.toFixed(4)}`)}`)
       parts.push('')
       return parts.join('\n')
     }
@@ -141,7 +141,7 @@ function compactNum(n: number): string {
 
 function sentimentColor(val: number): string {
   const formatted = val >= 0 ? `+${val}` : String(val)
-  return val >= 0 ? chalk.green(formatted) : chalk.red(formatted)
+  return val >= 0 ? t.positive(formatted) : t.negative(formatted)
 }
 
 // ── Per-command renderers ──
@@ -155,12 +155,12 @@ export function renderScan(data: ScanSnapshot): string {
   )
   parts.push('')
   parts.push(
-    `  Sentiment: ${sentiment.avg} avg  (${chalk.green(`+${sentiment.positive}`)} / ${chalk.dim(String(sentiment.neutral))} / ${chalk.red(`-${sentiment.negative}`)})`,
+    `  Sentiment: ${sentiment.avg} avg  (${t.positive(`+${sentiment.positive}`)} / ${t.muted(String(sentiment.neutral))} / ${t.negative(`-${sentiment.negative}`)})`,
   )
 
   if (topAccounts.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Top Accounts')}`)
+    parts.push(`  ${t.heading('Top Accounts')}`)
     for (const a of topAccounts.slice(0, 5)) {
       parts.push(
         `    @${a.handle}  ${a.postCount} posts  ${compactNum(a.followers)} followers  ${sentimentColor(a.avgSentiment)}`,
@@ -170,16 +170,16 @@ export function renderScan(data: ScanSnapshot): string {
 
   if (narratives.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Narratives')}`)
+    parts.push(`  ${t.heading('Narratives')}`)
     for (const n of narratives.slice(0, 5)) {
       parts.push(`    ${n.theme}  ${n.tweetCount} tweets  ${sentimentColor(n.avgSentiment)}`)
-      parts.push(`      ${chalk.dim(n.description)}`)
+      parts.push(`      ${t.muted(n.description)}`)
     }
   }
 
   if (signals.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Signals')}`)
+    parts.push(`  ${t.heading('Signals')}`)
     for (const s of signals) {
       parts.push(`    · ${s}`)
     }
@@ -197,28 +197,28 @@ export function renderPulse(data: PulseSnapshot): string {
   )
   parts.push('')
   parts.push(
-    `  Sentiment: ${sentiment.avg} avg  (${chalk.green(`+${sentiment.positive}`)} / ${chalk.dim(String(sentiment.neutral))} / ${chalk.red(`-${sentiment.negative}`)})`,
+    `  Sentiment: ${sentiment.avg} avg  (${t.positive(`+${sentiment.positive}`)} / ${t.muted(String(sentiment.neutral))} / ${t.negative(`-${sentiment.negative}`)})`,
   )
 
   if (bullSignals.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.green.bold('Bull Signals')}`)
+    parts.push(`  ${t.positive(t.heading('Bull Signals'))}`)
     for (const s of bullSignals) {
-      parts.push(`    ${chalk.green('▲')} ${s}`)
+      parts.push(`    ${t.positive('▲')} ${s}`)
     }
   }
 
   if (bearSignals.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.red.bold('Bear Signals')}`)
+    parts.push(`  ${t.negative(t.heading('Bear Signals'))}`)
     for (const s of bearSignals) {
-      parts.push(`    ${chalk.red('▼')} ${s}`)
+      parts.push(`    ${t.negative('▼')} ${s}`)
     }
   }
 
   if (keyVoices.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Key Voices')}`)
+    parts.push(`  ${t.heading('Key Voices')}`)
     for (const v of keyVoices.slice(0, 5)) {
       parts.push(`    @${v.handle}  ${compactNum(v.reach)} reach  ${sentimentColor(v.sentiment)}`)
     }
@@ -237,30 +237,30 @@ export function renderTrace(data: TraceSnapshot): string {
 
   if (origin) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Origin')}`)
+    parts.push(`  ${t.heading('Origin')}`)
     parts.push(`    @${origin.account}  ${origin.date}`)
     parts.push(
-      `    ${chalk.dim(origin.content.length > 150 ? origin.content.slice(0, 150) + '...' : origin.content)}`,
+      `    ${t.muted(origin.content.length > 150 ? origin.content.slice(0, 150) + '...' : origin.content)}`,
     )
   }
 
   if (timeline.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Timeline')}`)
+    parts.push(`  ${t.heading('Timeline')}`)
     for (const phase of timeline) {
       const amplifiers =
         phase.keyAmplifiers.length > 0
           ? ` — ${phase.keyAmplifiers.slice(0, 3).map((a) => `@${a}`).join(', ')}`
           : ''
       parts.push(
-        `    ${phase.phase}  ${phase.tweetCount} tweets  ${chalk.dim(phase.timeframe)}${amplifiers}`,
+        `    ${phase.phase}  ${phase.tweetCount} tweets  ${t.muted(phase.timeframe)}${amplifiers}`,
       )
     }
   }
 
   if (mutations.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Mutations')}`)
+    parts.push(`  ${t.heading('Mutations')}`)
     for (const m of mutations) {
       parts.push(`    "${m.original}" → "${m.variant}"`)
     }
@@ -278,23 +278,23 @@ export function renderGather(data: GatherSnapshot): string {
   )
   parts.push('')
   parts.push(
-    `  Sentiment: ${sentiment.avg} avg  (${chalk.green(`+${sentiment.positive}`)} / ${chalk.dim(String(sentiment.neutral))} / ${chalk.red(`-${sentiment.negative}`)})`,
+    `  Sentiment: ${sentiment.avg} avg  (${t.positive(`+${sentiment.positive}`)} / ${t.muted(String(sentiment.neutral))} / ${t.negative(`-${sentiment.negative}`)})`,
   )
 
   if (topPosts.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Top Posts')}`)
+    parts.push(`  ${t.heading('Top Posts')}`)
     for (const p of topPosts.slice(0, 3)) {
       parts.push(`    @${p.author}  ${compactNum(p.engagement)} engagement`)
       parts.push(
-        `      ${chalk.dim(p.text.length > 120 ? p.text.slice(0, 120) + '...' : p.text)}`,
+        `      ${t.muted(p.text.length > 120 ? p.text.slice(0, 120) + '...' : p.text)}`,
       )
     }
   }
 
   if (narratives.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Narratives')}`)
+    parts.push(`  ${t.heading('Narratives')}`)
     for (const n of narratives.slice(0, 5)) {
       parts.push(`    ${n.theme}  ${n.tweetCount} tweets  ${sentimentColor(n.avgSentiment)}`)
     }
@@ -302,7 +302,7 @@ export function renderGather(data: GatherSnapshot): string {
 
   if (webContext.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Web Context')}`)
+    parts.push(`  ${t.heading('Web Context')}`)
     for (const c of webContext.slice(0, 3)) {
       parts.push(`    · ${c}`)
     }
@@ -310,7 +310,7 @@ export function renderGather(data: GatherSnapshot): string {
 
   if (outlook) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Outlook')}`)
+    parts.push(`  ${t.heading('Outlook')}`)
     parts.push(`    ${outlook}`)
   }
 
@@ -322,25 +322,25 @@ export function renderRead(data: ReadSnapshot): string {
   const parts: string[] = []
 
   const eng = tweet.engagement
-  parts.push(`  @${tweet.author}  ${chalk.dim(tweet.postedAt)}`)
+  parts.push(`  @${tweet.author}  ${t.muted(tweet.postedAt)}`)
   parts.push(
-    `  ${chalk.dim(`${eng.likes} likes · ${eng.retweets} RTs · ${eng.replies} replies · ${compactNum(eng.impressions)} views`)}`,
+    `  ${t.muted(`${eng.likes} likes · ${eng.retweets} RTs · ${eng.replies} replies · ${compactNum(eng.impressions)} views`)}`,
   )
   parts.push('')
   parts.push(`  ${tweet.text}`)
   parts.push('')
 
   const sigColor =
-    significance === 'high' ? chalk.red : significance === 'medium' ? chalk.yellow : chalk.dim
+    significance === 'high' ? t.negative : significance === 'medium' ? t.warning : t.muted
   parts.push(`  Significance: ${sigColor(significance)}`)
 
   parts.push('')
-  parts.push(`  ${chalk.bold('Analysis')}`)
+  parts.push(`  ${t.heading('Analysis')}`)
   parts.push(`    ${analysis}`)
 
   if (signals.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Signals')}`)
+    parts.push(`  ${t.heading('Signals')}`)
     for (const s of signals) {
       parts.push(`    · ${s}`)
     }
@@ -366,20 +366,20 @@ export function renderScope(data: ScopeSnapshot): string {
   )
 
   parts.push('')
-  parts.push(`  ${chalk.bold('Recent Activity')}`)
+  parts.push(`  ${t.heading('Recent Activity')}`)
   parts.push(
     `    ${recentActivity.postsAnalyzed} posts analyzed  ${compactNum(recentActivity.avgEngagement)} avg engagement`,
   )
   if (recentActivity.topTweet) {
     const tt = recentActivity.topTweet
     parts.push(
-      `    Top: ${chalk.dim(tt.text.length > 100 ? tt.text.slice(0, 100) + '...' : tt.text)}  ${compactNum(tt.engagement)} eng`,
+      `    Top: ${t.muted(tt.text.length > 100 ? tt.text.slice(0, 100) + '...' : tt.text)}  ${compactNum(tt.engagement)} eng`,
     )
   }
 
   if (contentPatterns.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Content Patterns')}`)
+    parts.push(`  ${t.heading('Content Patterns')}`)
     for (const p of contentPatterns) {
       parts.push(`    · ${p}`)
     }
@@ -387,7 +387,7 @@ export function renderScope(data: ScopeSnapshot): string {
 
   if (recentFocus.length > 0) {
     parts.push('')
-    parts.push(`  ${chalk.bold('Recent Focus')}`)
+    parts.push(`  ${t.heading('Recent Focus')}`)
     for (const f of recentFocus) {
       parts.push(`    · ${f}`)
     }
@@ -396,9 +396,9 @@ export function renderScope(data: ScopeSnapshot): string {
   parts.push('')
   parts.push(`  Network: ${networkPosition}`)
   const influenceColor =
-    influence === 'high' ? chalk.green : influence === 'medium' ? chalk.yellow : chalk.dim
+    influence === 'high' ? t.positive : influence === 'medium' ? t.warning : t.muted
   const signalColor =
-    signalValue === 'high' ? chalk.green : signalValue === 'medium' ? chalk.yellow : chalk.dim
+    signalValue === 'high' ? t.positive : signalValue === 'medium' ? t.warning : t.muted
   parts.push(`  Influence: ${influenceColor(influence)}  Signal Value: ${signalColor(signalValue)}`)
 
   return parts.join('\n')

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import chalk from 'chalk'
 import { Command } from 'commander'
 import { readFileSync } from 'fs'
 import { join, dirname } from 'path'
@@ -34,6 +35,13 @@ program
   .name('corvus')
   .description('AI-powered X intelligence in your terminal')
   .version(VERSION)
+  .option('--no-color', 'disable color output')
+  .hook('preAction', () => {
+    const opts = program.opts()
+    if (opts.color === false) {
+      chalk.level = 0
+    }
+  })
 
 registerAuthCommand(program)
 registerAskCommand(program)

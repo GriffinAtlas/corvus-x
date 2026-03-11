@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import chalk from 'chalk'
+import { t } from '../theme.js'
 import { runStructuredCommand } from '../run-command.js'
 import { renderRead } from '../output.js'
 import { parseGrokJson } from '../../core/grok-adapter.js'
@@ -82,7 +82,7 @@ export function registerReadCommand(program: Command): void {
       const tweetId = extractTweetId(input)
       if (!tweetId) {
         console.log(
-          chalk.red(
+          t.error(
             `\n  Invalid tweet ID or URL: ${input}\n  Use a numeric ID or a URL like https://x.com/user/status/123456\n`,
           ),
         )

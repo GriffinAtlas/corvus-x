@@ -1,5 +1,5 @@
-import chalk from 'chalk'
 import ora from 'ora'
+import { t } from './theme.js'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -33,22 +33,22 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
 
   const grokKey = auth.getGrokKey()
   if (!grokKey) {
-    console.log(chalk.red('\n  No Grok API key found. Run: corvus auth setup\n'))
+    console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
     process.exit(1)
   }
 
   const xToken = auth.getXToken()
   if (opts.requiresXToken && !xToken) {
-    console.log(chalk.red(`\n  X API token required for ${opts.command}. Run: corvus auth setup\n`))
+    console.log(t.error(`\n  X API token required for ${opts.command}. Run: corvus auth setup\n`))
     process.exit(1)
   }
 
   if (opts.cost) {
     const { MODEL_PRICING, DEFAULT_MODEL } = await import('../core/grok-adapter.js')
     const pricing = MODEL_PRICING[DEFAULT_MODEL]
-    console.log(chalk.dim(`\n  Model: ${DEFAULT_MODEL}`))
-    console.log(chalk.dim(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
-    console.log(chalk.dim(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
+    console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
+    console.log(t.muted(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
+    console.log(t.muted(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
     return
   }
 
@@ -93,7 +93,7 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)
-    console.log(chalk.red(`\n  Error: ${msg}\n`))
+    console.log(t.error(`\n  Error: ${msg}\n`))
     process.exit(1)
   }
 }
@@ -116,7 +116,7 @@ export async function runStructuredCommand<T extends Snapshot>(
 
   const grokKey = auth.getGrokKey()
   if (!grokKey) {
-    console.log(chalk.red('\n  No Grok API key found. Run: corvus auth setup\n'))
+    console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
     process.exit(1)
   }
 
@@ -125,9 +125,9 @@ export async function runStructuredCommand<T extends Snapshot>(
   if (opts.cost) {
     const { MODEL_PRICING, DEFAULT_MODEL } = await import('../core/grok-adapter.js')
     const pricing = MODEL_PRICING[DEFAULT_MODEL]
-    console.log(chalk.dim(`\n  Model: ${DEFAULT_MODEL}`))
-    console.log(chalk.dim(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
-    console.log(chalk.dim(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
+    console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
+    console.log(t.muted(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
+    console.log(t.muted(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
     return
   }
 
@@ -172,7 +172,7 @@ export async function runStructuredCommand<T extends Snapshot>(
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)
-    console.log(chalk.red(`\n  Error: ${msg}\n`))
+    console.log(t.error(`\n  Error: ${msg}\n`))
     process.exit(1)
   }
 }

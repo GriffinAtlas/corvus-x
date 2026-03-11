@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import chalk from 'chalk'
+import { t } from '../theme.js'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
 import { formatOutput } from '../output.js'
@@ -140,7 +140,7 @@ export function registerWatchCommand(program: Command): void {
 
       const grokKey = auth.getGrokKey()
       if (!grokKey) {
-        console.log(chalk.red('\n  No Grok API key found. Run: corvus auth setup\n'))
+        console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
         process.exit(1)
       }
 
@@ -148,36 +148,36 @@ export function registerWatchCommand(program: Command): void {
         const { MODEL_PRICING, DEFAULT_MODEL } = await import('../../core/grok-adapter.js')
         const pricing = MODEL_PRICING[DEFAULT_MODEL]
         const perCycle = (500 * pricing.input + 2000 * pricing.output) / 1_000_000
-        console.log(chalk.dim(`\n  Model: ${DEFAULT_MODEL}`))
-        console.log(chalk.dim(`  Estimated cost per cycle: $${perCycle.toFixed(6)}`))
-        console.log(chalk.dim(`  Interval: ${intervalSec}s`))
+        console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
+        console.log(t.muted(`  Estimated cost per cycle: $${perCycle.toFixed(6)}`))
+        console.log(t.muted(`  Interval: ${intervalSec}s`))
         if (maxCycles > 0) {
-          console.log(chalk.dim(`  Max cycles: ${maxCycles}`))
-          console.log(chalk.dim(`  Estimated total: $${(perCycle * maxCycles).toFixed(6)}`))
+          console.log(t.muted(`  Max cycles: ${maxCycles}`))
+          console.log(t.muted(`  Estimated total: $${(perCycle * maxCycles).toFixed(6)}`))
         } else {
-          console.log(chalk.dim(`  Runs until stopped (Ctrl+C)`))
-          console.log(chalk.dim(`  Estimated per hour: $${(perCycle * (3600 / intervalSec)).toFixed(6)}`))
+          console.log(t.muted(`  Runs until stopped (Ctrl+C)`))
+          console.log(t.muted(`  Estimated per hour: $${(perCycle * (3600 / intervalSec)).toFixed(6)}`))
         }
         console.log()
         return
       }
 
-      console.log(chalk.bold(`\n  watching: ${topic}`))
-      console.log(chalk.dim(`  interval: ${intervalSec}s${maxCycles > 0 ? `, max ${maxCycles} cycles` : ''}`))
-      console.log(chalk.dim('  press Ctrl+C to stop\n'))
+      console.log(t.heading(`\n  watching: ${topic}`))
+      console.log(t.muted(`  interval: ${intervalSec}s${maxCycles > 0 ? `, max ${maxCycles} cycles` : ''}`))
+      console.log(t.muted('  press Ctrl+C to stop\n'))
 
       const watcher = new Watcher(topic, {
         interval: intervalSec * 1000,
         maxCycles,
         onUpdate: (result) => {
-          console.log(chalk.dim(`  ── ${new Date().toLocaleTimeString()} ──`))
+          console.log(t.muted(`  ── ${new Date().toLocaleTimeString()} ──`))
           console.log(formatOutput(result, 'table'))
         },
         onError: (err) => {
-          console.log(chalk.red(`  error: ${err.message}`))
+          console.log(t.error(`  error: ${err.message}`))
         },
         onStop: (summary) => {
-          console.log(chalk.dim(`\n  watch stopped: ${summary.cycles} cycles, $${summary.totalCost.toFixed(4)} total, ${Math.round(summary.duration / 1000)}s\n`))
+          console.log(t.muted(`\n  watch stopped: ${summary.cycles} cycles, $${summary.totalCost.toFixed(4)} total, ${Math.round(summary.duration / 1000)}s\n`))
         },
       })
 
