@@ -11,7 +11,7 @@ export { buildGatherSnapshot } from '../../core/builders/gather.js'
 export function registerGatherCommand(program: Command): void {
   program
     .command('gather <topic...>')
-    .description('Comprehensive intelligence gathering on a topic')
+    .description('Deep intelligence — X discourse + web context + outlook')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --count <n>', 'max tweets to analyze', '50')
     .option('--cost', 'show estimated cost before executing')

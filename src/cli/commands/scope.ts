@@ -12,7 +12,7 @@ const SCOPE_MATCH_KEYS: MatchKeys = {}
 export function registerScopeCommand(program: Command): void {
   program
     .command('scope <username>')
-    .description('Profile analysis of an X account')
+    .description('Profile an account — influence, patterns, signal value')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --tweets <count>', 'number of recent tweets to analyze', '10')
     .option('--cost', 'show estimated cost before executing')

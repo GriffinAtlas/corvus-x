@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthesizing intelligence from X (Twitter). It uses Grok's native `x_search`/`web_search` tools via the OpenAI SDK and X API v2 for direct data access.
+Corvus (`corvus-x` on npm) is an autonomous X intelligence agent. Give it a question — it plans multi-step research, executes across data sources, flags contradictions, and delivers structured intelligence briefs. Built on Grok's native `x_search`/`web_search` via the OpenAI SDK, with optional X API v2 for enriched data.
 
 **Author:** Roger Griffin (roger@griffinatlas.us)
 **Repo:** github.com/GriffinAtlas/corvus-x

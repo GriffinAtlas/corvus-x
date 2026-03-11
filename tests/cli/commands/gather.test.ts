@@ -134,7 +134,7 @@ describe('registerGatherCommand', () => {
   it('registers gather command', () => {
     const cmd = program.commands.find((c) => c.name() === 'gather')
     expect(cmd).toBeDefined()
-    expect(cmd!.description()).toContain('Comprehensive intelligence')
+    expect(cmd!.description()).toContain('Deep intelligence')
   })
 
   it('exits with code 1 when no grok key', async () => {

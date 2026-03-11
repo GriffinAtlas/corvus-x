@@ -32,7 +32,7 @@ function normalizeHandles(handles?: string[]): string[] | undefined {
 export function registerAskCommand(program: Command): void {
   program
     .command('ask <question...>')
-    .description('Ask a natural language question about X')
+    .description('Quick question — prose answer via Grok x_search')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('--cost', 'show estimated cost before executing')
     .option('--from <date>', 'filter x_search from date (YYYY-MM-DD)')

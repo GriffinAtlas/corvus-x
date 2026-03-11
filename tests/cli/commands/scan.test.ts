@@ -130,7 +130,7 @@ describe('registerScanCommand', () => {
   it('registers scan command on program', () => {
     const cmd = program.commands.find((c) => c.name() === 'scan')
     expect(cmd).toBeDefined()
-    expect(cmd!.description()).toBe('Scan X discourse on a topic')
+    expect(cmd!.description()).toBe('Snapshot a topic — narratives, top voices, engagement')
   })
 
   it('exits with code 1 when no grok key is configured', async () => {

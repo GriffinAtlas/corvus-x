@@ -36,7 +36,7 @@ const program = new Command()
 
 program
   .name('corvus')
-  .description('AI-powered X intelligence in your terminal')
+  .description('Autonomous X intelligence agent — one question in, full investigation out')
   .version(VERSION)
   .option('--no-color', 'disable color output')
   .hook('preAction', () => {
@@ -46,22 +46,31 @@ program
     }
   })
 
-registerAuthCommand(program)
+// Investigation
 registerAgentCommand(program)
-registerAskCommand(program)
-registerScanCommand(program)
-registerReadCommand(program)
-registerScopeCommand(program)
 registerTraceCommand(program)
-registerPulseCommand(program)
 registerGatherCommand(program)
+
+// Intelligence
+registerScanCommand(program)
+registerPulseCommand(program)
+registerScopeCommand(program)
+registerReadCommand(program)
+
+// Monitoring
 registerWatchCommand(program)
-registerHistoryCommand(program)
+
+// Data
 registerExportCommand(program)
+registerHistoryCommand(program)
+
+// Utilities
+registerAskCommand(program)
+registerAuthCommand(program)
 
 program
   .command('repl')
-  .description('Start an interactive intelligence session')
+  .description('[deprecated] Use corvus (no args) for interactive mode')
   .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
   .action(async (options: { format: string }) => {
     const { startRepl } = await import('../src/cli/repl.js')

@@ -11,7 +11,7 @@ export { buildScanSnapshot } from '../../core/builders/scan.js'
 export function registerScanCommand(program: Command): void {
   program
     .command('scan <topic...>')
-    .description('Scan X discourse on a topic')
+    .description('Snapshot a topic — narratives, top voices, engagement')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --count <n>', 'max tweets to analyze', '50')
     .option('--cost', 'show estimated cost before executing')

@@ -50,7 +50,7 @@ describe('registerAskCommand', () => {
   it('registers ask command on program', () => {
     const cmd = program.commands.find((c) => c.name() === 'ask')
     expect(cmd).toBeDefined()
-    expect(cmd!.description()).toBe('Ask a natural language question about X')
+    expect(cmd!.description()).toBe('Quick question — prose answer via Grok x_search')
   })
 
   it('exits with code 1 when no grok key is configured', async () => {

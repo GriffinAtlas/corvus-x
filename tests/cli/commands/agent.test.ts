@@ -161,7 +161,7 @@ describe('registerAgentCommand', () => {
   it('registers agent command on program', () => {
     const cmd = program.commands.find((c) => c.name() === 'agent')
     expect(cmd).toBeDefined()
-    expect(cmd!.description()).toBe('Run an autonomous intelligence investigation')
+    expect(cmd!.description()).toBe('Investigate a question — plans, executes, and synthesizes a brief')
   })
 
   it('exits with code 1 when no grok key is configured', async () => {

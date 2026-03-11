@@ -91,7 +91,7 @@ async function editPlan(plan: AgentPlan): Promise<AgentPlan> {
 export function registerAgentCommand(program: Command): void {
   program
     .command('agent <question...>')
-    .description('Run an autonomous intelligence investigation')
+    .description('Investigate a question — plans, executes, and synthesizes a brief')
     .option('-i, --interactive', 'checkpoint mode with plan approval')
     .option('-n, --max-steps <n>', 'maximum steps (2-12)', '8')
     .option('-f, --format <type>', 'output format: table, json, md', 'table')

@@ -13,7 +13,7 @@ const READ_MATCH_KEYS: MatchKeys = {}
 export function registerReadCommand(program: Command): void {
   program
     .command('read <tweet-id-or-url>')
-    .description('Analyze a specific tweet')
+    .description('Analyze a single tweet — significance, context, signals')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('--cost', 'show estimated cost before executing')
     .action(async (input: string, options: { format: OutputFormat; cost?: boolean }) => {

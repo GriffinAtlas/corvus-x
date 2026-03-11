@@ -11,7 +11,7 @@ export { buildPulseSnapshot } from '../../core/builders/pulse.js'
 export function registerPulseCommand(program: Command): void {
   program
     .command('pulse <topic...>')
-    .description('Get the pulse — sentiment, bull/bear signals, key voices')
+    .description('Sentiment pulse — bull/bear signals, momentum, key voices')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --count <n>', 'max tweets to analyze', '50')
     .option('--cost', 'show estimated cost before executing')
