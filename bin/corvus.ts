@@ -68,6 +68,21 @@ registerHistoryCommand(program)
 registerAskCommand(program)
 registerAuthCommand(program)
 
+// MCP
+program
+  .command('mcp')
+  .description('Start MCP server — exposes all tools over stdio for AI agents')
+  .action(async () => {
+    const { StdioServerTransport } = await import(
+      '@modelcontextprotocol/sdk/server/stdio.js'
+    )
+    const { createServer } = await import('../src/mcp/server.js')
+    const server = createServer()
+    const transport = new StdioServerTransport()
+    await server.connect(transport)
+    console.error('corvus MCP server running on stdio')
+  })
+
 program
   .command('repl')
   .description('[deprecated] Use corvus (no args) for interactive mode')
