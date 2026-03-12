@@ -211,4 +211,78 @@ export class GrokAdapter {
 
     throw lastError
   }
+
+  async queryStream(
+    prompt: string,
+    options: QueryOptions = {},
+    onChunk: (text: string) => void,
+  ): Promise<GrokResponse> {
+    const model = options.model ?? DEFAULT_MODEL
+
+    if (options.xSearchHandles?.length && options.xSearchExcludeHandles?.length) {
+      throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
+    if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
+    messages.push({ role: 'user', content: prompt })
+
+    const tools: unknown[] = []
+    if (options.enableXSearch) {
+      const tool: Record<string, unknown> = { type: 'x_search' }
+      if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
+      if (options.xSearchToDate) tool.to_date = options.xSearchToDate
+      if (options.xSearchHandles?.length) tool.allowed_x_handles = options.xSearchHandles
+      if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
+      tools.push(tool)
+    }
+    if (options.enableWebSearch) {
+      tools.push({ type: 'web_search' })
+    }
+
+    const createParams = {
+      model,
+      messages,
+      max_tokens: options.maxTokens ?? 2048,
+      stream: true as const,
+      stream_options: { include_usage: true },
+      ...(tools.length > 0
+        ? { tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] }
+        : {}),
+    }
+
+    const stream = await this.client.chat.completions.create(createParams)
+
+    let text = ''
+    let inputTokens = 0
+    let outputTokens = 0
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for await (const chunk of stream as any) {
+      const delta = chunk.choices?.[0]?.delta?.content
+      if (delta) {
+        text += delta
+        onChunk(delta)
+      }
+      if (chunk.usage) {
+        inputTokens = chunk.usage.prompt_tokens ?? 0
+        outputTokens = chunk.usage.completion_tokens ?? 0
+      }
+    }
+
+    if (inputTokens === 0 && outputTokens === 0) {
+      outputTokens = Math.ceil(text.length / 4)
+    }
+
+    const toolCallCount = (options.enableXSearch ? 1 : 0) + (options.enableWebSearch ? 1 : 0)
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_MODEL]
+    const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
+    const costUsd = tokenCost + toolCallCount * TOOL_COST_PER_CALL
+
+    return {
+      text,
+      usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount },
+      citations: [],
+    }
+  }
 }

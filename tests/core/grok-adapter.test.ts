@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GrokAdapter, parseGrokJson, GrokParseError, MODEL_PRICING } from '../../src/core/grok-adapter.js'
+import { GrokAdapter, parseGrokJson, GrokParseError, MODEL_PRICING, DEFAULT_MODEL } from '../../src/core/grok-adapter.js'
 import { z } from 'zod/v4'
 
 const mockCreate = vi.fn()
@@ -714,6 +714,91 @@ describe('citations', () => {
 
   it('returns empty citations when no annotations', async () => {
     const result = await adapter.query('test')
+    expect(result.citations).toEqual([])
+  })
+})
+
+describe('queryStream', () => {
+  let adapter: GrokAdapter
+
+  beforeEach(() => {
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValue(mockResponse())
+    adapter = new GrokAdapter('xai-test-key')
+  })
+
+  it('calls onChunk for each delta', async () => {
+    const chunks = [
+      { choices: [{ delta: { content: 'Hello' } }] },
+      { choices: [{ delta: { content: ' world' } }] },
+      { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } },
+    ]
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        for (const chunk of chunks) yield chunk
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const received: string[] = []
+    const result = await adapter.queryStream('test', {}, (text) => received.push(text))
+
+    expect(received).toEqual(['Hello', ' world'])
+    expect(result.text).toBe('Hello world')
+    expect(result.usage.inputTokens).toBe(10)
+    expect(result.usage.outputTokens).toBe(5)
+  })
+
+  it('passes stream: true to create()', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    await adapter.queryStream('test', {}, () => {})
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.stream).toBe(true)
+    expect(args.stream_options).toEqual({ include_usage: true })
+  })
+
+  it('estimates tool call cost for enabled tools', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hi' } }] }
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', { enableXSearch: true }, () => {})
+    expect(result.usage.toolCalls).toBe(1)
+    expect(result.usage.costUsd).toBeGreaterThan(0.005)
+  })
+
+  it('estimates tokens from text length when usage not provided', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hello world' } }] }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', {}, () => {})
+    expect(result.usage.inputTokens).toBe(0)
+    expect(result.usage.outputTokens).toBe(Math.ceil('hello world'.length / 4))
+  })
+
+  it('returns empty citations', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', {}, () => {})
     expect(result.citations).toEqual([])
   })
 })
