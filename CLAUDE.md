@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (781 tests)
+npm test                     # vitest run (815 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -37,8 +37,8 @@ src/
     run-command.ts           # shared runner — runCommand() for prose, runStructuredCommand() for data-first
     output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers, renderAgentBrief()
     progress.ts              # StepProgress — multi-line in-place step tracker for agent runs
-    theme.ts                 # Color palette (t.*), TTY detection, visual primitives (sentimentBar, box, divider)
-    repl.ts                  # interactive session with readline
+    theme.ts                 # Color palette (t.*), TTY detection, visual primitives, CROW_SMALL_LINES, LOGO_LINES
+    repl.ts                  # interactive session with readline (deprecated — use TUI)
   core/
     agent.ts                 # AgentPlanner, AgentExecutor, AgentSynthesizer — autonomous investigation pipeline
     grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai, parseGrokJson, retry/timeout
@@ -59,8 +59,22 @@ src/
     config.ts                # ConfigManager — manages ~/.corvus/ directory
   tui/
     app.tsx                  # TUI root — Ink/React full-screen interactive terminal
-    components/              # Header, InputBar, ChatLog, ResultCard, ProseResult, StatusLine, SystemNotice
+    components/
+      welcome-view.tsx       # Welcome screen orchestrator — composes header + panels, responsive layout
+      welcome-header.tsx     # Crow braille art + CORVUS block-letter logo + tagline + version
+      status-panel.tsx       # API connection status dots (Grok, X API) + cost/query display
+      quick-start-panel.tsx  # Example commands (new users) or recent activity (returning users)
+      setup-notice.tsx       # API key setup instructions (shown when no Grok key configured)
+      input-bar.tsx          # Command input with Tab autocomplete + loading spinner
+      chat-log.tsx           # Renders session history entries after first command
+      result-card.tsx        # Bordered card for structured command output
+      prose-result.tsx       # Streaming prose output for ask/freeform
+      status-line.tsx        # Inline cost + timing display
+      system-notice.tsx      # System messages (errors, notices)
+      shortcut-bar.tsx       # Keyboard shortcut hints bar
     hooks/                   # useCommand (execute + dispatch), useSession (state + reducer)
+    utils/
+      relative-time.ts       # relativeTime() — "2h ago" formatting for recent activity
     router.ts                # parse user input to command + args
   index.ts                   # public API surface — 27+ exports for library consumers
 tests/                       # mirrors src/ structure 1:1
@@ -79,7 +93,7 @@ tests/                       # mirrors src/ structure 1:1
 - **Cache** is wired into prose commands via `runCommand()`. Structured commands use snapshots instead.
 - **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`), falls back to `~/.corvus/credentials.json`.
 - **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.
-- **TUI** — `corvus` (no args) launches a full-screen Ink/React interactive terminal. Uses `useSession` reducer for state, `useCommand` hook for execution, `router.ts` for input parsing. Built on Ink 6 + React 19.
+- **TUI** — `corvus` (no args) launches a full-screen Ink/React interactive terminal. Welcome screen shows crow art + logo, status panel, and quick start tips (or recent activity for returning users). First command transitions to chat view. Uses `useSession` reducer for state, `useCommand` hook for execution, `router.ts` for input parsing. Built on Ink 6 + React 19.
 - **Tests** mock `openai` and `fetch` globally. Never make real API calls. MCP tests use SDK's `Client` + `InMemoryTransport`.
 
 ## Known Limitations

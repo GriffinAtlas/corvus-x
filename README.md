@@ -68,6 +68,24 @@ agent · investigating...
 npm install -g corvus-x
 ```
 
+## Interactive Mode
+
+Run `corvus` with no arguments to launch the interactive TUI:
+
+```bash
+corvus
+```
+
+You'll see a branded welcome screen with connection status, example commands (or your recent investigation history), and an input prompt. Start typing any command — the welcome screen transitions to a chat view after your first query.
+
+To make `corvus` available globally from any directory:
+
+```bash
+npm link          # after cloning and building
+# or
+npm install -g corvus-x
+```
+
 ## Setup
 
 ```bash
@@ -223,7 +241,8 @@ Costs are logged to `~/.corvus/cost-ledger.json`.
 | AI | Grok API via OpenAI SDK (`grok-4-1-fast`) |
 | Data | X API v2 (optional — tweets, users, metrics) |
 | CLI | Commander |
-| Testing | Vitest (465 tests) |
+| Interactive TUI | Ink 6 + React 19 |
+| Testing | Vitest (815 tests) |
 
 ## License
 
