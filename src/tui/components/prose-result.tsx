@@ -8,9 +8,18 @@ interface Props {
 
 export function ProseResult({ text, cost }: Props) {
   return (
-    <Box flexDirection="column" paddingLeft={2} marginBottom={1}>
+    <Box
+      flexDirection="column"
+      marginLeft={2}
+      marginBottom={1}
+      borderStyle="round"
+      borderColor="#4A1F8A"
+      paddingX={1}
+    >
       <Text>{text}</Text>
-      <Text dimColor>{`  $${cost.toFixed(4)}`}</Text>
+      <Box marginTop={0}>
+        <Text dimColor>{`$${cost.toFixed(4)}`}</Text>
+      </Box>
     </Box>
   )
 }

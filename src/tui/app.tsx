@@ -3,6 +3,7 @@ import { Box, Text, useApp, useInput } from 'ink'
 import { Header } from './components/header.js'
 import { ChatLog } from './components/chat-log.js'
 import { InputBar } from './components/input-bar.js'
+import { ShortcutBar } from './components/shortcut-bar.js'
 import { useCommand } from './hooks/use-command.js'
 import {
   sessionReducer,
@@ -71,6 +72,7 @@ export function App({ version }: Props) {
             </Box>
           )}
           <InputBar onSubmit={execute} isLoading={isLoading} />
+          <ShortcutBar />
         </Box>
       </DispatchContext>
     </SessionContext>

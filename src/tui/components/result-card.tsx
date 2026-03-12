@@ -13,15 +13,23 @@ export function ResultCard({ command, topic, rendered, cost, elapsed }: Props) {
   const elapsedStr = `${(elapsed / 1000).toFixed(1)}s`
 
   return (
-    <Box flexDirection="column" paddingLeft={1} marginBottom={1}>
-      <Text>
-        <Text dimColor>{'── '}</Text>
-        <Text bold color="magenta">{command}</Text>
-        <Text dimColor>{` · ${topic} `}</Text>
-        <Text dimColor>{'──'}</Text>
-      </Text>
-      <Text>{rendered}</Text>
-      <Text dimColor>{`  $${cost.toFixed(3)} · ${elapsedStr}`}</Text>
+    <Box
+      flexDirection="column"
+      marginLeft={2}
+      marginBottom={1}
+      borderStyle="round"
+      borderColor="#4A1F8A"
+      paddingX={1}
+    >
+      <Box>
+        <Text bold color="#B48AFF">{command}</Text>
+        <Text dimColor>{` · ${topic}`}</Text>
+        <Text dimColor>{'  '}</Text>
+        <Text dimColor>{`${elapsedStr} · $${cost.toFixed(3)}`}</Text>
+      </Box>
+      <Box marginTop={0}>
+        <Text>{rendered}</Text>
+      </Box>
     </Box>
   )
 }

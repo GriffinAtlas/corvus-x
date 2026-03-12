@@ -11,19 +11,17 @@ describe('InputBar', () => {
     expect(lastFrame()).toBeDefined()
   })
 
-  it('shows loading indicator when isLoading is true', () => {
+  it('shows spinner when loading', () => {
     const { lastFrame } = render(
       <InputBar onSubmit={() => {}} isLoading={true} />,
     )
-    expect(lastFrame()!).toContain('thinking')
+    expect(lastFrame()!).toContain('working')
   })
 
   it('provides command suggestions', () => {
     const { lastFrame } = render(
       <InputBar onSubmit={() => {}} isLoading={false} />,
     )
-    // TextInput with suggestions is rendered — we verify it doesn't crash.
-    // Actual suggestion matching is tested via @inkjs/ui internals.
     expect(lastFrame()).toBeDefined()
   })
 })

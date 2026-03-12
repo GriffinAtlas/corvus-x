@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput } from '@inkjs/ui'
+import Spinner from 'ink-spinner'
 import { COMMAND_KEYWORDS } from '../router.js'
 
 interface Props {
@@ -20,8 +21,6 @@ const SUGGESTIONS = [
 export function InputBar({ onSubmit, isLoading }: Props) {
   const [inputHistory, setInputHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
-  // Incrementing mountKey forces TextInput to remount with a new defaultValue
-  // when navigating history, since defaultValue is only read on mount.
   const [mountKey, setMountKey] = useState(0)
   const [value, setValue] = useState('')
 
@@ -64,8 +63,10 @@ export function InputBar({ onSubmit, isLoading }: Props) {
   if (isLoading) {
     return (
       <Box paddingLeft={2}>
-        <Text color="#7C3AED">{'◆ '}</Text>
-        <Text dimColor>thinking...</Text>
+        <Text color="#7C3AED">
+          <Spinner type="dots" />
+        </Text>
+        <Text dimColor>{' working...'}</Text>
       </Box>
     )
   }

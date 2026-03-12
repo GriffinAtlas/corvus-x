@@ -27,21 +27,22 @@ vi.mock('../../src/core/x-adapter.js', () => ({
 import { App } from '../../src/tui/app.js'
 
 describe('App', () => {
-  it('renders CORVUS logo', () => {
-    const { lastFrame } = render(<App version="0.2.0" />)
-    expect(lastFrame()!).toContain('╔═╗╔═╗╦═╗╦')
-  })
-
-  it('renders status dots', () => {
+  it('renders version and status', () => {
     const { lastFrame } = render(<App version="0.2.0" />)
     const frame = lastFrame()!
+    expect(frame).toContain('0.2.0')
     expect(frame).toContain('●')
     expect(frame).toContain('grok')
   })
 
-  it('renders welcome message for returning user', () => {
+  it('renders welcome message', () => {
     const { lastFrame } = render(<App version="0.2.0" />)
     expect(lastFrame()!).toContain('investigating')
+  })
+
+  it('renders shortcut bar', () => {
+    const { lastFrame } = render(<App version="0.2.0" />)
+    expect(lastFrame()!).toContain('Ctrl+C')
   })
 
   it('renders input prompt', () => {

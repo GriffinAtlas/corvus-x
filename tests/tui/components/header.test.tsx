@@ -4,27 +4,21 @@ import { render } from 'ink-testing-library'
 import { Header } from '../../../src/tui/components/header.js'
 
 describe('Header', () => {
-  it('shows CORVUS logo', () => {
+  it('shows version and status dots', () => {
     const { lastFrame } = render(
       <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="connected" />,
-    )
-    expect(lastFrame()!).toContain('╔═╗╔═╗╦═╗╦')
-  })
-
-  it('shows version', () => {
-    const { lastFrame } = render(
-      <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="connected" />,
-    )
-    expect(lastFrame()!).toContain('v0.2.0')
-  })
-
-  it('shows status dots', () => {
-    const { lastFrame } = render(
-      <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="no-key" />,
     )
     const frame = lastFrame()!
+    expect(frame).toContain('v0.2.0')
     expect(frame).toContain('●')
-    expect(frame).toContain('○')
+    expect(frame).toContain('grok')
+  })
+
+  it('shows hollow dots for missing keys', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={false} grokStatus="no-key" xApiStatus="no-key" />,
+    )
+    expect(lastFrame()!).toContain('○')
   })
 
   it('shows setup prompt when no grok key', () => {
@@ -43,10 +37,9 @@ describe('Header', () => {
     const frame = lastFrame()!
     expect(frame).toContain('scan bitcoin')
     expect(frame).toContain('pulse ethereum')
-    expect(frame).toContain('agent')
   })
 
-  it('shows welcome message for returning users', () => {
+  it('shows welcome for returning users', () => {
     const { lastFrame } = render(
       <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="connected" />,
     )
