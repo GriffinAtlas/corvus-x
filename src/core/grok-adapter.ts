@@ -1,15 +1,22 @@
 import OpenAI from 'openai'
-import type { GrokResponse, QueryOptions } from './types.js'
+import { zodResponseFormat } from 'openai/helpers/zod'
+import type { GrokResponse, GrokCitation, QueryOptions } from './types.js'
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  // Fast tier
   'grok-4-1-fast': { input: 0.2, output: 0.5 },
   'grok-4-1-fast-reasoning': { input: 0.2, output: 0.5 },
   'grok-4-1-fast-non-reasoning': { input: 0.2, output: 0.5 },
+  'grok-4-fast-reasoning': { input: 0.2, output: 0.5 },
+  'grok-4-fast-non-reasoning': { input: 0.2, output: 0.5 },
+  'grok-code-fast-1': { input: 0.2, output: 1.5 },
+  'grok-3-mini': { input: 0.3, output: 0.5 },
+  // Premium tier
   'grok-4.20-beta-0309-reasoning': { input: 2.0, output: 6.0 },
   'grok-4.20-beta-0309-non-reasoning': { input: 2.0, output: 6.0 },
   'grok-4.20-multi-agent-beta-0309': { input: 2.0, output: 6.0 },
-  'grok-code-fast-1': { input: 0.2, output: 1.5 },
-  'grok-4': { input: 2.0, output: 6.0 },
+  'grok-3': { input: 3.0, output: 15.0 },
+  'grok-4-0709': { input: 3.0, output: 15.0 },
 }
 
 const TOOL_COST_PER_CALL = 0.005
@@ -103,6 +110,8 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+const isGrok4Family = (model: string) => model.startsWith('grok-4')
+
 export class GrokAdapter {
   private client: OpenAI
 
@@ -116,6 +125,10 @@ export class GrokAdapter {
   async query(prompt: string, options: QueryOptions = {}): Promise<GrokResponse> {
     const model = options.model ?? DEFAULT_MODEL
 
+    if (options.xSearchHandles?.length && options.xSearchExcludeHandles?.length) {
+      throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
+    }
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
     if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
     messages.push({ role: 'user', content: prompt })
@@ -126,6 +139,7 @@ export class GrokAdapter {
       if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
       if (options.xSearchToDate) tool.to_date = options.xSearchToDate
       if (options.xSearchHandles?.length) tool.allowed_x_handles = options.xSearchHandles
+      if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
       tools.push(tool)
     }
     if (options.enableWebSearch) {
@@ -138,6 +152,9 @@ export class GrokAdapter {
       max_tokens: options.maxTokens ?? 2048,
       ...(tools.length > 0
         ? { tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] }
+        : {}),
+      ...(options.responseSchema && isGrok4Family(model)
+        ? { response_format: zodResponseFormat(options.responseSchema, 'response') }
         : {}),
     }
 
@@ -162,11 +179,20 @@ export class GrokAdapter {
         const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
         const costUsd = tokenCost + toolCallCount * TOOL_COST_PER_CALL
 
-        return {
-          text,
-          usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount },
-          citations: [],
+        // Extract citations from annotations
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const annotations: any[] = (response.choices[0]?.message as any)?.annotations ?? []
+        const seenUrls = new Set<string>()
+        const citations: GrokCitation[] = []
+        for (const a of annotations) {
+          const url = a.url_citation?.url
+          if (url && !seenUrls.has(url)) {
+            seenUrls.add(url)
+            citations.push({ type: a.type, url, title: a.url_citation?.title })
+          }
         }
+
+        return { text, usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount }, citations }
       } catch (err) {
         clearTimeout(timer)
         lastError = err
