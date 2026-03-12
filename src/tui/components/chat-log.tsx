@@ -5,8 +5,8 @@ import { ResultCard } from './result-card.js'
 import { SystemNotice } from './system-notice.js'
 import type { ChatEntry } from '../hooks/use-session.js'
 
-const RESULT_MAX_LINES = 25
-const PROSE_MAX_LINES = 50
+export const RESULT_MAX_LINES = 25
+export const PROSE_MAX_LINES = 50
 
 interface Props {
   entries: ChatEntry[]

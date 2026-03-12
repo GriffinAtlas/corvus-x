@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import { ChatLog } from './chat-log.js'
+import { ChatLog, RESULT_MAX_LINES, PROSE_MAX_LINES } from './chat-log.js'
 import type { ChatEntry } from '../hooks/use-session.js'
 
 interface Props {
@@ -16,12 +16,12 @@ function estimateEntryHeight(entry: ChatEntry): number {
       return 1
     case 'result': {
       const lines = entry.rendered.split('\n').length
-      const cap = entry.expanded ? lines : Math.min(lines, 25)
+      const cap = entry.expanded ? lines : Math.min(lines, RESULT_MAX_LINES)
       return cap + 3 // header + border + footer
     }
     case 'prose': {
       const lines = entry.text.split('\n').length
-      const cap = entry.expanded ? lines : Math.min(lines, 50)
+      const cap = entry.expanded ? lines : Math.min(lines, PROSE_MAX_LINES)
       return cap + 3 // border-top + border-bottom + cost footer
     }
     case 'error':
