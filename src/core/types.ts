@@ -1,12 +1,18 @@
 import type { Snapshot, GrokTweetScore } from './schemas.js'
 import type { DiffLine } from './differ.js'
-import type { Tweet } from './x-adapter.js'
+import type { Tweet, XAdapter } from './x-adapter.js'
 import type { GrokAdapter } from './grok-adapter.js'
-import type { XAdapter } from './x-adapter.js'
+import type { ZodType } from 'zod/v4'
 
 export interface CorvusDeps {
   grok: GrokAdapter
   x: XAdapter | null
+}
+
+export interface GrokCitation {
+  type: string
+  url: string
+  title?: string
 }
 
 export interface GrokResponse {
@@ -17,6 +23,7 @@ export interface GrokResponse {
     costUsd: number
     toolCalls: number
   }
+  citations: GrokCitation[]
 }
 
 export interface QueryOptions {
@@ -28,6 +35,8 @@ export interface QueryOptions {
   xSearchFromDate?: string
   xSearchToDate?: string
   xSearchHandles?: string[]
+  xSearchExcludeHandles?: string[]
+  responseSchema?: ZodType
 }
 
 export interface CommandResult {
@@ -47,6 +56,7 @@ export interface StructuredCommandResult<T extends Snapshot = Snapshot> {
   timestamp: number
   diff: DiffLine[]
   timeSinceLast: number
+  citations: GrokCitation[]
 }
 
 export interface BuildResult<T extends Snapshot> {
@@ -56,4 +66,5 @@ export interface BuildResult<T extends Snapshot> {
   tweets: Tweet[]
   scores: GrokTweetScore[]
   newestTweetAt: number | null
+  citations: GrokCitation[]
 }

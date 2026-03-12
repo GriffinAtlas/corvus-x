@@ -1,5 +1,6 @@
 import { Command } from 'commander'
 import { runCommand } from '../run-command.js'
+import { t } from '../theme.js'
 import type { OutputFormat } from '../output.js'
 
 const SYSTEM_PROMPT = `You are Corvus, a sharp and direct intelligence analyst for X (Twitter).
@@ -38,6 +39,7 @@ export function registerAskCommand(program: Command): void {
     .option('--from <date>', 'filter x_search from date (YYYY-MM-DD)')
     .option('--to <date>', 'filter x_search to date (YYYY-MM-DD)')
     .option('--handle <name...>', 'filter x_search to specific handles (max 10)')
+    .option('--exclude-handle <name...>', 'exclude specific handles from x_search (max 10)')
     .action(
       async (
         questionParts: string[],
@@ -47,25 +49,35 @@ export function registerAskCommand(program: Command): void {
           from?: string
           to?: string
           handle?: string[]
+          excludeHandle?: string[]
         },
       ) => {
         validateDateRange(options.from, options.to)
         const handles = normalizeHandles(options.handle)
+        const excludeHandles = normalizeHandles(options.excludeHandle)
+        if (handles && excludeHandles) {
+          console.log(
+            t.error('\n  Cannot use both --handle and --exclude-handle — they are mutually exclusive\n'),
+          )
+          process.exit(1)
+        }
         const question = questionParts.join(' ')
+        const queryOpts = {
+          systemPrompt: SYSTEM_PROMPT,
+          enableXSearch: true,
+          xSearchFromDate: options.from,
+          xSearchToDate: options.to,
+          xSearchHandles: handles,
+          xSearchExcludeHandles: excludeHandles,
+        }
         await runCommand({
           command: 'ask',
           query: question,
           format: options.format,
           cost: options.cost,
           spinnerText: 'scanning X...',
-          execute: (deps) =>
-            deps.grok.query(question, {
-              systemPrompt: SYSTEM_PROMPT,
-              enableXSearch: true,
-              xSearchFromDate: options.from,
-              xSearchToDate: options.to,
-              xSearchHandles: handles,
-            }),
+          execute: (deps) => deps.grok.query(question, queryOpts),
+          executeStream: (deps, onChunk) => deps.grok.queryStream(question, queryOpts, onChunk),
         })
       },
     )

@@ -19,9 +19,26 @@ vi.mock('../../../src/core/cache.js', () => ({
   },
 }))
 
+function streamResult(content = 'response', prompt = 10, completion = 10) {
+  return {
+    [Symbol.asyncIterator]: async function* () {
+      yield { choices: [{ delta: { content } }] }
+      yield { usage: { prompt_tokens: prompt, completion_tokens: completion } }
+    },
+  }
+}
+
+function plainResult(content = 'response', prompt = 10, completion = 10) {
+  return {
+    choices: [{ message: { content } }],
+    usage: { prompt_tokens: prompt, completion_tokens: completion },
+  }
+}
+
 describe('registerAskCommand', () => {
   let program: Command
   let logs: string[]
+  let writes: string[]
   let exitCode: number | undefined
 
   beforeEach(() => {
@@ -30,8 +47,13 @@ describe('registerAskCommand', () => {
     registerAskCommand(program)
 
     logs = []
+    writes = []
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
       logs.push(args.map(String).join(' '))
+    })
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      writes.push(String(chunk))
+      return true
     })
     vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null | undefined) => {
       exitCode = typeof code === 'number' ? code : undefined
@@ -39,6 +61,10 @@ describe('registerAskCommand', () => {
     })
 
     mockQuery.mockReset()
+    mockQuery.mockImplementation((params: Record<string, unknown>) => {
+      if (params?.stream) return Promise.resolve(streamResult())
+      return Promise.resolve(plainResult())
+    })
     exitCode = undefined
   })
 
@@ -76,22 +102,19 @@ describe('registerAskCommand', () => {
     expect(mockQuery).not.toHaveBeenCalled()
   })
 
-  it('successful query prints formatted output', async () => {
+  it('successful query streams output to stdout', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'AI discourse is heating up' } }],
-      usage: { prompt_tokens: 100, completion_tokens: 50 },
+    mockQuery.mockImplementation((params: Record<string, unknown>) => {
+      if (params?.stream)
+        return Promise.resolve(streamResult('AI discourse is heating up', 100, 50))
+      return Promise.resolve(plainResult('AI discourse is heating up', 100, 50))
     })
     await program.parseAsync(['node', 'corvus', 'ask', 'what is trending'])
-    expect(logs.some((l) => l.includes('AI discourse is heating up'))).toBe(true)
+    expect(writes.some((w) => w.includes('AI discourse is heating up'))).toBe(true)
   })
 
   it('joins multi-word question parts', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'response' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
     await program.parseAsync(['node', 'corvus', 'ask', 'what', 'is', 'trending'])
     const userMsg = mockQuery.mock.calls[0][0].messages.find(
       (m: { role: string }) => m.role === 'user',
@@ -101,10 +124,6 @@ describe('registerAskCommand', () => {
 
   it('passes enableXSearch: true to the adapter', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'response' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
     await program.parseAsync(['node', 'corvus', 'ask', 'test'])
     const args = mockQuery.mock.calls[0][0]
     expect(args.tools).toBeDefined()
@@ -137,10 +156,7 @@ describe('registerAskCommand', () => {
 
   it('--format json produces valid JSON output', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'json test' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
-    })
+    mockQuery.mockResolvedValueOnce(plainResult('json test'))
     await program.parseAsync(['node', 'corvus', 'ask', '-f', 'json', 'test'])
     const jsonLog = logs.find((l) => {
       try {
@@ -154,5 +170,70 @@ describe('registerAskCommand', () => {
     const parsed = JSON.parse(jsonLog!)
     expect(parsed.command).toBe('ask')
     expect(parsed.response).toBe('json test')
+  })
+
+  it('non-streaming path used for json format', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    await program.parseAsync(['node', 'corvus', 'ask', '-f', 'json', 'test'])
+    const args = mockQuery.mock.calls[0][0]
+    expect(args.stream).toBeUndefined()
+  })
+
+  it('streaming path used for default table format', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    await program.parseAsync(['node', 'corvus', 'ask', 'test'])
+    const args = mockQuery.mock.calls[0][0]
+    expect(args.stream).toBe(true)
+  })
+
+  describe('--exclude-handle', () => {
+    it('passes excluded_x_handles to grok query', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await program.parseAsync([
+        'node',
+        'corvus',
+        'ask',
+        'test',
+        '--exclude-handle',
+        'bot1',
+        'bot2',
+      ])
+      const args = mockQuery.mock.calls[0][0]
+      expect(args.tools[0].excluded_x_handles).toEqual(['bot1', 'bot2'])
+    })
+
+    it('strips @ prefix from exclude handles', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await program.parseAsync([
+        'node',
+        'corvus',
+        'ask',
+        'test',
+        '--exclude-handle',
+        '@bot1',
+      ])
+      const args = mockQuery.mock.calls[0][0]
+      expect(args.tools[0].excluded_x_handles).toEqual(['bot1'])
+    })
+
+    it('rejects both --handle and --exclude-handle', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      try {
+        await program.parseAsync([
+          'node',
+          'corvus',
+          'ask',
+          'test',
+          '--handle',
+          'user1',
+          '--exclude-handle',
+          'bot1',
+        ])
+      } catch {
+        /* process.exit */
+      }
+      expect(exitCode).toBe(1)
+      expect(logs.some((l) => l.includes('mutually exclusive'))).toBe(true)
+    })
   })
 })

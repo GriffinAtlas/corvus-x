@@ -1,4 +1,5 @@
 import { parseGrokJson } from '../grok-adapter.js'
+import { GrokScopeResponseSchema } from '../validators.js'
 import type { GrokScopeResponse, ScopeSnapshot } from '../schemas.js'
 import type { GrokOnlyScopeResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
@@ -88,6 +89,7 @@ async function buildScopeFromXApi(
   const response = await deps.grok.query(`Analyze this X profile:\n\n${profileContext}`, {
     systemPrompt: SYSTEM_PROMPT,
     maxTokens: 3072,
+    responseSchema: GrokScopeResponseSchema,
   })
 
   const grok = parseGrokJson<GrokScopeResponse>(response.text)
@@ -137,6 +139,7 @@ async function buildScopeFromXApi(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: response.citations,
   }
 }
 
@@ -180,5 +183,6 @@ async function buildScopeFromGrok(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: response.citations,
   }
 }

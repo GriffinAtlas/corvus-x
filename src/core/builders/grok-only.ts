@@ -96,7 +96,7 @@ export function computeGrokOnlySentiment(
   tweetAnalysis: { sentiment: number }[],
 ): SentimentBreakdown {
   if (tweetAnalysis.length === 0) {
-    return { avg: 0, positive: 0, neutral: 0, negative: 0 }
+    return { avg: 0, rawAvg: 0, positive: 0, neutral: 0, negative: 0 }
   }
   let positive = 0
   let neutral = 0
@@ -108,8 +108,10 @@ export function computeGrokOnlySentiment(
     else if (t.sentiment < -0.2) negative++
     else neutral++
   }
+  const avg = Number((sum / tweetAnalysis.length).toFixed(3))
   return {
-    avg: Number((sum / tweetAnalysis.length).toFixed(3)),
+    avg,
+    rawAvg: avg,
     positive,
     neutral,
     negative,

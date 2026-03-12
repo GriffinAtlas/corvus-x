@@ -1,4 +1,5 @@
 import { parseGrokJson } from '../grok-adapter.js'
+import { GrokReadResponseSchema } from '../validators.js'
 import type { GrokReadResponse, ReadSnapshot } from '../schemas.js'
 import type { GrokOnlyReadResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
@@ -62,6 +63,7 @@ async function buildReadFromXApi(
 
   const response = await deps.grok.query(`Analyze this tweet:\n\n${tweetContext}`, {
     systemPrompt: SYSTEM_PROMPT,
+    responseSchema: GrokReadResponseSchema,
   })
 
   const grok = parseGrokJson<GrokReadResponse>(response.text)
@@ -84,6 +86,7 @@ async function buildReadFromXApi(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: response.citations,
   }
 }
 
@@ -116,6 +119,7 @@ async function buildReadFromGrok(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: response.citations,
   }
 }
 

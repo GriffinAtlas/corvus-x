@@ -14,7 +14,7 @@ import { buildGatherSnapshot } from '../core/builders/gather.js'
 import { buildReadSnapshot, extractTweetId } from '../core/builders/read.js'
 import { buildScopeSnapshot } from '../core/builders/scope.js'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../core/agent.js'
-import type { CorvusDeps } from '../core/types.js'
+import type { CorvusDeps, GrokCitation } from '../core/types.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -44,8 +44,12 @@ function initDeps(): CorvusDeps {
   }
 }
 
-function jsonResult(data: unknown, cost: number): CallToolResult {
-  const payload = { ...data as Record<string, unknown>, _cost: cost }
+function jsonResult(data: unknown, cost: number, citations?: GrokCitation[]): CallToolResult {
+  const payload = {
+    ...data as Record<string, unknown>,
+    _cost: cost,
+    ...(citations?.length ? { _citations: citations } : {}),
+  }
   return {
     content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
   }
@@ -85,7 +89,7 @@ export function createServer(): McpServer {
     },
     async ({ topic, maxResults }): Promise<CallToolResult> => {
       const result = await buildScanSnapshot(getDeps(), topic, maxResults)
-      return jsonResult(result.data, result.cost)
+      return jsonResult(result.data, result.cost, result.citations)
     },
   )
 
@@ -108,7 +112,7 @@ export function createServer(): McpServer {
     },
     async ({ topic, maxResults }): Promise<CallToolResult> => {
       const result = await buildPulseSnapshot(getDeps(), topic, maxResults)
-      return jsonResult(result.data, result.cost)
+      return jsonResult(result.data, result.cost, result.citations)
     },
   )
 
@@ -131,7 +135,7 @@ export function createServer(): McpServer {
     },
     async ({ narrative, maxResults }): Promise<CallToolResult> => {
       const result = await buildTraceSnapshot(getDeps(), narrative, maxResults)
-      return jsonResult(result.data, result.cost)
+      return jsonResult(result.data, result.cost, result.citations)
     },
   )
 
@@ -154,7 +158,7 @@ export function createServer(): McpServer {
     },
     async ({ topic, maxResults }): Promise<CallToolResult> => {
       const result = await buildGatherSnapshot(getDeps(), topic, maxResults)
-      return jsonResult(result.data, result.cost)
+      return jsonResult(result.data, result.cost, result.citations)
     },
   )
 
@@ -179,7 +183,7 @@ export function createServer(): McpServer {
         }
       }
       const result = await buildReadSnapshot(getDeps(), tweetId)
-      return jsonResult(result.data, result.cost)
+      return jsonResult(result.data, result.cost, result.citations)
     },
   )
 
@@ -205,7 +209,7 @@ export function createServer(): McpServer {
     async ({ username, tweetCount }): Promise<CallToolResult> => {
       const handle = username.replace(/^@/, '')
       const result = await buildScopeSnapshot(getDeps(), handle, tweetCount)
-      return jsonResult(result.data, result.cost)
+      return jsonResult(result.data, result.cost, result.citations)
     },
   )
 
@@ -253,6 +257,7 @@ export function createServer(): McpServer {
           stepsExecuted: context.results.length,
         },
         context.totalCost,
+        brief.citations,
       )
     },
   )

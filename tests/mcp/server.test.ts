@@ -36,6 +36,7 @@ const makeBuildResult = <T>(data: T, cost = 0.003) => ({
   tweets: [],
   scores: [],
   newestTweetAt: null,
+  citations: [],
 })
 
 const scanData: ScanSnapshot = {
@@ -144,6 +145,7 @@ vi.mock('../../src/core/agent.js', () => {
     confidence: { overall: 0.7, volume: 'moderate', consistency: 0.8, diversity: 0.6 },
     sampleSize: 10,
     staleness: null,
+    citations: [],
   }
 
   class MockPlanner {
@@ -356,6 +358,107 @@ describe('MCP server', () => {
       expect(parsed.brief.confidence.overall).toBe(0.7)
       expect(parsed.stepsExecuted).toBe(1)
       expect(parsed._cost).toBe(0.005)
+    })
+
+    it('includes _citations in response when builder returns citations', async () => {
+      vi.mocked(buildScanSnapshot).mockResolvedValueOnce({
+        ...makeBuildResult(scanData),
+        citations: [
+          { type: 'url_citation', url: 'https://x.com/user/status/123', title: 'A tweet' },
+        ],
+      })
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'test', maxResults: 10 },
+      })
+      const parsed = parseContent(result)
+      expect(parsed._citations).toEqual([
+        { type: 'url_citation', url: 'https://x.com/user/status/123', title: 'A tweet' },
+      ])
+    })
+
+    it('omits _citations when builder returns empty citations', async () => {
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'test', maxResults: 10 },
+      })
+      const parsed = parseContent(result)
+      expect(parsed._citations).toBeUndefined()
+    })
+
+    it('corvus_scan uses default maxResults when not provided', async () => {
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'bitcoin' },
+      })
+      const parsed = parseContent(result)
+      expect(vi.mocked(buildScanSnapshot)).toHaveBeenCalledOnce()
+      const [, topic, maxResults] = vi.mocked(buildScanSnapshot).mock.calls[0]
+      expect(topic).toBe('bitcoin')
+      expect(maxResults).toBe(50) // default
+      expect(parsed.metrics.tweetCount).toBe(10)
+    })
+
+    it('corvus_scope works without tweetCount (uses default)', async () => {
+      const result = await client.callTool({
+        name: 'corvus_scope',
+        arguments: { username: 'satoshi' },
+      })
+      const parsed = parseContent(result)
+      expect(vi.mocked(buildScopeSnapshot)).toHaveBeenCalledOnce()
+      const [, handle] = vi.mocked(buildScopeSnapshot).mock.calls[0]
+      expect(handle).toBe('satoshi')
+      expect(parsed.account.handle).toBe('testuser')
+    })
+
+    it('corvus_read handles URL with tracking params', async () => {
+      const result = await client.callTool({
+        name: 'corvus_read',
+        arguments: { tweetIdOrUrl: 'https://x.com/user/status/99999?ref=timeline&s=20' },
+      })
+      const parsed = parseContent(result)
+      expect(vi.mocked(buildReadSnapshot)).toHaveBeenCalledOnce()
+      const [, tweetId] = vi.mocked(buildReadSnapshot).mock.calls[0]
+      expect(tweetId).toBe('99999')
+      expect(parsed.tweet.author).toBe('testuser')
+    })
+
+    it('corvus_scan propagates builder errors', async () => {
+      vi.mocked(buildScanSnapshot).mockRejectedValueOnce(new Error('API unavailable'))
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'test', maxResults: 10 },
+      })
+      expect(result.isError).toBe(true)
+      const text = result.content as { type: string; text: string }[]
+      expect(text[0].text).toContain('API unavailable')
+    })
+
+    it('corvus_pulse propagates builder errors', async () => {
+      vi.mocked(buildPulseSnapshot).mockRejectedValueOnce(new Error('Grok timeout'))
+      const result = await client.callTool({
+        name: 'corvus_pulse',
+        arguments: { topic: 'test', maxResults: 10 },
+      })
+      expect(result.isError).toBe(true)
+      const text = result.content as { type: string; text: string }[]
+      expect(text[0].text).toContain('Grok timeout')
+    })
+
+    it('all 7 tools have descriptions', async () => {
+      const { tools } = await client.listTools()
+      for (const tool of tools) {
+        expect(tool.description).toBeDefined()
+        expect(tool.description!.length).toBeGreaterThan(10)
+      }
+    })
+
+    it('all 7 tools have input schemas', async () => {
+      const { tools } = await client.listTools()
+      for (const tool of tools) {
+        expect(tool.inputSchema).toBeDefined()
+        expect(tool.inputSchema.type).toBe('object')
+      }
     })
   })
 

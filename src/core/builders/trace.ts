@@ -1,6 +1,7 @@
 import { computeBaseMetrics, computeNewestTweetAt, toUserMap } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
+import { GrokTraceResponseSchema } from '../validators.js'
 import { computeGrokOnlyMetrics } from './grok-only.js'
 import type { GrokTraceResponse, TraceSnapshot } from '../schemas.js'
 import type { GrokOnlyTraceResponse } from './grok-only.js'
@@ -111,7 +112,7 @@ async function buildTraceFromXApi(
   const tweetBlock = formatTweetsForAnalysis(tweets, users)
   const response = await deps.grok.query(
     `Trace how this narrative is spreading: "${topic}"\n\nTweets:\n${tweetBlock}`,
-    { systemPrompt: SYSTEM_PROMPT, maxTokens: 4096 },
+    { systemPrompt: SYSTEM_PROMPT, maxTokens: 4096, responseSchema: GrokTraceResponseSchema },
   )
 
   const grok = parseGrokJson<GrokTraceResponse>(response.text)
@@ -124,6 +125,7 @@ async function buildTraceFromXApi(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt: computeNewestTweetAt(tweets),
+    citations: response.citations,
   }
 }
 
@@ -156,5 +158,6 @@ async function buildTraceFromGrok(
     tweets: [],
     scores: grok.tweetAnalysis,
     newestTweetAt: null,
+    citations: response.citations,
   }
 }

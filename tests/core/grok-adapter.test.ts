@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GrokAdapter, parseGrokJson, GrokParseError } from '../../src/core/grok-adapter.js'
+import { GrokAdapter, parseGrokJson, GrokParseError, MODEL_PRICING } from '../../src/core/grok-adapter.js'
+import { z } from 'zod/v4'
 
 const mockCreate = vi.fn()
 
@@ -136,9 +137,9 @@ describe('GrokAdapter', () => {
     expect(result.usage.costUsd).toBeCloseTo(expected, 10)
   })
 
-  it('calculates cost for grok-4 model', async () => {
-    const result = await adapter.query('test', { model: 'grok-4' })
-    const expected = (100 * 2.0 + 50 * 6.0) / 1_000_000
+  it('calculates cost for grok-4-0709 model', async () => {
+    const result = await adapter.query('test', { model: 'grok-4-0709' })
+    const expected = (100 * 3.0 + 50 * 15.0) / 1_000_000
     expect(result.usage.costUsd).toBeCloseTo(expected, 10)
   })
 
@@ -528,5 +529,423 @@ describe('parseGrokJson', () => {
       expect(msg).toContain('Raw')
       expect(msg).toContain('Cleaned')
     }
+  })
+})
+
+describe('MODEL_PRICING', () => {
+  it('has grok-4-fast-reasoning', () => {
+    expect(MODEL_PRICING['grok-4-fast-reasoning']).toEqual({ input: 0.2, output: 0.5 })
+  })
+
+  it('has grok-4-fast-non-reasoning', () => {
+    expect(MODEL_PRICING['grok-4-fast-non-reasoning']).toEqual({ input: 0.2, output: 0.5 })
+  })
+
+  it('has grok-3-mini', () => {
+    expect(MODEL_PRICING['grok-3-mini']).toEqual({ input: 0.3, output: 0.5 })
+  })
+
+  it('has grok-3', () => {
+    expect(MODEL_PRICING['grok-3']).toEqual({ input: 3.0, output: 15.0 })
+  })
+
+  it('has grok-4-0709', () => {
+    expect(MODEL_PRICING['grok-4-0709']).toEqual({ input: 3.0, output: 15.0 })
+  })
+
+  it('does not have stale grok-4 entry', () => {
+    expect(MODEL_PRICING['grok-4']).toBeUndefined()
+  })
+})
+
+describe('structured output', () => {
+  let adapter: GrokAdapter
+
+  beforeEach(() => {
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValue(mockResponse())
+    adapter = new GrokAdapter('xai-test-key')
+  })
+
+  it('adds response_format when responseSchema provided and model is grok-4 family', async () => {
+    const schema = z.object({ signals: z.array(z.string()) })
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        choices: [{ message: { content: '{"signals":["test"]}' } }],
+      }),
+    )
+
+    const result = await adapter.query('test', {
+      responseSchema: schema,
+    })
+
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.response_format).toBeDefined()
+    expect(args.response_format.type).toBe('json_schema')
+    expect(result.text).toBe('{"signals":["test"]}')
+  })
+
+  it('does not add response_format for non-grok-4 model', async () => {
+    const schema = z.object({ signals: z.array(z.string()) })
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        choices: [{ message: { content: '{"signals":["test"]}' } }],
+      }),
+    )
+
+    await adapter.query('test', {
+      model: 'grok-3-mini',
+      responseSchema: schema,
+    })
+
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.response_format).toBeUndefined()
+  })
+
+  it('does not add response_format when no schema provided', async () => {
+    await adapter.query('test')
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.response_format).toBeUndefined()
+  })
+})
+
+describe('excluded_x_handles', () => {
+  let adapter: GrokAdapter
+
+  beforeEach(() => {
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValue(mockResponse())
+    adapter = new GrokAdapter('xai-test-key')
+  })
+
+  it('adds excluded_x_handles to x_search tool config', async () => {
+    await adapter.query('test', {
+      enableXSearch: true,
+      xSearchExcludeHandles: ['bot1', 'bot2'],
+    })
+    const args = mockCreate.mock.calls[0][0]
+    const xTool = args.tools.find((t: any) => t.type === 'x_search')
+    expect(xTool.excluded_x_handles).toEqual(['bot1', 'bot2'])
+  })
+
+  it('throws when both xSearchHandles and xSearchExcludeHandles provided', async () => {
+    await expect(
+      adapter.query('test', {
+        enableXSearch: true,
+        xSearchHandles: ['alice'],
+        xSearchExcludeHandles: ['bot1'],
+      }),
+    ).rejects.toThrow('mutually exclusive')
+  })
+
+  it('does not add excluded_x_handles when not provided', async () => {
+    await adapter.query('test', { enableXSearch: true })
+    const args = mockCreate.mock.calls[0][0]
+    const xTool = args.tools.find((t: any) => t.type === 'x_search')
+    expect(xTool.excluded_x_handles).toBeUndefined()
+  })
+})
+
+describe('citations', () => {
+  let adapter: GrokAdapter
+
+  beforeEach(() => {
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValue(mockResponse())
+    adapter = new GrokAdapter('xai-test-key')
+  })
+
+  it('extracts citations from response annotations', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: 'Test response',
+            annotations: [
+              {
+                type: 'url_citation',
+                url_citation: {
+                  url: 'https://x.com/user/status/123',
+                  title: 'A tweet',
+                },
+              },
+              {
+                type: 'url_citation',
+                url_citation: {
+                  url: 'https://example.com/article',
+                  title: 'An article',
+                },
+              },
+            ],
+          },
+        },
+      ],
+      usage: { prompt_tokens: 100, completion_tokens: 50 },
+    })
+
+    const result = await adapter.query('test', { enableXSearch: true })
+    expect(result.citations).toHaveLength(2)
+    expect(result.citations[0]).toEqual({
+      type: 'url_citation',
+      url: 'https://x.com/user/status/123',
+      title: 'A tweet',
+    })
+  })
+
+  it('deduplicates citations by URL', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: 'Test',
+            annotations: [
+              { type: 'url_citation', url_citation: { url: 'https://x.com/same', title: 'A' } },
+              { type: 'url_citation', url_citation: { url: 'https://x.com/same', title: 'B' } },
+            ],
+          },
+        },
+      ],
+      usage: { prompt_tokens: 100, completion_tokens: 50 },
+    })
+
+    const result = await adapter.query('test')
+    expect(result.citations).toHaveLength(1)
+  })
+
+  it('returns empty citations when no annotations', async () => {
+    const result = await adapter.query('test')
+    expect(result.citations).toEqual([])
+  })
+})
+
+describe('queryStream', () => {
+  let adapter: GrokAdapter
+
+  beforeEach(() => {
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValue(mockResponse())
+    adapter = new GrokAdapter('xai-test-key')
+  })
+
+  it('calls onChunk for each delta', async () => {
+    const chunks = [
+      { choices: [{ delta: { content: 'Hello' } }] },
+      { choices: [{ delta: { content: ' world' } }] },
+      { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } },
+    ]
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        for (const chunk of chunks) yield chunk
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const received: string[] = []
+    const result = await adapter.queryStream('test', {}, (text) => received.push(text))
+
+    expect(received).toEqual(['Hello', ' world'])
+    expect(result.text).toBe('Hello world')
+    expect(result.usage.inputTokens).toBe(10)
+    expect(result.usage.outputTokens).toBe(5)
+  })
+
+  it('passes stream: true to create()', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    await adapter.queryStream('test', {}, () => {})
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.stream).toBe(true)
+    expect(args.stream_options).toEqual({ include_usage: true })
+  })
+
+  it('estimates tool call cost for enabled tools', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hi' } }] }
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', { enableXSearch: true }, () => {})
+    expect(result.usage.toolCalls).toBe(1)
+    expect(result.usage.costUsd).toBeGreaterThan(0.005)
+  })
+
+  it('estimates tokens from text length when usage not provided', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hello world' } }] }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', {}, () => {})
+    expect(result.usage.inputTokens).toBe(0)
+    expect(result.usage.outputTokens).toBe(Math.ceil('hello world'.length / 4))
+  })
+
+  it('returns empty citations', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', {}, () => {})
+    expect(result.citations).toEqual([])
+  })
+
+  it('throws on mutual exclusion of xSearchHandles and xSearchExcludeHandles', async () => {
+    await expect(
+      adapter.queryStream(
+        'test',
+        {
+          enableXSearch: true,
+          xSearchHandles: ['alice'],
+          xSearchExcludeHandles: ['bot1'],
+        },
+        () => {},
+      ),
+    ).rejects.toThrow('mutually exclusive')
+  })
+
+  it('passes x_search and web_search tools to create()', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    await adapter.queryStream('test', { enableXSearch: true, enableWebSearch: true }, () => {})
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools[0].type).toBe('x_search')
+    expect(args.tools[1].type).toBe('web_search')
+  })
+
+  it('counts both x_search and web_search tool costs', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: { content: 'hi' } }] }
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 100, completion_tokens: 50 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const result = await adapter.queryStream('test', { enableXSearch: true, enableWebSearch: true }, () => {})
+    expect(result.usage.toolCalls).toBe(2)
+    const tokenCost = (100 * 0.2 + 50 * 0.5) / 1_000_000
+    expect(result.usage.costUsd).toBeCloseTo(tokenCost + 0.01, 10) // 2 * $0.005
+  })
+
+  it('passes system prompt and custom model to create()', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    await adapter.queryStream('prompt', { systemPrompt: 'You are Corvus.', model: 'grok-3', maxTokens: 512 }, () => {})
+    const args = mockCreate.mock.calls[0][0]
+    expect(args.model).toBe('grok-3')
+    expect(args.max_tokens).toBe(512)
+    expect(args.messages[0]).toEqual({ role: 'system', content: 'You are Corvus.' })
+    expect(args.messages[1]).toEqual({ role: 'user', content: 'prompt' })
+  })
+
+  it('handles stream with no content deltas', async () => {
+    const asyncIterator = {
+      [Symbol.asyncIterator]: async function* () {
+        yield { choices: [{ delta: {} }] }
+        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 0 } }
+      },
+    }
+    mockCreate.mockResolvedValue(asyncIterator)
+
+    const received: string[] = []
+    const result = await adapter.queryStream('test', {}, (text) => received.push(text))
+    expect(received).toEqual([])
+    expect(result.text).toBe('')
+    expect(result.usage.outputTokens).toBe(0)
+  })
+})
+
+describe('citations edge cases', () => {
+  let adapter: GrokAdapter
+
+  beforeEach(() => {
+    mockCreate.mockReset()
+    adapter = new GrokAdapter('xai-test-key')
+  })
+
+  it('skips annotations without url_citation.url', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: 'Test',
+            annotations: [
+              { type: 'url_citation', url_citation: {} },
+              { type: 'url_citation', url_citation: { url: null } },
+              { type: 'url_citation' },
+            ],
+          },
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5 },
+    })
+
+    const result = await adapter.query('test')
+    expect(result.citations).toEqual([])
+  })
+
+  it('preserves title as undefined when missing', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: 'Test',
+            annotations: [
+              { type: 'url_citation', url_citation: { url: 'https://x.com/foo' } },
+            ],
+          },
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5 },
+    })
+
+    const result = await adapter.query('test')
+    expect(result.citations).toHaveLength(1)
+    expect(result.citations[0].title).toBeUndefined()
+  })
+
+  it('handles single citation', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: 'Test',
+            annotations: [
+              { type: 'url_citation', url_citation: { url: 'https://x.com/only', title: 'Only' } },
+            ],
+          },
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5 },
+    })
+
+    const result = await adapter.query('test')
+    expect(result.citations).toEqual([
+      { type: 'url_citation', url: 'https://x.com/only', title: 'Only' },
+    ])
   })
 })

@@ -1,5 +1,5 @@
 import ora from 'ora'
-import { t } from './theme.js'
+import { t, divider } from './theme.js'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -47,6 +47,7 @@ export interface RunCommandOptions {
   spinnerText: string
   requiresXToken?: boolean
   execute: (deps: CorvusDeps) => Promise<GrokResponse>
+  executeStream?: (deps: CorvusDeps, onChunk: (text: string) => void) => Promise<GrokResponse>
 }
 
 export async function runCommand(opts: RunCommandOptions): Promise<void> {
@@ -80,21 +81,41 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
   const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
 
   try {
-    const response = await opts.execute(deps)
-    spinner.stop()
+    let response: GrokResponse
 
-    cache.set(opts.command, opts.query, response.text, response.usage.costUsd)
+    if (opts.executeStream && opts.format === 'table') {
+      let firstChunk = true
+      response = await opts.executeStream(deps, (text) => {
+        if (firstChunk) {
+          spinner.stop()
+          console.log(`\n  ${t.heading(opts.command)} ${t.muted('·')} ${opts.query}`)
+          console.log(`  ${divider()}\n`)
+          process.stdout.write('  ')
+          firstChunk = false
+        }
+        process.stdout.write(text)
+      })
+      if (!firstChunk) {
+        console.log('\n')
+        console.log(`  ${t.muted(`cost: $${response.usage.costUsd.toFixed(4)}`)}`)
+        console.log()
+      }
+    } else {
+      response = await opts.execute(deps)
+      spinner.stop()
 
-    const result: CommandResult = {
-      command: opts.command,
-      query: opts.query,
-      response: response.text,
-      cost: response.usage.costUsd,
-      cached: false,
-      timestamp: Date.now(),
+      const result: CommandResult = {
+        command: opts.command,
+        query: opts.query,
+        response: response.text,
+        cost: response.usage.costUsd,
+        cached: false,
+        timestamp: Date.now(),
+      }
+      console.log(formatOutput(result, opts.format))
     }
 
-    console.log(formatOutput(result, opts.format))
+    cache.set(opts.command, opts.query, response.text, response.usage.costUsd)
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)
@@ -143,6 +164,7 @@ export async function runStructuredCommand<T extends Snapshot>(
       timestamp: result.timestamp,
       diff: result.diff,
       timeSinceLast: result.timeSinceLast,
+      citations: result.citations,
     }
 
     console.log(formatStructuredOutput(structured, opts.format, opts.renderSnapshot))

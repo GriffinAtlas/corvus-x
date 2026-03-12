@@ -7,7 +7,7 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
 } from './schemas.js'
-import type { BuildResult, CorvusDeps } from './types.js'
+import type { BuildResult, CorvusDeps, GrokCitation } from './types.js'
 import { parseGrokJson } from './grok-adapter.js'
 import { computeConfidence, detectContradictions } from './metrics.js'
 import { SnapshotStore } from './snapshots.js'
@@ -46,6 +46,7 @@ export interface AgentStepResult {
   tweets: Tweet[]
   scores: GrokTweetScore[]
   newestTweetAt: number | null
+  citations: GrokCitation[]
 }
 
 export type ReplanDecision = { action: 'continue' } | { action: 'revise'; steps: AgentStep[] }
@@ -324,6 +325,7 @@ export class AgentExecutor {
           tweets: result.tweets,
           scores: result.scores,
           newestTweetAt: result.newestTweetAt,
+          citations: result.citations,
         }
 
         this.context.results.push(stepResult)
@@ -408,9 +410,13 @@ export class AgentExecutor {
 export class AgentSynthesizer {
   constructor(private grok: GrokAdapter) {}
 
-  async synthesize(context: AgentContext): Promise<AgentBrief> {
+  async synthesize(
+    context: AgentContext,
+    onChunk?: (text: string) => void,
+  ): Promise<AgentBrief> {
     const allTweets: Tweet[] = []
     const allScores: GrokTweetScore[] = []
+    const allCitations: GrokCitation[] = []
     let newestTweetAt: number | null = null
 
     for (const result of context.results) {
@@ -424,6 +430,11 @@ export class AgentSynthesizer {
       if (result.newestTweetAt !== null) {
         if (newestTweetAt === null || result.newestTweetAt > newestTweetAt) {
           newestTweetAt = result.newestTweetAt
+        }
+      }
+      for (const c of result.citations) {
+        if (!allCitations.some((existing) => existing.url === c.url)) {
+          allCitations.push(c)
         }
       }
     }
@@ -446,10 +457,18 @@ export class AgentSynthesizer {
 
     const prompt = `Question: ${context.question}\n\nInvestigation results (${context.results.length} steps, ${sampleSize} tweets analyzed):\n\n${resultSummaries}`
 
-    const response = await this.grok.query(prompt, {
-      systemPrompt: SYNTHESIZER_SYSTEM_PROMPT,
-      maxTokens: 3072,
-    })
+    let response
+    if (onChunk) {
+      response = await this.grok.queryStream(prompt, {
+        systemPrompt: SYNTHESIZER_SYSTEM_PROMPT,
+        maxTokens: 3072,
+      }, onChunk)
+    } else {
+      response = await this.grok.query(prompt, {
+        systemPrompt: SYNTHESIZER_SYSTEM_PROMPT,
+        maxTokens: 3072,
+      })
+    }
 
     const grokBrief = parseGrokJson<Partial<AgentBrief>>(response.text)
 
@@ -477,6 +496,7 @@ export class AgentSynthesizer {
       confidence,
       sampleSize,
       staleness,
+      citations: allCitations,
     }
 
     return brief

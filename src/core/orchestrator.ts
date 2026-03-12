@@ -1,6 +1,6 @@
 import { SnapshotStore } from './snapshots.js'
 import { diffSnapshots } from './differ.js'
-import type { BuildResult } from './types.js'
+import type { BuildResult, GrokCitation } from './types.js'
 import type { Snapshot, MatchKeys } from './schemas.js'
 import type { DiffLine } from './differ.js'
 
@@ -19,6 +19,7 @@ export interface StructuredQueryResult<T extends Snapshot> {
   diff: DiffLine[]
   timeSinceLast: number
   raw: string
+  citations: GrokCitation[]
 }
 
 export async function executeStructuredQuery<T extends Snapshot>(
@@ -52,5 +53,6 @@ export async function executeStructuredQuery<T extends Snapshot>(
     diff,
     timeSinceLast,
     raw: built.raw,
+    citations: built.citations,
   }
 }
