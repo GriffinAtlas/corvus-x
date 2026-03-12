@@ -48,14 +48,22 @@ export class SnapshotStore {
     const dir = this.topicDir(command, topic)
     const files = this.listFiles(dir)
     if (files.length === 0) return null
-    const latest = files[files.length - 1]
-    return JSON.parse(fs.readFileSync(path.join(dir, latest), 'utf-8'))
+    for (let i = files.length - 1; i >= 0; i--) {
+      const parsed = this.readSnapshot<T>(path.join(dir, files[i]))
+      if (parsed) return parsed
+    }
+    return null
   }
 
   loadAll<T extends Snapshot>(command: string, topic: string): StoredSnapshot<T>[] {
     const dir = this.topicDir(command, topic)
     const files = this.listFiles(dir)
-    return files.map((file) => JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8')))
+    const results: StoredSnapshot<T>[] = []
+    for (const file of files) {
+      const parsed = this.readSnapshot<T>(path.join(dir, file))
+      if (parsed) results.push(parsed)
+    }
+    return results
   }
 
   listTopics(): { command: string; topic: string; dir: string; count: number; latest: number }[] {
@@ -72,10 +80,12 @@ export class SnapshotStore {
       if (!fs.statSync(fullPath).isDirectory()) continue
       const files = this.listFiles(fullPath)
       if (files.length === 0) continue
-      const latestFile = files[files.length - 1]
-      const latestSnapshot: StoredSnapshot = JSON.parse(
-        fs.readFileSync(path.join(fullPath, latestFile), 'utf-8'),
-      )
+      let latestSnapshot: StoredSnapshot | null = null
+      for (let i = files.length - 1; i >= 0; i--) {
+        latestSnapshot = this.readSnapshot(path.join(fullPath, files[i]))
+        if (latestSnapshot) break
+      }
+      if (!latestSnapshot) continue
       results.push({
         command: latestSnapshot.command,
         topic: latestSnapshot.topic,
@@ -85,6 +95,15 @@ export class SnapshotStore {
       })
     }
     return results.sort((a, b) => b.latest - a.latest)
+  }
+
+  private readSnapshot<T extends Snapshot>(filePath: string): StoredSnapshot<T> | null {
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    } catch {
+      console.error(`  warning: corrupted snapshot file, skipping: ${filePath}`)
+      return null
+    }
   }
 
   private topicDir(command: string, topic: string): string {

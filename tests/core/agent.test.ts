@@ -1027,7 +1027,7 @@ describe('AgentExecutor — error and edge cases', () => {
       replan: true,
       onReplan,
     })
-    const context = await executor.execute(0)
+    await executor.execute(0)
 
     expect(onReplan).toHaveBeenCalled()
     const revisedSteps = onReplan.mock.calls[0][0]

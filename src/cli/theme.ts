@@ -17,10 +17,6 @@ export function strip(s: string): string {
   return s.replace(/\x1b\[[0-9;]*m/g, '')
 }
 
-export function out(s: string): void {
-  console.log(isTTY ? s : strip(s))
-}
-
 export function sentimentBar(val: number, width = 20): string {
   const clamped = Math.max(-1, Math.min(1, val))
   const center = Math.floor(width / 2)

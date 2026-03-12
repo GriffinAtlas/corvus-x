@@ -96,7 +96,7 @@ export function registerAgentCommand(program: Command): void {
     .option('-f, --format <type>', 'output format: table, json, md', 'table')
     .option('--no-replan', 'disable adaptive replanning')
     .option('--budget <amount>', 'cost cap in USD', '0.10')
-    .option('--cost', 'show pricing info and exit')
+    .option('--cost', 'show estimated cost before executing')
     .action(
       async (
         questionParts: string[],

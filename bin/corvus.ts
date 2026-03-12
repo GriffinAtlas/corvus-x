@@ -37,6 +37,7 @@ const program = new Command()
 program
   .name('corvus')
   .description('X intelligence agent')
+  .usage('[options] [command]')
   .version(VERSION)
   .option('--no-color', 'disable color output')
   .hook('preAction', () => {
@@ -92,7 +93,13 @@ program
   })
 
 program
-  .action(async () => {
+  .argument('[args...]')
+  .action(async (args: string[]) => {
+    if (args.length > 0) {
+      console.error(`\n  Unknown command: ${args[0]}`)
+      console.error(`  Run corvus --help for available commands.\n`)
+      process.exit(1)
+    }
     const { render } = await import('ink')
     const React = await import('react')
     const { App } = await import('../src/tui/app.js')

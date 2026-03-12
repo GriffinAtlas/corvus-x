@@ -207,18 +207,104 @@ describe('SnapshotStore', () => {
     expect(loaded!.scores).toBeUndefined()
   })
 
-  it('loadLatest throws on corrupted JSON file', () => {
+  it('loadLatest returns null and warns when snapshot file is corrupted', () => {
     freshStore()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const nowSpy = vi.spyOn(Date, 'now')
     nowSpy.mockReturnValue(9999999)
     store.save('scan', 'corrupt', { ok: true } as any, 'raw', 0.001)
 
-    // Overwrite the saved file with invalid JSON
     const hash = crypto.createHash('sha256').update('corrupt').digest('hex').slice(0, 12)
     const snapshotFile = path.join(tmpDir, 'snapshots', `scan-${hash}`, '9999999.json')
     fs.writeFileSync(snapshotFile, '{{not valid json!!!}')
 
-    expect(() => store.loadLatest('scan', 'corrupt')).toThrow()
+    expect(store.loadLatest('scan', 'corrupt')).toBeNull()
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted snapshot'))
+    errSpy.mockRestore()
+  })
+
+  it('loadLatest falls back to earlier snapshot when latest is corrupted', () => {
+    freshStore()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(1000000)
+    store.save('scan', 'fallback', { version: 1 } as any, 'raw', 0.001)
+    nowSpy.mockReturnValue(2000000)
+    store.save('scan', 'fallback', { version: 2 } as any, 'raw', 0.001)
+
+    // Corrupt the latest file
+    const hash = crypto.createHash('sha256').update('fallback').digest('hex').slice(0, 12)
+    const corruptFile = path.join(tmpDir, 'snapshots', `scan-${hash}`, '2000000.json')
+    fs.writeFileSync(corruptFile, 'garbage')
+
+    const loaded = store.loadLatest('scan', 'fallback')
+    expect(loaded).not.toBeNull()
+    expect(loaded!.data).toEqual({ version: 1 })
+    errSpy.mockRestore()
+  })
+
+  it('loadAll skips corrupted snapshot files', () => {
+    freshStore()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(1000000)
+    store.save('scan', 'mixed', { n: 1 } as any, 'r1', 0.001)
+    nowSpy.mockReturnValue(2000000)
+    store.save('scan', 'mixed', { n: 2 } as any, 'r2', 0.001)
+    nowSpy.mockReturnValue(3000000)
+    store.save('scan', 'mixed', { n: 3 } as any, 'r3', 0.001)
+
+    // Corrupt the middle file
+    const hash = crypto.createHash('sha256').update('mixed').digest('hex').slice(0, 12)
+    const corruptFile = path.join(tmpDir, 'snapshots', `scan-${hash}`, '2000000.json')
+    fs.writeFileSync(corruptFile, '{{{bad}}}')
+
+    const all = store.loadAll('scan', 'mixed')
+    expect(all.length).toBe(2)
+    expect(all[0].data).toEqual({ n: 1 })
+    expect(all[1].data).toEqual({ n: 3 })
+    errSpy.mockRestore()
+  })
+
+  it('listTopics skips directories where all snapshots are corrupted', () => {
+    freshStore()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(1000000)
+    store.save('scan', 'good-topic', { ok: true } as any, 'raw', 0.001)
+    nowSpy.mockReturnValue(2000000)
+    store.save('pulse', 'bad-topic', { ok: true } as any, 'raw', 0.001)
+
+    // Corrupt the only pulse snapshot
+    const hash = crypto.createHash('sha256').update('bad-topic').digest('hex').slice(0, 12)
+    const corruptFile = path.join(tmpDir, 'snapshots', `pulse-${hash}`, '2000000.json')
+    fs.writeFileSync(corruptFile, 'not json')
+
+    const topics = store.listTopics()
+    expect(topics.length).toBe(1)
+    expect(topics[0].command).toBe('scan')
+    errSpy.mockRestore()
+  })
+
+  it('listTopics falls back to earlier snapshot when latest is corrupted', () => {
+    freshStore()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(1000000)
+    store.save('scan', 'partial-corrupt', { v: 1 } as any, 'raw', 0.001)
+    nowSpy.mockReturnValue(2000000)
+    store.save('scan', 'partial-corrupt', { v: 2 } as any, 'raw', 0.001)
+
+    // Corrupt the latest
+    const hash = crypto.createHash('sha256').update('partial-corrupt').digest('hex').slice(0, 12)
+    const corruptFile = path.join(tmpDir, 'snapshots', `scan-${hash}`, '2000000.json')
+    fs.writeFileSync(corruptFile, 'garbage')
+
+    const topics = store.listTopics()
+    expect(topics.length).toBe(1)
+    expect(topics[0].command).toBe('scan')
+    expect(topics[0].latest).toBe(1000000)
+    errSpy.mockRestore()
   })
 
   it('listTopics skips empty subdirectories', () => {
