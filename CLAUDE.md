@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (718 tests)
+npm test                     # vitest run (781 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -44,6 +44,7 @@ src/
     grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai, parseGrokJson, retry/timeout
     x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis, pagination)
     builders/                # 6 build functions (scan, pulse, trace, gather, read, scope) + grok-only.ts helper + barrel
+    orchestrator.ts          # executeStructuredQuery — shared snapshot orchestration for CLI + TUI
     cache.ts                 # QueryCache — file-based with SHA-256 keys, TTL, cost ledger
     schemas.ts               # Grok JSON response shapes, computed snapshot interfaces, AgentBrief, match keys
     snapshots.ts             # SnapshotStore — timestamped JSON snapshots with auto-prune
@@ -56,6 +57,11 @@ src/
   infra/
     auth.ts                  # AuthManager — env vars take precedence over ~/.corvus/credentials.json
     config.ts                # ConfigManager — manages ~/.corvus/ directory
+  tui/
+    app.tsx                  # TUI root — Ink/React full-screen interactive terminal
+    components/              # Header, InputBar, ChatLog, ResultCard, ProseResult, StatusLine, SystemNotice
+    hooks/                   # useCommand (execute + dispatch), useSession (state + reducer)
+    router.ts                # parse user input to command + args
   index.ts                   # public API surface — 27+ exports for library consumers
 tests/                       # mirrors src/ structure 1:1
 ```
@@ -73,14 +79,16 @@ tests/                       # mirrors src/ structure 1:1
 - **Cache** is wired into prose commands via `runCommand()`. Structured commands use snapshots instead.
 - **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`), falls back to `~/.corvus/credentials.json`.
 - **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.
+- **TUI** — `corvus` (no args) launches a full-screen Ink/React interactive terminal. Uses `useSession` reducer for state, `useCommand` hook for execution, `router.ts` for input parsing. Built on Ink 6 + React 19.
 - **Tests** mock `openai` and `fetch` globally. Never make real API calls. MCP tests use SDK's `Client` + `InMemoryTransport`.
 
 ## Known Limitations
 
 - **File permissions (0o600) are Unix-only** — no effect on Windows. Credentials at `~/.corvus/credentials.json` are not protected by filesystem permissions on Windows.
 - **Grok API pricing is hardcoded** in `MODEL_PRICING` (`grok-adapter.ts`). Must be updated manually when pricing changes.
-- **No `corvus cost` command** — cost ledger exists on disk (`~/.corvus/cost-ledger.json`) but no CLI command reads cumulative spend. Only per-session cost visible via REPL `/cost`.
+- **No `corvus cost` command** — cost ledger exists on disk (`~/.corvus/cost-ledger.json`) but no CLI command reads cumulative spend.
 - **Cache has no max-size limit** — files accumulate indefinitely until manual `corvus cache clear` or `evictExpired()`.
+- **eslint-plugin-react-hooks blocked** — peer dep requires ESLint <=9, we're on ESLint 10. TUI React hooks unlinted until upstream fix.
 - **Always smoke-test after build** — `npm run build && node dist/bin/corvus.js --version`. Tests run against source (tsx), not compiled output.
 
 ## Commit Style
