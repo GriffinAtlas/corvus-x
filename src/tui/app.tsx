@@ -1,6 +1,6 @@
 import React, { useReducer, useMemo } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
-import { Header } from './components/header.js'
+import { WelcomeView } from './components/welcome-view.js'
 import { ChatLog } from './components/chat-log.js'
 import { InputBar } from './components/input-bar.js'
 import { ShortcutBar } from './components/shortcut-bar.js'
@@ -15,6 +15,7 @@ import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
 import { XAdapter } from '../core/x-adapter.js'
+import { SnapshotStore } from '../core/snapshots.js'
 
 interface Props {
   version: string
@@ -23,21 +24,28 @@ interface Props {
 export function App({ version }: Props) {
   const { exit } = useApp()
 
-  const { deps, grokStatus, xApiStatus, firstRun } = useMemo(() => {
-    const configExists = ConfigManager.exists()
+  const { deps, grokStatus, xApiStatus } = useMemo(() => {
     const auth = new AuthManager(ConfigManager.defaultDir())
     const grokKey = auth.getGrokKey()
     const xToken = auth.getXToken()
 
     if (!grokKey) {
-      return { deps: null, grokStatus: 'no-key' as const, xApiStatus: 'no-key' as const, firstRun: !configExists }
+      return { deps: null, grokStatus: 'no-key' as const, xApiStatus: 'no-key' as const }
     }
 
     return {
       deps: { grok: new GrokAdapter(grokKey), x: xToken ? new XAdapter(xToken) : null },
       grokStatus: 'connected' as const,
-      xApiStatus: xToken ? 'connected' as const : 'optional' as const,
-      firstRun: !configExists,
+      xApiStatus: xToken ? ('connected' as const) : ('optional' as const),
+    }
+  }, [])
+
+  const recentTopics = useMemo(() => {
+    try {
+      const store = new SnapshotStore(ConfigManager.defaultDir())
+      return store.listTopics().slice(0, 5)
+    } catch {
+      return []
     }
   }, [])
 
@@ -59,17 +67,24 @@ export function App({ version }: Props) {
     <SessionContext value={session}>
       <DispatchContext value={dispatch}>
         <Box flexDirection="column">
-          <Header
-            version={version}
-            firstRun={firstRun}
-            grokStatus={session.grokStatus}
-            xApiStatus={session.xApiStatus}
-          />
-          <ChatLog entries={session.history} />
-          {session.queryCount > 0 && (
-            <Box paddingLeft={3} marginBottom={0}>
-              <Text dimColor>{`$${session.totalCost.toFixed(3)} · ${session.queryCount} ${session.queryCount === 1 ? 'query' : 'queries'}`}</Text>
-            </Box>
+          {session.queryCount === 0 ? (
+            <WelcomeView
+              version={version}
+              grokStatus={session.grokStatus}
+              xApiStatus={session.xApiStatus}
+              totalCost={session.totalCost}
+              queryCount={session.queryCount}
+              recentTopics={recentTopics}
+            />
+          ) : (
+            <>
+              <ChatLog entries={session.history} />
+              <Box paddingLeft={3} marginBottom={0}>
+                <Text dimColor>
+                  {`$${session.totalCost.toFixed(3)} · ${session.queryCount} ${session.queryCount === 1 ? 'query' : 'queries'}`}
+                </Text>
+              </Box>
+            </>
           )}
           <InputBar onSubmit={execute} isLoading={isLoading} />
           <ShortcutBar />

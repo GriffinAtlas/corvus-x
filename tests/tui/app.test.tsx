@@ -24,20 +24,33 @@ vi.mock('../../src/core/x-adapter.js', () => ({
   XAdapter: class {},
 }))
 
+vi.mock('../../src/core/snapshots.js', () => ({
+  SnapshotStore: class {
+    listTopics() { return [] }
+  },
+}))
+
 import { App } from '../../src/tui/app.js'
 
 describe('App', () => {
-  it('renders version and status', () => {
+  it('renders welcome view with crow art', () => {
     const { lastFrame } = render(<App version="0.2.0" />)
     const frame = lastFrame()!
-    expect(frame).toContain('0.2.0')
-    expect(frame).toContain('●')
-    expect(frame).toContain('grok')
+    expect(frame).toContain('╔═╗╔═╗╦═╗')
   })
 
-  it('renders welcome message', () => {
+  it('renders status panel with grok status', () => {
     const { lastFrame } = render(<App version="0.2.0" />)
-    expect(lastFrame()!).toContain('investigating')
+    const frame = lastFrame()!
+    expect(frame).toContain('●')
+    expect(frame).toContain('Grok')
+  })
+
+  it('renders quick start tips', () => {
+    const { lastFrame } = render(<App version="0.2.0" />)
+    const frame = lastFrame()!
+    expect(frame).toContain('Quick start')
+    expect(frame).toContain('scan')
   })
 
   it('renders shortcut bar', () => {
