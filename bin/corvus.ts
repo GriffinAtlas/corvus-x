@@ -87,9 +87,17 @@ program
   .command('repl')
   .description('[deprecated] Use corvus (no args) for interactive mode')
   .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
-  .action(async (options: { format: string }) => {
-    const { startRepl } = await import('../src/cli/repl.js')
-    await startRepl(options.format as 'table' | 'json' | 'csv' | 'md')
+  .action(async () => {
+    console.log('\n  corvus repl is deprecated. Run corvus (no args) for the interactive TUI.\n')
+    process.exit(0)
+  })
+
+program
+  .action(async () => {
+    const { render } = await import('ink')
+    const React = await import('react')
+    const { App } = await import('../src/tui/app.js')
+    render(React.createElement(App, { version: VERSION }))
   })
 
 program.parse()
