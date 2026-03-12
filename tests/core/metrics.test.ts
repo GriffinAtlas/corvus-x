@@ -10,6 +10,8 @@ import {
   detectContradictions,
   toUserMap,
   computeNewestTweetAt,
+  X_ENGAGEMENT_WEIGHTS,
+  computeEngagementScore,
 } from '../../src/core/metrics.js'
 import type { Tweet, XUser } from '../../src/core/x-adapter.js'
 import type { GrokTweetScore, GrokNarrative } from '../../src/core/schemas.js'
@@ -144,7 +146,7 @@ describe('computeBaseMetrics', () => {
 describe('computeSentiment', () => {
   it('returns zeroes for empty array', () => {
     const result = computeSentiment([])
-    expect(result).toEqual({ avg: 0, positive: 0, neutral: 0, negative: 0 })
+    expect(result).toEqual({ avg: 0, rawAvg: 0, positive: 0, neutral: 0, negative: 0 })
   })
 
   it('classifies positive, neutral, and negative sentiments', () => {
@@ -209,7 +211,7 @@ describe('computeTopAccounts', () => {
     expect(result).toEqual([])
   })
 
-  it('groups tweets by author and sorts by post count', () => {
+  it('groups tweets by author and sorts by engagement score', () => {
     const tweets = [
       makeTweet({ id: '1', authorId: 'a' }),
       makeTweet({ id: '2', authorId: 'a' }),
@@ -225,6 +227,9 @@ describe('computeTopAccounts', () => {
       makeUser({ id: 'b', username: 'bob', followersCount: 2000 }),
     ]
     const result = computeTopAccounts(tweets, scores, users)
+    // alice has 2 tweets with default metrics (10L+5RT+3R each): 2*(10+50+40.5) = 201
+    // bob has 1 tweet: 10+50+40.5 = 100.5
+    // alice first by higher engagement score
     expect(result[0].handle).toBe('alice')
     expect(result[0].postCount).toBe(2)
     expect(result[1].handle).toBe('bob')
@@ -271,7 +276,7 @@ describe('computeTopAccounts', () => {
     expect(bob.avgSentiment).toBe(-0.4)
   })
 
-  it('sorts by followers when post counts are equal', () => {
+  it('sorts by followers when engagement scores are equal', () => {
     const tweets = [makeTweet({ id: '1', authorId: 'a' }), makeTweet({ id: '2', authorId: 'b' })]
     const scores: GrokTweetScore[] = [
       { index: 0, sentiment: 0, narrative: 'x' },
@@ -282,7 +287,7 @@ describe('computeTopAccounts', () => {
       makeUser({ id: 'b', username: 'highreach', followersCount: 50000 }),
     ]
     const result = computeTopAccounts(tweets, scores, users)
-    // Both have 1 post, so sorted by followers desc
+    // Same default metrics => same engagement score, so sorted by followers desc
     expect(result[0].handle).toBe('highreach')
     expect(result[1].handle).toBe('lowreach')
   })
@@ -326,7 +331,7 @@ describe('computeTopPosts', () => {
     expect(result).toEqual([])
   })
 
-  it('sorts by engagement descending', () => {
+  it('sorts by weighted engagement descending', () => {
     const tweets = [
       makeTweet({
         id: '1',
@@ -345,11 +350,11 @@ describe('computeTopPosts', () => {
     ]
     const result = computeTopPosts(tweets, users)
     expect(result[0].id).toBe('2')
-    // 100 + 50 + 20 + 1000 = 1170
-    expect(result[0].engagement).toBe(1170)
+    // 100*1 + 50*10 + 20*13.5 = 100 + 500 + 270 = 870
+    expect(result[0].engagement).toBe(870)
     expect(result[1].id).toBe('1')
-    // 1 + 0 + 0 + 10 = 11
-    expect(result[1].engagement).toBe(11)
+    // 1*1 + 0*10 + 0*13.5 = 1
+    expect(result[1].engagement).toBe(1)
   })
 
   it('truncates text at 200 characters with ellipsis', () => {
@@ -394,7 +399,7 @@ describe('computeKeyVoices', () => {
     expect(result).toEqual([])
   })
 
-  it('sorts by reach (followers) descending', () => {
+  it('sorts by engagement score, falls back to reach', () => {
     const tweets = [makeTweet({ id: '1', authorId: 'a' }), makeTweet({ id: '2', authorId: 'b' })]
     const scores: GrokTweetScore[] = [
       { index: 0, sentiment: 0.5, narrative: 'x' },
@@ -405,6 +410,7 @@ describe('computeKeyVoices', () => {
       makeUser({ id: 'b', username: 'bigshot', followersCount: 50000 }),
     ]
     const result = computeKeyVoices(tweets, scores, users)
+    // Same default metrics => same engagement score, falls back to reach
     expect(result[0].handle).toBe('bigshot')
     expect(result[0].reach).toBe(50000)
     expect(result[1].handle).toBe('smallfry')
@@ -1107,5 +1113,199 @@ describe('computeNewestTweetAt', () => {
     const result = computeNewestTweetAt(tweets)
     expect(result).toBeTypeOf('number')
     expect(result).toBeGreaterThan(0)
+  })
+})
+
+describe('X_ENGAGEMENT_WEIGHTS', () => {
+  it('exports weights with replies > retweets > likes', () => {
+    expect(X_ENGAGEMENT_WEIGHTS.reply).toBeGreaterThan(X_ENGAGEMENT_WEIGHTS.retweet)
+    expect(X_ENGAGEMENT_WEIGHTS.retweet).toBeGreaterThan(X_ENGAGEMENT_WEIGHTS.like)
+  })
+
+  it('has expected values', () => {
+    expect(X_ENGAGEMENT_WEIGHTS).toEqual({ like: 1.0, retweet: 10.0, reply: 13.5 })
+  })
+})
+
+describe('computeEngagementScore', () => {
+  it('computes weighted score from tweet metrics', () => {
+    const tweet = makeTweet({
+      id: '1',
+      authorId: 'a',
+      metrics: { likes: 100, retweets: 20, replies: 10, impressions: 5000 },
+    })
+    // 100*1 + 20*10 + 10*13.5 = 100 + 200 + 135 = 435
+    const score = computeEngagementScore(tweet)
+    expect(score).toBe(435)
+  })
+
+  it('returns 0 for tweet with no engagement', () => {
+    const tweet = makeTweet({
+      id: '1',
+      authorId: 'a',
+      metrics: { likes: 0, retweets: 0, replies: 0, impressions: 0 },
+    })
+    expect(computeEngagementScore(tweet)).toBe(0)
+  })
+
+  it('weights replies highest', () => {
+    const replyHeavy = makeTweet({
+      id: '1',
+      authorId: 'a',
+      metrics: { likes: 0, retweets: 0, replies: 50, impressions: 0 },
+    })
+    const likeHeavy = makeTweet({
+      id: '2',
+      authorId: 'a',
+      metrics: { likes: 500, retweets: 0, replies: 0, impressions: 0 },
+    })
+    // 50*13.5 = 675 vs 500*1 = 500
+    expect(computeEngagementScore(replyHeavy)).toBeGreaterThan(computeEngagementScore(likeHeavy))
+  })
+})
+
+describe('computeSentiment weighted', () => {
+  it('returns rawAvg equal to avg when no tweets provided', () => {
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.5, narrative: 'a' },
+      { index: 1, sentiment: -0.5, narrative: 'b' },
+    ]
+    const result = computeSentiment(scores)
+    expect(result.rawAvg).toBe(result.avg)
+    expect(result.rawAvg).toBe(0)
+  })
+
+  it('computes engagement-weighted avg when tweets provided', () => {
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.8, narrative: 'bull' },
+      { index: 1, sentiment: -0.4, narrative: 'bear' },
+    ]
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 100, retweets: 0, replies: 0, impressions: 0 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 0, retweets: 0, replies: 100, impressions: 0 },
+      }),
+    ]
+    const result = computeSentiment(scores, tweets)
+    // tweet 1 score: 100*1 = 100, sentiment 0.8
+    // tweet 2 score: 100*13.5 = 1350, sentiment -0.4
+    // weighted avg: (100*0.8 + 1350*-0.4) / (100 + 1350) = (80 - 540) / 1450 ≈ -0.32
+    expect(result.avg).toBeCloseTo(-0.32, 1)
+    expect(result.rawAvg).toBe(0.2) // simple avg: (0.8 + -0.4) / 2 = 0.2
+  })
+
+  it('rawAvg always reflects simple average', () => {
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 1.0, narrative: 'a' },
+      { index: 1, sentiment: 0.0, narrative: 'b' },
+    ]
+    const result = computeSentiment(scores)
+    expect(result.rawAvg).toBe(0.5)
+  })
+})
+
+describe('computeTopAccounts engagement', () => {
+  it('returns engagementScore on each entry', () => {
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 100, retweets: 10, replies: 5, impressions: 0 },
+      }),
+    ]
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.5, narrative: 'x' }]
+    const users = [makeUser({ id: 'a', username: 'alice' })]
+    const result = computeTopAccounts(tweets, scores, users)
+    // 100*1 + 10*10 + 5*13.5 = 100 + 100 + 67.5 = 267.5
+    expect(result[0].engagementScore).toBe(267.5)
+  })
+
+  it('sorts by engagementScore descending', () => {
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 500, retweets: 0, replies: 0, impressions: 0 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 0, retweets: 0, replies: 50, impressions: 0 },
+      }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.5, narrative: 'x' },
+      { index: 1, sentiment: -0.3, narrative: 'y' },
+    ]
+    const users = [
+      makeUser({ id: 'a', username: 'alice', followersCount: 10000 }),
+      makeUser({ id: 'b', username: 'bob', followersCount: 100 }),
+    ]
+    const result = computeTopAccounts(tweets, scores, users)
+    // alice: 500*1 = 500
+    // bob: 50*13.5 = 675
+    expect(result[0].handle).toBe('bob')
+    expect(result[1].handle).toBe('alice')
+  })
+})
+
+describe('computeTopPosts engagement-weighted', () => {
+  it('sorts by engagement score not raw sum', () => {
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 500, retweets: 0, replies: 0, impressions: 5000 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 0, retweets: 0, replies: 50, impressions: 100 },
+      }),
+    ]
+    const users = [
+      makeUser({ id: 'a', username: 'alice' }),
+      makeUser({ id: 'b', username: 'bob' }),
+    ]
+    const result = computeTopPosts(tweets, users)
+    // tweet 1: 500*1 + 0*10 + 0*13.5 = 500
+    // tweet 2: 0*1 + 0*10 + 50*13.5 = 675
+    expect(result[0].id).toBe('2')
+    expect(result[0].engagement).toBe(675)
+  })
+})
+
+describe('computeKeyVoices engagement-weighted', () => {
+  it('sorts by engagement score not follower count', () => {
+    const tweets = [
+      makeTweet({
+        id: '1',
+        authorId: 'a',
+        metrics: { likes: 0, retweets: 0, replies: 100, impressions: 0 },
+      }),
+      makeTweet({
+        id: '2',
+        authorId: 'b',
+        metrics: { likes: 500, retweets: 0, replies: 0, impressions: 0 },
+      }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.5, narrative: 'x' },
+      { index: 1, sentiment: -0.3, narrative: 'y' },
+    ]
+    const users = [
+      makeUser({ id: 'a', username: 'alice', followersCount: 100 }),
+      makeUser({ id: 'b', username: 'bob', followersCount: 100000 }),
+    ]
+    const result = computeKeyVoices(tweets, scores, users)
+    // alice: 100*13.5 = 1350
+    // bob: 500*1 = 500
+    expect(result[0].handle).toBe('alice')
   })
 })

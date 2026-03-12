@@ -94,7 +94,7 @@ describe('computeGrokOnlyMetrics', () => {
 describe('computeGrokOnlySentiment', () => {
   it('returns zeroes for empty array', () => {
     const result = computeGrokOnlySentiment([])
-    expect(result).toEqual({ avg: 0, positive: 0, neutral: 0, negative: 0 })
+    expect(result).toEqual({ avg: 0, rawAvg: 0, positive: 0, neutral: 0, negative: 0 })
   })
 
   it('classifies sentiments correctly and averages', () => {
@@ -111,6 +111,19 @@ describe('computeGrokOnlySentiment', () => {
     expect(result.negative).toBe(2)
     // avg = (0.5 + 0.1 + -0.3 + -0.5 + 0.2) / 5 = 0.0 / 5 = 0
     expect(result.avg).toBe(0)
+  })
+
+  it('returns rawAvg equal to avg', () => {
+    const result = computeGrokOnlySentiment([
+      { sentiment: 0.5 },
+      { sentiment: -0.3 },
+    ])
+    expect(result.rawAvg).toBe(result.avg)
+  })
+
+  it('returns rawAvg 0 for empty array', () => {
+    const result = computeGrokOnlySentiment([])
+    expect(result.rawAvg).toBe(0)
   })
 })
 
@@ -204,10 +217,11 @@ describe('buildScanSnapshot — X API path', () => {
     expect(result.data.sentiment.neutral).toBe(1) // -0.2 between thresholds
     expect(result.data.sentiment.negative).toBe(0)
     expect(result.data.topAccounts).toHaveLength(2)
-    expect(result.data.topAccounts[0].handle).toBe('bob') // sorted by followers desc
-    expect(result.data.topAccounts[0].followers).toBe(2000)
-    expect(result.data.topAccounts[1].handle).toBe('alice')
-    expect(result.data.topAccounts[1].followers).toBe(1000)
+    // alice: 10*1+5*10+2*13.5=87, bob: 20*1+3*10+1*13.5=63.5 — sorted by engagement score desc
+    expect(result.data.topAccounts[0].handle).toBe('alice')
+    expect(result.data.topAccounts[0].followers).toBe(1000)
+    expect(result.data.topAccounts[1].handle).toBe('bob')
+    expect(result.data.topAccounts[1].followers).toBe(2000)
     expect(result.data.narratives).toHaveLength(2)
     expect(result.data.narratives[0].theme).toBe('tech')
     expect(result.data.signals).toEqual(['Signal A', 'Signal B'])
@@ -313,10 +327,11 @@ describe('buildPulseSnapshot — X API path', () => {
     expect(result.data.bullSignals).toEqual(['Bull signal 1'])
     expect(result.data.bearSignals).toEqual(['Bear signal 1'])
     expect(result.data.keyVoices).toHaveLength(2)
-    expect(result.data.keyVoices[0].handle).toBe('bob') // sorted by reach desc
-    expect(result.data.keyVoices[0].reach).toBe(2000)
-    expect(result.data.keyVoices[1].handle).toBe('alice')
-    expect(result.data.keyVoices[1].reach).toBe(1000)
+    // alice: 10*1+5*10+2*13.5=87, bob: 20*1+3*10+1*13.5=63.5 — sorted by engagement score desc
+    expect(result.data.keyVoices[0].handle).toBe('alice')
+    expect(result.data.keyVoices[0].reach).toBe(1000)
+    expect(result.data.keyVoices[1].handle).toBe('bob')
+    expect(result.data.keyVoices[1].reach).toBe(2000)
     expect(result.data.metrics.tweetCount).toBe(2)
     expect(result.data.sentiment.avg).toBeCloseTo(0.1, 2) // (0.5 + -0.3)/2
   })
@@ -662,11 +677,12 @@ describe('buildGatherSnapshot — X API path', () => {
     expect(result.data.sentiment.positive).toBe(1)
     expect(result.data.sentiment.neutral).toBe(1)
     expect(result.data.sentiment.negative).toBe(0)
-    expect(result.data.topPosts).toHaveLength(2) // sorted by engagement desc
-    expect(result.data.topPosts[0].id).toBe('2')
-    expect(result.data.topPosts[0].engagement).toBe(224)
-    expect(result.data.topPosts[1].id).toBe('1')
-    expect(result.data.topPosts[1].engagement).toBe(117)
+    expect(result.data.topPosts).toHaveLength(2) // sorted by weighted engagement desc
+    // tweet 1: 10*1+5*10+2*13.5=87, tweet 2: 20*1+3*10+1*13.5=63.5
+    expect(result.data.topPosts[0].id).toBe('1')
+    expect(result.data.topPosts[0].engagement).toBe(87)
+    expect(result.data.topPosts[1].id).toBe('2')
+    expect(result.data.topPosts[1].engagement).toBe(63.5)
     expect(result.data.narratives).toHaveLength(2)
     expect(result.data.narratives[0].theme).toBe('tech')
     expect(result.cost).toBe(0.002)

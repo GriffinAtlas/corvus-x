@@ -13,6 +13,23 @@ import type {
 } from './schemas.js'
 import type { Snapshot } from './schemas.js'
 
+// Engagement weights derived from X's open-sourced algorithm (Heavy Ranker, April 2023)
+// Source: twitter/the-algorithm-ml, normalized to likes = 1.0
+// 2026 conservative estimates: replies ~13.5x, retweets ~10x
+// Last calibrated: 2026-03-12
+export const X_ENGAGEMENT_WEIGHTS = {
+  like: 1.0,
+  retweet: 10.0,
+  reply: 13.5,
+} as const
+
+export function computeEngagementScore(tweet: Tweet): number {
+  const { likes, retweets, replies } = tweet.metrics
+  return likes * X_ENGAGEMENT_WEIGHTS.like
+    + retweets * X_ENGAGEMENT_WEIGHTS.retweet
+    + replies * X_ENGAGEMENT_WEIGHTS.reply
+}
+
 export function toUserMap(users: XUser[]): Map<string, XUser> {
   return new Map(users.map((u) => [u.id, u]))
 }
@@ -42,9 +59,9 @@ export function computeBaseMetrics(tweets: Tweet[]): BaseMetrics {
   }
 }
 
-export function computeSentiment(scores: GrokTweetScore[]): SentimentBreakdown {
+export function computeSentiment(scores: GrokTweetScore[], tweets?: Tweet[]): SentimentBreakdown {
   if (scores.length === 0) {
-    return { avg: 0, positive: 0, neutral: 0, negative: 0 }
+    return { avg: 0, rawAvg: 0, positive: 0, neutral: 0, negative: 0 }
   }
 
   let positive = 0
@@ -60,12 +77,25 @@ export function computeSentiment(scores: GrokTweetScore[]): SentimentBreakdown {
     else neutral++
   }
 
-  return {
-    avg: Math.round((total / scores.length) * 100) / 100,
-    positive,
-    neutral,
-    negative,
+  const rawAvg = Math.round((total / scores.length) * 100) / 100
+
+  let avg = rawAvg
+  if (tweets && tweets.length > 0) {
+    let weightedSum = 0
+    let totalWeight = 0
+    for (const s of scores) {
+      const tweet = s.index >= 0 && s.index < tweets.length ? tweets[s.index] : null
+      const weight = tweet ? computeEngagementScore(tweet) : 1
+      const effectiveWeight = Math.max(weight, 1)
+      weightedSum += Math.max(-1, Math.min(1, s.sentiment)) * effectiveWeight
+      totalWeight += effectiveWeight
+    }
+    if (totalWeight > 0) {
+      avg = Math.round((weightedSum / totalWeight) * 100) / 100
+    }
   }
+
+  return { avg, rawAvg, positive, neutral, negative }
 }
 
 export function computeTopAccounts(
@@ -75,7 +105,7 @@ export function computeTopAccounts(
   limit = 10,
 ): AccountEntry[] {
   const userMap = toUserMap(users)
-  const authorStats = new Map<string, { count: number; sentimentSum: number; authorId: string }>()
+  const authorStats = new Map<string, { count: number; sentimentSum: number; authorId: string; engagementScore: number }>()
 
   for (let i = 0; i < tweets.length; i++) {
     const tweet = tweets[i]
@@ -83,8 +113,10 @@ export function computeTopAccounts(
       count: 0,
       sentimentSum: 0,
       authorId: tweet.authorId,
+      engagementScore: 0,
     }
     existing.count++
+    existing.engagementScore += computeEngagementScore(tweet)
 
     const score = scores.find((s) => s.index === i)
     if (score) existing.sentimentSum += score.sentiment
@@ -101,11 +133,12 @@ export function computeTopAccounts(
       followers: user?.followersCount ?? 0,
       avgSentiment:
         stats.count > 0 ? Math.round((stats.sentimentSum / stats.count) * 100) / 100 : 0,
+      engagementScore: stats.engagementScore,
     })
   }
 
   return entries
-    .sort((a, b) => b.postCount - a.postCount || b.followers - a.followers)
+    .sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0) || b.followers - a.followers)
     .slice(0, limit)
 }
 
@@ -154,7 +187,7 @@ export function computeTopPosts(
       id: t.id,
       author: userMap.get(t.authorId)?.username ?? t.authorId,
       text: t.text.length > 200 ? t.text.slice(0, 200) + '...' : t.text,
-      engagement: t.metrics.likes + t.metrics.retweets + t.metrics.replies + t.metrics.impressions,
+      engagement: computeEngagementScore(t),
     }))
     .sort((a, b) => b.engagement - a.engagement)
     .slice(0, limit)
@@ -169,7 +202,7 @@ export function computeKeyVoices(
   const userMap = toUserMap(users)
   const voiceMap = new Map<
     string,
-    { sentimentSum: number; count: number; reach: number; handle: string }
+    { sentimentSum: number; count: number; reach: number; engagementScore: number; handle: string }
   >()
 
   for (let i = 0; i < tweets.length; i++) {
@@ -181,9 +214,11 @@ export function computeKeyVoices(
       sentimentSum: 0,
       count: 0,
       reach: user?.followersCount ?? 0,
+      engagementScore: 0,
       handle,
     }
     existing.count++
+    existing.engagementScore += computeEngagementScore(tweet)
     if (score) existing.sentimentSum += score.sentiment
     voiceMap.set(handle, existing)
   }
@@ -194,7 +229,11 @@ export function computeKeyVoices(
       sentiment: v.count > 0 ? Math.round((v.sentimentSum / v.count) * 100) / 100 : 0,
       reach: v.reach,
     }))
-    .sort((a, b) => b.reach - a.reach)
+    .sort((a, b) => {
+      const aScore = voiceMap.get(a.handle)!.engagementScore
+      const bScore = voiceMap.get(b.handle)!.engagementScore
+      return bScore - aScore || b.reach - a.reach
+    })
     .slice(0, limit)
 }
 
