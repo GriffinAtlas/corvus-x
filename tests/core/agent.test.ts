@@ -1141,7 +1141,7 @@ describe('AgentSynthesizer onChunk', () => {
     const synthesizer = new AgentSynthesizer(mockGrok as any)
     const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [] }
 
-    await synthesizer.synthesize(context, (text) => {})
+    await synthesizer.synthesize(context, (_text) => {})
     expect(mockGrok.queryStream).toHaveBeenCalled()
     expect(mockGrok.query).not.toHaveBeenCalled()
   })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GrokAdapter, parseGrokJson, GrokParseError, MODEL_PRICING, DEFAULT_MODEL } from '../../src/core/grok-adapter.js'
+import { GrokAdapter, parseGrokJson, GrokParseError, MODEL_PRICING } from '../../src/core/grok-adapter.js'
 import { z } from 'zod/v4'
 
 const mockCreate = vi.fn()
