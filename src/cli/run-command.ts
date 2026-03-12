@@ -5,8 +5,7 @@ import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
 import { XAdapter } from '../core/x-adapter.js'
 import { QueryCache } from '../core/cache.js'
-import { SnapshotStore } from '../core/snapshots.js'
-import { diffSnapshots } from '../core/differ.js'
+import { executeStructuredQuery } from '../core/orchestrator.js'
 import { formatOutput, formatStructuredOutput } from './output.js'
 import type {
   GrokResponse,
@@ -17,7 +16,6 @@ import type {
 } from '../core/types.js'
 import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
-import type { DiffLine } from '../core/differ.js'
 
 function initDeps(): CorvusDeps {
   const auth = new AuthManager(ConfigManager.defaultDir())
@@ -126,41 +124,28 @@ export async function runStructuredCommand<T extends Snapshot>(
 
   const deps = initDeps()
   const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
-  const store = new SnapshotStore(ConfigManager.defaultDir())
 
   try {
-    const previous = store.loadLatest<T>(opts.command, opts.topic)
-    const built = await opts.buildSnapshot(deps)
-    spinner.stop()
-
-    const stored = store.save(
-      opts.command,
-      opts.topic,
-      built.data,
-      built.raw,
-      built.cost,
-      built.tweets,
-      built.scores,
-    )
-
-    let diff: DiffLine[] = []
-    let timeSinceLast = 0
-    if (previous) {
-      diff = diffSnapshots(previous.data, stored.data, opts.matchKeys)
-      timeSinceLast = stored.timestamp - previous.timestamp
-    }
-
-    const result: StructuredCommandResult<T> = {
+    const result = await executeStructuredQuery({
       command: opts.command,
       topic: opts.topic,
-      data: stored.data,
-      cost: built.cost,
-      timestamp: stored.timestamp,
-      diff,
-      timeSinceLast,
+      matchKeys: opts.matchKeys,
+      buildSnapshot: () => opts.buildSnapshot(deps),
+      baseDir: ConfigManager.defaultDir(),
+    })
+    spinner.stop()
+
+    const structured: StructuredCommandResult<T> = {
+      command: opts.command,
+      topic: opts.topic,
+      data: result.data,
+      cost: result.cost,
+      timestamp: result.timestamp,
+      diff: result.diff,
+      timeSinceLast: result.timeSinceLast,
     }
 
-    console.log(formatStructuredOutput(result, opts.format, opts.renderSnapshot))
+    console.log(formatStructuredOutput(structured, opts.format, opts.renderSnapshot))
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)
