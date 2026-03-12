@@ -103,4 +103,25 @@ describe('ChatLog', () => {
     expect(frame).toContain('20 more lines')
     expect(frame).toContain('/view 1')
   })
+
+  it('shows full prose content when expanded', () => {
+    const longText = Array.from({ length: 70 }, (_, i) => `paragraph ${i + 1}`).join('\n')
+    const entries: ChatEntry[] = [
+      { type: 'prose', text: longText, cost: 0.002, expanded: true },
+    ]
+    const { lastFrame } = render(<ChatLog entries={entries} />)
+    const frame = lastFrame()!
+    expect(frame).toContain('paragraph 70')
+    expect(frame).not.toContain('more lines')
+  })
+
+  it('truncation footer uses correct /view index when startIndex is non-zero', () => {
+    const longOutput = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n')
+    const entries: ChatEntry[] = [
+      { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
+    ]
+    const { lastFrame } = render(<ChatLog entries={entries} startIndex={4} />)
+    const frame = lastFrame()!
+    expect(frame).toContain('/view 5')
+  })
 })

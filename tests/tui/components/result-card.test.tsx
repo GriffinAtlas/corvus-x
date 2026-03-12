@@ -46,4 +46,21 @@ describe('ResultCard', () => {
     )
     expect(lastFrame()!).not.toContain('more lines')
   })
+
+  it('hides truncation footer when truncated prop is omitted', () => {
+    const { lastFrame } = render(
+      <ResultCard command="scan" topic="btc" rendered="output" cost={0.003} elapsed={1200} />,
+    )
+    expect(lastFrame()!).not.toContain('more lines')
+  })
+
+  it('truncation footer shows /view 1 when index is omitted', () => {
+    const { lastFrame } = render(
+      <ResultCard command="scan" topic="btc" rendered="output" cost={0.003} elapsed={1200}
+        truncated={10} />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('10 more lines')
+    expect(frame).toContain('/view 1')
+  })
 })

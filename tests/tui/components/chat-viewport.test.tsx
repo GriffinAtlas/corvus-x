@@ -57,4 +57,67 @@ describe('ChatViewport', () => {
     const frame = lastFrame()!
     expect(frame).toContain('message 1')
   })
+
+  it('clamps negative scroll offset to 0', () => {
+    const entries = makeEntries(5)
+    const { lastFrame } = render(
+      <ChatViewport entries={entries} scrollOffset={-5} viewportHeight={20} />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('message 5')
+    expect(frame).not.toContain('more below')
+  })
+
+  it('renders single entry with no scroll indicators', () => {
+    const entries = makeEntries(1)
+    const { lastFrame } = render(
+      <ChatViewport entries={entries} scrollOffset={0} viewportHeight={20} />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('message 1')
+    expect(frame).not.toContain('more above')
+    expect(frame).not.toContain('more below')
+  })
+
+  it('correctly estimates height for result entries', () => {
+    // A result with 5 lines of content: estimated height = 5 + 3 = 8
+    // With viewportHeight=9, one result should fit but two should not
+    const resultEntry: ChatEntry = {
+      type: 'result',
+      command: 'scan',
+      topic: 'btc',
+      rendered: 'line1\nline2\nline3\nline4\nline5',
+      cost: 0.003,
+      elapsed: 1200,
+    }
+    const entries: ChatEntry[] = [
+      { type: 'user', text: 'query 1' },
+      resultEntry,
+      { type: 'user', text: 'query 2' },
+    ]
+    // viewportHeight=9 should fit the result (8) + one user (1) = 9 exactly
+    const { lastFrame } = render(
+      <ChatViewport entries={entries} scrollOffset={0} viewportHeight={9} />,
+    )
+    const frame = lastFrame()!
+    // Should show the last two entries (result + query 2) fitting in 9 lines
+    expect(frame).toContain('query 2')
+    expect(frame).toContain('line1')
+  })
+
+  it('correctly estimates height for prose entries', () => {
+    const proseEntry: ChatEntry = {
+      type: 'prose',
+      text: 'para1\npara2\npara3',
+      cost: 0.002,
+    }
+    const entries: ChatEntry[] = [proseEntry]
+    // prose height = 3 lines + 3 = 6, should fit in viewport of 10
+    const { lastFrame } = render(
+      <ChatViewport entries={entries} scrollOffset={0} viewportHeight={10} />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('para1')
+    expect(frame).not.toContain('more above')
+  })
 })

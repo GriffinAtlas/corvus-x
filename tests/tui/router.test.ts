@@ -159,6 +159,54 @@ describe('parseInput', () => {
     })
   })
 
+  describe('edge cases', () => {
+    it('treats /view 1.9 as /view 1 (parseInt behavior)', () => {
+      expect(parseInput('/view 1.9')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { index: '1' },
+      })
+    })
+
+    it('returns error for ask without question', () => {
+      expect(parseInput('ask')).toEqual({
+        type: 'error',
+        message: 'Usage: ask <question>',
+      })
+    })
+
+    it('returns error for pulse without topic', () => {
+      expect(parseInput('pulse')).toEqual({
+        type: 'error',
+        message: 'Usage: pulse <topic>',
+      })
+    })
+
+    it('returns error for trace without topic', () => {
+      expect(parseInput('trace')).toEqual({
+        type: 'error',
+        message: 'Usage: trace <topic>',
+      })
+    })
+
+    it('returns error for gather without topic', () => {
+      expect(parseInput('gather')).toEqual({
+        type: 'error',
+        message: 'Usage: gather <topic>',
+      })
+    })
+
+    it('slash commands are case-insensitive', () => {
+      expect(parseInput('/HELP')).toEqual({ type: 'slash', command: 'help' })
+      expect(parseInput('/EXIT')).toEqual({ type: 'slash', command: 'exit' })
+    })
+
+    it('returns error for /view with non-numeric text', () => {
+      const result = parseInput('/view /help')
+      expect(result.type).toBe('error')
+    })
+  })
+
   describe('natural language fallback', () => {
     it('treats unrecognized input as ask', () => {
       expect(parseInput('why is bitcoin pumping')).toEqual({

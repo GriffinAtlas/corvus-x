@@ -29,4 +29,20 @@ describe('ProseResult', () => {
     )
     expect(lastFrame()!).not.toContain('more lines')
   })
+
+  it('hides truncation footer when truncated prop is omitted', () => {
+    const { lastFrame } = render(
+      <ProseResult text="some text" cost={0.002} />,
+    )
+    expect(lastFrame()!).not.toContain('more lines')
+  })
+
+  it('truncation footer shows /view 1 when index is omitted', () => {
+    const { lastFrame } = render(
+      <ProseResult text="some text" cost={0.002} truncated={15} />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('15 more lines')
+    expect(frame).toContain('/view 1')
+  })
 })

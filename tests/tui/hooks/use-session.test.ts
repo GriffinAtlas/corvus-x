@@ -119,4 +119,54 @@ describe('sessionReducer', () => {
     const state2 = sessionReducer(state, { type: 'expand-entry', index: 0 })
     expect(state2.history[0]).toEqual(state.history[0])
   })
+
+  it('expand-entry no-ops when index is negative', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: -1 })
+    const entry = state.history[0]
+    expect(entry.type).toBe('result')
+    if (entry.type === 'result') expect(entry.expanded).toBeUndefined()
+  })
+
+  it('expand-entry no-ops on error entry', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-error',
+      message: 'Something failed',
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    expect(state.history[0]).toEqual({ type: 'error', message: 'Something failed' })
+  })
+
+  it('expand-entry no-ops on system entry', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'system', message: 'Welcome' },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    expect(state.history[0]).toEqual({ type: 'system', message: 'Welcome' })
+  })
+
+  it('expand-entry no-ops when index is NaN', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: NaN })
+    const entry = state.history[0]
+    expect(entry.type).toBe('result')
+    if (entry.type === 'result') expect(entry.expanded).toBeUndefined()
+  })
+
+  it('clear-history preserves startTime', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-query',
+      entry: { type: 'user', text: 'test' },
+    })
+    const { startTime } = state
+    state = sessionReducer(state, { type: 'clear-history' })
+    expect(state.startTime).toBe(startTime)
+  })
 })
