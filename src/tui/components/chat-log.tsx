@@ -10,6 +10,7 @@ const PROSE_MAX_LINES = 50
 
 interface Props {
   entries: ChatEntry[]
+  startIndex?: number
 }
 
 function renderEntry(entry: ChatEntry, index: number) {
@@ -61,12 +62,12 @@ function renderEntry(entry: ChatEntry, index: number) {
   }
 }
 
-export function ChatLog({ entries }: Props) {
+export function ChatLog({ entries, startIndex = 0 }: Props) {
   if (entries.length === 0) return null
 
   return (
     <Box flexDirection="column">
-      {entries.map(renderEntry)}
+      {entries.map((entry, i) => renderEntry(entry, startIndex + i))}
     </Box>
   )
 }
