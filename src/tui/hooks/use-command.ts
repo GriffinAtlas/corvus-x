@@ -63,6 +63,7 @@ async function runStructured<T extends Snapshot>(
 // because useCommand is called in the same component that provides the context.
 export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void) {
   const [isLoading, setIsLoading] = useState(false)
+  const [phaseLabel, setPhaseLabel] = useState<string | null>(null)
 
   const execute = useCallback(async (input: string) => {
     const parsed = parseInput(input)
@@ -93,6 +94,11 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         case 'exit':
           exit()
           return
+        case 'view': {
+          const index = parseInt(parsed.args?.index ?? '') - 1
+          dispatch({ type: 'expand-entry', index })
+          return
+        }
       }
       return
     }
@@ -120,6 +126,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       const baseDir = ConfigManager.defaultDir()
 
       if (command === 'ask') {
+        setPhaseLabel('thinking...')
         const response = await deps.grok.query(args.question, {
           enableXSearch: true,
           systemPrompt: 'You are Corvus, a sharp intelligence analyst. Be concise and direct. Lead with the key insight.',
@@ -131,15 +138,19 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           entry: { type: 'prose', text: response.text, cost: response.usage.costUsd },
         })
       } else if (command === 'scan') {
+        setPhaseLabel(`scanning "${args.topic}"...`)
         await runStructured(dispatch, deps, 'scan', args.topic, SCAN_MATCH_KEYS,
           () => buildScanSnapshot(deps, args.topic, 50), renderScan, startTime, baseDir)
       } else if (command === 'pulse') {
+        setPhaseLabel(`analyzing sentiment for "${args.topic}"...`)
         await runStructured(dispatch, deps, 'pulse', args.topic, PULSE_MATCH_KEYS,
           () => buildPulseSnapshot(deps, args.topic, 50), renderPulse, startTime, baseDir)
       } else if (command === 'trace') {
+        setPhaseLabel(`tracing "${args.topic}"...`)
         await runStructured(dispatch, deps, 'trace', args.topic, TRACE_MATCH_KEYS,
           () => buildTraceSnapshot(deps, args.topic, 50), renderTrace, startTime, baseDir)
       } else if (command === 'gather') {
+        setPhaseLabel(`gathering intelligence on "${args.topic}"...`)
         await runStructured(dispatch, deps, 'gather', args.topic, GATHER_MATCH_KEYS,
           () => buildGatherSnapshot(deps, args.topic, 50), renderGather, startTime, baseDir)
       } else if (command === 'read') {
@@ -148,9 +159,11 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           dispatch({ type: 'add-error', message: 'Invalid tweet ID or URL.' })
           return
         }
+        setPhaseLabel('analyzing tweet...')
         await runStructured(dispatch, deps, 'read', tweetId, {},
           () => buildReadSnapshot(deps, tweetId), renderRead, startTime, baseDir)
       } else if (command === 'scope') {
+        setPhaseLabel(`profiling @${args.username}...`)
         await runStructured(dispatch, deps, 'scope', args.username, {},
           () => buildScopeSnapshot(deps, args.username, 10), renderScope, startTime, baseDir)
       }
@@ -166,9 +179,10 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         dispatch({ type: 'add-error', message })
       }
     } finally {
+      setPhaseLabel(null)
       setIsLoading(false)
     }
   }, [deps, dispatch, exit])
 
-  return { execute, isLoading }
+  return { execute, isLoading, phaseLabel }
 }
