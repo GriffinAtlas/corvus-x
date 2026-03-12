@@ -4,45 +4,52 @@ import { render } from 'ink-testing-library'
 import { Header } from '../../../src/tui/components/header.js'
 
 describe('Header', () => {
-  it('always shows crow art and CORVUS logo', () => {
-    const { lastFrame } = render(<Header version="0.2.0" firstRun={false} />)
-    const frame = lastFrame()!
-    expect(frame).toContain('⣠⣤⣄⣀⣀')
-    expect(frame).toContain('╔═╗╔═╗╦═╗╦')
-    expect(frame).toContain('0.2.0')
+  it('shows CORVUS logo', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="connected" />,
+    )
+    expect(lastFrame()!).toContain('╔═╗╔═╗╦═╗╦')
   })
 
-  it('shows version and tagline', () => {
-    const { lastFrame } = render(<Header version="0.2.0" firstRun={false} />)
-    const frame = lastFrame()!
-    expect(frame).toContain('v0.2.0')
-    expect(frame).toContain('X intelligence agent')
+  it('shows version', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="connected" />,
+    )
+    expect(lastFrame()!).toContain('v0.2.0')
   })
 
-  it('shows divider line', () => {
-    const { lastFrame } = render(<Header version="0.2.0" firstRun={false} />)
-    expect(lastFrame()!).toContain('──────')
+  it('shows status dots', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="no-key" />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('●')
+    expect(frame).toContain('○')
   })
 
-  it('shows getting started guide on first run', () => {
-    const { lastFrame } = render(<Header version="0.2.0" firstRun={true} />)
+  it('shows setup prompt when no grok key', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={true} grokStatus="no-key" xApiStatus="no-key" />,
+    )
     const frame = lastFrame()!
-    expect(frame).toContain('Getting started')
     expect(frame).toContain('corvus auth setup')
-    expect(frame).toContain('scan bitcoin')
-    expect(frame).toContain('autonomous investigation')
+    expect(frame).toContain('console.x.ai')
   })
 
-  it('shows command list on first run', () => {
-    const { lastFrame } = render(<Header version="0.2.0" firstRun={true} />)
+  it('shows tips on first run with keys', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={true} grokStatus="connected" xApiStatus="optional" />,
+    )
     const frame = lastFrame()!
-    expect(frame).toContain('scan')
-    expect(frame).toContain('pulse')
+    expect(frame).toContain('scan bitcoin')
+    expect(frame).toContain('pulse ethereum')
     expect(frame).toContain('agent')
   })
 
-  it('does not show getting started for returning users', () => {
-    const { lastFrame } = render(<Header version="0.2.0" firstRun={false} />)
-    expect(lastFrame()!).not.toContain('Getting started')
+  it('shows welcome message for returning users', () => {
+    const { lastFrame } = render(
+      <Header version="0.2.0" firstRun={false} grokStatus="connected" xApiStatus="connected" />,
+    )
+    expect(lastFrame()!).toContain('investigating')
   })
 })

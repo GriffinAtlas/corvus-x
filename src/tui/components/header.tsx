@@ -1,33 +1,13 @@
 import React from 'react'
 import { Box, Text } from 'ink'
+import type { GrokStatus, XApiStatus } from '../hooks/use-session.js'
 
 interface Props {
   version: string
   firstRun: boolean
+  grokStatus: GrokStatus
+  xApiStatus: XApiStatus
 }
-
-// Gradient purple palette — dark to bright to dark
-const GRAD = [
-  '#4A1F8A',
-  '#5C29A8',
-  '#6E33C6',
-  '#7C3AED',
-  '#9F67FF',
-  '#B48AFF',
-  '#9F67FF',
-  '#7C3AED',
-]
-
-const CROW = [
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄⣀⣀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⡿⠋⠉⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⢀⣠⣾⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⢀⣴⣿⣿⣿⠿⠿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⡪⠕⠋⠉⠉⠀⠀⠀⠫⡻⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠷⠤⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-]
 
 const LOGO = [
   '╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═╗',
@@ -35,79 +15,68 @@ const LOGO = [
   '╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝',
 ]
 
-export function Header({ version, firstRun }: Props) {
+const TIPS = [
+  { cmd: 'scan bitcoin', desc: 'snapshot a topic' },
+  { cmd: 'pulse ethereum', desc: 'sentiment analysis' },
+  { cmd: 'agent "your question"', desc: 'autonomous investigation' },
+  { cmd: 'scope elonmusk', desc: 'profile an account' },
+]
+
+function StatusDot({ status, label }: { status: GrokStatus | XApiStatus; label: string }) {
+  const connected = status === 'connected'
   return (
-    <Box flexDirection="column" paddingLeft={2} paddingTop={1} marginBottom={1}>
-      {/* Crow with gradient — each line a different shade */}
-      {CROW.map((line, i) => (
-        <Text key={`c-${i}`} color={GRAD[i % GRAD.length]}>{line}</Text>
-      ))}
+    <Text>
+      <Text color={connected ? 'green' : 'gray'}>{connected ? '●' : '○'}</Text>
+      <Text dimColor>{` ${label} `}</Text>
+    </Text>
+  )
+}
 
-      <Text> </Text>
+export function Header({ version, firstRun, grokStatus, xApiStatus }: Props) {
+  const needsSetup = grokStatus === 'no-key'
 
-      {/* CORVUS block logo — bright accent */}
+  return (
+    <Box flexDirection="column" paddingLeft={1} paddingTop={1}>
+      {/* Logo */}
       {LOGO.map((line, i) => (
-        <Text key={`l-${i}`} color="#B48AFF" bold>{`  ${line}`}</Text>
+        <Text key={`l-${i}`} color="#7C3AED" bold>{`  ${line}`}</Text>
       ))}
 
-      {/* Version + tagline */}
-      <Box paddingLeft={2} marginTop={1}>
-        <Text color="#7C3AED" bold>{`v${version}`}</Text>
-        <Text dimColor>{' — X intelligence agent'}</Text>
+      {/* Version + status dots on one line */}
+      <Box paddingLeft={2} marginTop={0}>
+        <Text dimColor>{`v${version}`}</Text>
+        <Text dimColor>{'  '}</Text>
+        <StatusDot status={grokStatus} label="grok" />
+        <StatusDot status={xApiStatus} label="x api" />
       </Box>
-
-      {firstRun && (
-        <Box flexDirection="column" paddingLeft={2} marginTop={1}>
-          <Box marginBottom={0}>
-            <Text color="#9F67FF">{'┌─ '}</Text>
-            <Text color="#9F67FF" bold>Getting started</Text>
-          </Box>
-          <Text color="#9F67FF">{'│'}</Text>
-          <Box>
-            <Text color="#9F67FF">{'│  '}</Text>
-            <Text dimColor>{'1. '}</Text>
-            <Text>{'corvus auth setup'}</Text>
-            <Text dimColor>{'  — set your Grok API key'}</Text>
-          </Box>
-          <Box>
-            <Text color="#9F67FF">{'│  '}</Text>
-            <Text dimColor>{'2. '}</Text>
-            <Text>{'scan bitcoin'}</Text>
-            <Text dimColor>{'          — try a topic scan'}</Text>
-          </Box>
-          <Box>
-            <Text color="#9F67FF">{'│  '}</Text>
-            <Text dimColor>{'3. '}</Text>
-            <Text>{'agent "your question"'}</Text>
-            <Text dimColor>{' — autonomous investigation'}</Text>
-          </Box>
-          <Text color="#9F67FF">{'│'}</Text>
-          <Box>
-            <Text color="#9F67FF">{'│  '}</Text>
-            <Text dimColor>{'Commands: '}</Text>
-            <Text color="#B48AFF">{'scan'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'pulse'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'trace'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'gather'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'read'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'scope'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'ask'}</Text>
-            <Text dimColor>{' · '}</Text>
-            <Text color="#B48AFF">{'agent'}</Text>
-          </Box>
-          <Text color="#9F67FF">{'└─'}</Text>
-        </Box>
-      )}
 
       {/* Divider */}
       <Box paddingLeft={2} marginTop={1}>
-        <Text dimColor>{'─'.repeat(44)}</Text>
+        <Text dimColor>{'─'.repeat(40)}</Text>
+      </Box>
+
+      {/* Welcome / setup message */}
+      <Box paddingLeft={2} marginTop={1} marginBottom={1}>
+        {needsSetup ? (
+          <Box flexDirection="column">
+            <Text>Run <Text color="#B48AFF" bold>corvus auth setup</Text> to connect your Grok API key.</Text>
+            <Text dimColor>Get one at https://console.x.ai</Text>
+          </Box>
+        ) : firstRun ? (
+          <Box flexDirection="column">
+            <Text>Ready. Try one of these:</Text>
+            <Text> </Text>
+            {TIPS.map((tip, i) => (
+              <Box key={i}>
+                <Text>  </Text>
+                <Text color="#B48AFF">{tip.cmd.padEnd(24)}</Text>
+                <Text dimColor>{tip.desc}</Text>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Text dimColor>What are you investigating?</Text>
+        )}
       </Box>
     </Box>
   )

@@ -27,22 +27,25 @@ vi.mock('../../src/core/x-adapter.js', () => ({
 import { App } from '../../src/tui/app.js'
 
 describe('App', () => {
-  it('renders crow art and logo', () => {
-    const { lastFrame } = render(<App version="0.1.0" />)
-    const frame = lastFrame()!
-    expect(frame).toContain('⣠⣤⣄⣀⣀')
-    expect(frame).toContain('╔═╗╔═╗╦═╗╦')
+  it('renders CORVUS logo', () => {
+    const { lastFrame } = render(<App version="0.2.0" />)
+    expect(lastFrame()!).toContain('╔═╗╔═╗╦═╗╦')
   })
 
-  it('renders status line with dot indicators', () => {
-    const { lastFrame } = render(<App version="0.1.0" />)
-    expect(lastFrame()!).toContain('Grok')
-    expect(lastFrame()!).toContain('●')
+  it('renders status dots', () => {
+    const { lastFrame } = render(<App version="0.2.0" />)
+    const frame = lastFrame()!
+    expect(frame).toContain('●')
+    expect(frame).toContain('grok')
+  })
+
+  it('renders welcome message for returning user', () => {
+    const { lastFrame } = render(<App version="0.2.0" />)
+    expect(lastFrame()!).toContain('investigating')
   })
 
   it('renders input prompt', () => {
-    const { lastFrame } = render(<App version="0.1.0" />)
-    // The TextInput placeholder or prompt character should be visible
+    const { lastFrame } = render(<App version="0.2.0" />)
     expect(lastFrame()).toBeDefined()
   })
 })

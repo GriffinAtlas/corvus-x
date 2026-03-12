@@ -1,8 +1,7 @@
 import React, { useReducer, useMemo } from 'react'
-import { Box, useApp, useInput } from 'ink'
+import { Box, Text, useApp, useInput } from 'ink'
 import { Header } from './components/header.js'
 import { ChatLog } from './components/chat-log.js'
-import { StatusLine } from './components/status-line.js'
 import { InputBar } from './components/input-bar.js'
 import { useCommand } from './hooks/use-command.js'
 import {
@@ -58,17 +57,19 @@ export function App({ version }: Props) {
   return (
     <SessionContext value={session}>
       <DispatchContext value={dispatch}>
-        <Box flexDirection="column" height="100%">
-          <Header version={version} firstRun={firstRun} />
-          <Box flexDirection="column" flexGrow={1}>
-            <ChatLog entries={session.history} />
-          </Box>
-          <StatusLine
+        <Box flexDirection="column">
+          <Header
+            version={version}
+            firstRun={firstRun}
             grokStatus={session.grokStatus}
             xApiStatus={session.xApiStatus}
-            totalCost={session.totalCost}
-            queryCount={session.queryCount}
           />
+          <ChatLog entries={session.history} />
+          {session.queryCount > 0 && (
+            <Box paddingLeft={3} marginBottom={0}>
+              <Text dimColor>{`$${session.totalCost.toFixed(3)} · ${session.queryCount} ${session.queryCount === 1 ? 'query' : 'queries'}`}</Text>
+            </Box>
+          )}
           <InputBar onSubmit={execute} isLoading={isLoading} />
         </Box>
       </DispatchContext>
