@@ -158,6 +158,7 @@ export async function runStructuredCommand<T extends Snapshot>(
       timestamp: stored.timestamp,
       diff,
       timeSinceLast,
+      citations: built.citations,
     }
 
     console.log(formatStructuredOutput(result, opts.format, opts.renderSnapshot))

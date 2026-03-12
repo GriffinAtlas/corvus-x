@@ -78,6 +78,7 @@ async function buildPulseFromXApi(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt: computeNewestTweetAt(tweets),
+    citations: [],
   }
 }
 
@@ -107,5 +108,6 @@ async function buildPulseFromGrok(
     tweets: [],
     scores: grok.tweetAnalysis,
     newestTweetAt: null,
+    citations: [],
   }
 }

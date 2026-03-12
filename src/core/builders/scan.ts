@@ -88,6 +88,7 @@ async function buildScanFromXApi(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt: computeNewestTweetAt(tweets),
+    citations: [],
   }
 }
 
@@ -122,5 +123,6 @@ async function buildScanFromGrok(
     tweets: [],
     scores: grok.tweetAnalysis,
     newestTweetAt: null,
+    citations: [],
   }
 }

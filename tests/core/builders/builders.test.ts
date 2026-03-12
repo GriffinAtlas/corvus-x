@@ -60,6 +60,7 @@ function makeGrokQuery(responseObj: unknown) {
   return vi.fn().mockResolvedValue({
     text: JSON.stringify(responseObj),
     usage: mockUsage,
+    citations: [],
   })
 }
 

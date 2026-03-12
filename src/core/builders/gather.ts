@@ -102,6 +102,7 @@ async function buildGatherFromXApi(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt: computeNewestTweetAt(tweets),
+    citations: [],
   }
 }
 
@@ -133,5 +134,6 @@ async function buildGatherFromGrok(
     tweets: [],
     scores: grok.tweetAnalysis,
     newestTweetAt: null,
+    citations: [],
   }
 }

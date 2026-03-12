@@ -10,6 +10,7 @@ function makeGrokResponse(text: string, cost = 0.001): GrokResponse {
   return {
     text,
     usage: { inputTokens: 500, outputTokens: 200, costUsd: cost, toolCalls: 0 },
+    citations: [],
   }
 }
 
@@ -51,6 +52,7 @@ vi.mock('../../src/core/builders/scan.js', () => ({
       narrative: 'test',
     })),
     newestTweetAt: Date.now() - 60_000,
+    citations: [],
   })),
 }))
 
@@ -78,6 +80,7 @@ vi.mock('../../src/core/builders/pulse.js', () => ({
       narrative: 'pulse-theme',
     })),
     newestTweetAt: Date.now() - 30_000,
+    citations: [],
   })),
 }))
 
@@ -97,6 +100,7 @@ vi.mock('../../src/core/builders/scope.js', () => ({
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: [],
   })),
 }))
 

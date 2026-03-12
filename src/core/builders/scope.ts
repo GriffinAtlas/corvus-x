@@ -137,6 +137,7 @@ async function buildScopeFromXApi(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: [],
   }
 }
 
@@ -180,5 +181,6 @@ async function buildScopeFromGrok(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: [],
   }
 }

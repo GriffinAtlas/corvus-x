@@ -84,6 +84,7 @@ async function buildReadFromXApi(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: [],
   }
 }
 
@@ -116,6 +117,7 @@ async function buildReadFromGrok(
     tweets: [],
     scores: [],
     newestTweetAt: null,
+    citations: [],
   }
 }
 

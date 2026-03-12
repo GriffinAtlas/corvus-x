@@ -36,6 +36,7 @@ const makeBuildResult = <T>(data: T, cost = 0.003) => ({
   tweets: [],
   scores: [],
   newestTweetAt: null,
+  citations: [],
 })
 
 const scanData: ScanSnapshot = {

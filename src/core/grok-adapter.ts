@@ -162,7 +162,11 @@ export class GrokAdapter {
         const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
         const costUsd = tokenCost + toolCallCount * TOOL_COST_PER_CALL
 
-        return { text, usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount } }
+        return {
+          text,
+          usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount },
+          citations: [],
+        }
       } catch (err) {
         clearTimeout(timer)
         lastError = err
