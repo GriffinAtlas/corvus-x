@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatOutput } from '../../src/cli/output.js'
+import { formatOutput, renderCitations } from '../../src/cli/output.js'
 import type { CommandResult } from '../../src/core/types.js'
 
 function makeResult(overrides: Partial<CommandResult> = {}): CommandResult {
@@ -183,5 +183,23 @@ describe('formatOutput', () => {
       formatOutput(makeResult({ response: 'Trending: 🔥 AI agents' }), 'json'),
     )
     expect(parsed.response).toBe('Trending: 🔥 AI agents')
+  })
+})
+
+describe('renderCitations', () => {
+  it('renders numbered source list', () => {
+    const citations = [
+      { type: 'url_citation', url: 'https://x.com/user/status/123', title: 'A tweet' },
+      { type: 'url_citation', url: 'https://example.com/article' },
+    ]
+    const result = renderCitations(citations)
+    expect(result).toContain('[1]')
+    expect(result).toContain('x.com/user/status/123')
+    expect(result).toContain('[2]')
+    expect(result).toContain('example.com/article')
+  })
+
+  it('returns empty string for no citations', () => {
+    expect(renderCitations([])).toBe('')
   })
 })

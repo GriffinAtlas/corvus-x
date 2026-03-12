@@ -145,6 +145,7 @@ vi.mock('../../src/core/agent.js', () => {
     confidence: { overall: 0.7, volume: 'moderate', consistency: 0.8, diversity: 0.6 },
     sampleSize: 10,
     staleness: null,
+    citations: [],
   }
 
   class MockPlanner {
@@ -357,6 +358,32 @@ describe('MCP server', () => {
       expect(parsed.brief.confidence.overall).toBe(0.7)
       expect(parsed.stepsExecuted).toBe(1)
       expect(parsed._cost).toBe(0.005)
+    })
+
+    it('includes _citations in response when builder returns citations', async () => {
+      vi.mocked(buildScanSnapshot).mockResolvedValueOnce({
+        ...makeBuildResult(scanData),
+        citations: [
+          { type: 'url_citation', url: 'https://x.com/user/status/123', title: 'A tweet' },
+        ],
+      })
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'test', maxResults: 10 },
+      })
+      const parsed = parseContent(result)
+      expect(parsed._citations).toEqual([
+        { type: 'url_citation', url: 'https://x.com/user/status/123', title: 'A tweet' },
+      ])
+    })
+
+    it('omits _citations when builder returns empty citations', async () => {
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'test', maxResults: 10 },
+      })
+      const parsed = parseContent(result)
+      expect(parsed._citations).toBeUndefined()
     })
   })
 

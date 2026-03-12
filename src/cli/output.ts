@@ -1,6 +1,6 @@
 import { t, divider, sentimentBar, confidenceBar, box } from './theme.js'
 import { formatDiffLines } from '../core/differ.js'
-import type { CommandResult, StructuredCommandResult } from '../core/types.js'
+import type { CommandResult, StructuredCommandResult, GrokCitation } from '../core/types.js'
 import type {
   Snapshot,
   ScanSnapshot,
@@ -118,12 +118,27 @@ export function formatStructuredOutput<T extends Snapshot>(
         parts.push(t.muted(diffText))
       }
 
+      if (result.citations?.length) {
+        parts.push(renderCitations(result.citations))
+      }
+
       parts.push('')
       parts.push(`  ${t.muted(`cost: $${result.cost.toFixed(4)}`)}`)
       parts.push('')
       return parts.join('\n')
     }
   }
+}
+
+export function renderCitations(citations: GrokCitation[]): string {
+  if (citations.length === 0) return ''
+  const lines = ['', `  ${t.heading('Sources')}`]
+  for (let i = 0; i < citations.length; i++) {
+    const c = citations[i]
+    const display = c.url.replace(/^https?:\/\//, '')
+    lines.push(`    [${i + 1}] ${display}`)
+  }
+  return lines.join('\n')
 }
 
 function compactNum(n: number): string {

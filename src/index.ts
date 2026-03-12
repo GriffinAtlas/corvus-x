@@ -28,6 +28,8 @@ export {
   computeNewestTweetAt,
   detectContradictions,
   toUserMap,
+  X_ENGAGEMENT_WEIGHTS,
+  computeEngagementScore,
 } from './core/metrics.js'
 
 // Storage & diff
@@ -43,6 +45,7 @@ export type {
   StructuredCommandResult,
   BuildResult,
   CorvusDeps,
+  GrokCitation,
 } from './core/types.js'
 
 export type {
@@ -58,6 +61,18 @@ export type {
   GrokTweetScore,
   AgentBrief,
 } from './core/schemas.js'
+
+// Validators
+export {
+  GrokScanResponseSchema,
+  GrokPulseResponseSchema,
+  GrokTraceResponseSchema,
+  GrokGatherResponseSchema,
+  GrokReadResponseSchema,
+  GrokScopeResponseSchema,
+  AgentPlanSchema,
+  ReplanDecisionSchema,
+} from './core/validators.js'
 
 export type { Tweet, XUser } from './core/x-adapter.js'
 export type { DiffLine } from './core/differ.js'
