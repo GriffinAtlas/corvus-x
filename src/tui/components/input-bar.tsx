@@ -7,6 +7,7 @@ import { COMMAND_KEYWORDS } from '../router.js'
 interface Props {
   onSubmit: (value: string) => void
   isLoading: boolean
+  phaseLabel?: string | null
 }
 
 const SUGGESTIONS = [
@@ -18,7 +19,7 @@ const SUGGESTIONS = [
   '/exit',
 ]
 
-export function InputBar({ onSubmit, isLoading }: Props) {
+export function InputBar({ onSubmit, isLoading, phaseLabel }: Props) {
   const [inputHistory, setInputHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [mountKey, setMountKey] = useState(0)
@@ -66,7 +67,7 @@ export function InputBar({ onSubmit, isLoading }: Props) {
         <Text color="#7C3AED">
           <Spinner type="dots" />
         </Text>
-        <Text dimColor>{' working...'}</Text>
+        <Text dimColor>{` ${phaseLabel ?? 'working...'}`}</Text>
       </Box>
     )
   }

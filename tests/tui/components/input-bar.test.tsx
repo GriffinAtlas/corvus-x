@@ -24,4 +24,18 @@ describe('InputBar', () => {
     )
     expect(lastFrame()).toBeDefined()
   })
+
+  it('shows phaseLabel when loading', () => {
+    const { lastFrame } = render(
+      <InputBar onSubmit={() => {}} isLoading={true} phaseLabel='scanning "bitcoin"...' />,
+    )
+    expect(lastFrame()!).toContain('scanning "bitcoin"...')
+  })
+
+  it('falls back to working when phaseLabel is null', () => {
+    const { lastFrame } = render(
+      <InputBar onSubmit={() => {}} isLoading={true} phaseLabel={null} />,
+    )
+    expect(lastFrame()!).toContain('working')
+  })
 })

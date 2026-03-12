@@ -55,7 +55,7 @@ export function App({ version }: Props) {
     xApiStatus,
   })
 
-  const { execute, isLoading } = useCommand(deps, dispatch, exit)
+  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit)
 
   useInput((_input, key) => {
     if (key.ctrl && _input === 'c') {
@@ -86,7 +86,7 @@ export function App({ version }: Props) {
               </Box>
             </>
           )}
-          <InputBar onSubmit={execute} isLoading={isLoading} />
+          <InputBar onSubmit={execute} isLoading={isLoading} phaseLabel={phaseLabel} />
           <ShortcutBar />
         </Box>
       </DispatchContext>
