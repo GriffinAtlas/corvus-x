@@ -1,11 +1,11 @@
 export type ParsedCommand =
   | { type: 'command'; command: string; args: Record<string, string> }
-  | { type: 'slash'; command: string }
+  | { type: 'slash'; command: string; args?: Record<string, string> }
   | { type: 'error'; message: string }
   | { type: 'empty' }
 
 const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace', 'gather'])
-const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit'])
+const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'view'])
 
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
@@ -13,6 +13,7 @@ export const COMMAND_KEYWORDS = [
   'scope',
   'ask',
   'history',
+  '/view',
 ] as const
 
 export function parseInput(raw: string): ParsedCommand {
@@ -20,6 +21,15 @@ export function parseInput(raw: string): ParsedCommand {
   if (!input) return { type: 'empty' }
 
   if (input.startsWith('/')) {
+    // /view N — must be checked before generic slash lookup
+    if (input.startsWith('/view')) {
+      const rest = input.slice(5).trim()
+      if (!rest) return { type: 'error', message: 'Usage: /view <number>' }
+      const n = parseInt(rest)
+      if (isNaN(n) || n < 1) return { type: 'error', message: 'Usage: /view <number>' }
+      return { type: 'slash', command: 'view', args: { index: String(n) } }
+    }
+
     const cmd = input.slice(1).toLowerCase()
     if (SLASH_COMMANDS.has(cmd)) {
       return { type: 'slash', command: cmd }

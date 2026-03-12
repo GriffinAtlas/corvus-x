@@ -113,6 +113,52 @@ describe('parseInput', () => {
     })
   })
 
+  describe('/view command', () => {
+    it('parses /view 1', () => {
+      expect(parseInput('/view 1')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { index: '1' },
+      })
+    })
+
+    it('parses /view 42', () => {
+      expect(parseInput('/view 42')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { index: '42' },
+      })
+    })
+
+    it('returns error for /view 0', () => {
+      const result = parseInput('/view 0')
+      expect(result.type).toBe('error')
+    })
+
+    it('returns error for /view -1', () => {
+      const result = parseInput('/view -1')
+      expect(result.type).toBe('error')
+    })
+
+    it('returns error for /view abc', () => {
+      const result = parseInput('/view abc')
+      expect(result.type).toBe('error')
+    })
+
+    it('returns error for /view without argument', () => {
+      const result = parseInput('/view')
+      expect(result.type).toBe('error')
+    })
+
+    it('trims whitespace around number', () => {
+      expect(parseInput('/view   3  ')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { index: '3' },
+      })
+    })
+  })
+
   describe('natural language fallback', () => {
     it('treats unrecognized input as ask', () => {
       expect(parseInput('why is bitcoin pumping')).toEqual({
