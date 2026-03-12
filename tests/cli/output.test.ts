@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest'
-import { formatOutput, renderCitations } from '../../src/cli/output.js'
-import type { CommandResult } from '../../src/core/types.js'
+import {
+  formatOutput,
+  formatStructuredOutput,
+  renderCitations,
+  renderScan,
+  renderPulse,
+  renderTrace,
+  renderRead,
+  renderScope,
+  renderAgentBrief,
+  renderAgentBriefMd,
+} from '../../src/cli/output.js'
+import type { CommandResult, StructuredCommandResult } from '../../src/core/types.js'
+import type {
+  ScanSnapshot,
+  PulseSnapshot,
+  TraceSnapshot,
+  ReadSnapshot,
+  ScopeSnapshot,
+  AgentBrief,
+} from '../../src/core/schemas.js'
 
 function makeResult(overrides: Partial<CommandResult> = {}): CommandResult {
   return {
@@ -201,5 +220,423 @@ describe('renderCitations', () => {
 
   it('returns empty string for no citations', () => {
     expect(renderCitations([])).toBe('')
+  })
+
+  it('strips https:// prefix from URLs', () => {
+    const result = renderCitations([
+      { type: 'url_citation', url: 'https://x.com/foo/status/1' },
+    ])
+    expect(result).toContain('x.com/foo/status/1')
+    expect(result).not.toContain('https://')
+  })
+
+  it('strips http:// prefix from URLs', () => {
+    const result = renderCitations([
+      { type: 'url_citation', url: 'http://example.com/article' },
+    ])
+    expect(result).toContain('example.com/article')
+    expect(result).not.toContain('http://')
+  })
+
+  it('includes Sources heading', () => {
+    const result = renderCitations([
+      { type: 'url_citation', url: 'https://example.com' },
+    ])
+    expect(result).toContain('Sources')
+  })
+})
+
+describe('renderScan', () => {
+  const scan: ScanSnapshot = {
+    metrics: { tweetCount: 42, totalEngagement: 5000, uniqueAuthors: 15, engagementPerTweet: 119 },
+    sentiment: { avg: 0.3, positive: 20, neutral: 15, negative: 7 },
+    topAccounts: [{ handle: 'alice', postCount: 5, followers: 10000, avgSentiment: 0.6 }],
+    narratives: [{ theme: 'AI boom', description: 'AI sector growth', tweetCount: 30, avgSentiment: 0.4 }],
+    signals: ['Strong bullish momentum'],
+  }
+
+  it('includes tweet count and engagement metrics', () => {
+    const output = renderScan(scan)
+    expect(output).toContain('42')
+    expect(output).toContain('5,000')
+  })
+
+  it('includes top accounts', () => {
+    const output = renderScan(scan)
+    expect(output).toContain('@alice')
+    expect(output).toContain('5 posts')
+  })
+
+  it('includes narratives', () => {
+    const output = renderScan(scan)
+    expect(output).toContain('AI boom')
+    expect(output).toContain('AI sector growth')
+  })
+
+  it('includes signals', () => {
+    const output = renderScan(scan)
+    expect(output).toContain('Strong bullish momentum')
+  })
+
+  it('handles empty optional arrays', () => {
+    const empty: ScanSnapshot = {
+      metrics: { tweetCount: 0, totalEngagement: 0, uniqueAuthors: 0, engagementPerTweet: 0 },
+      sentiment: { avg: 0, positive: 0, neutral: 0, negative: 0 },
+      topAccounts: [],
+      narratives: [],
+      signals: [],
+    }
+    expect(() => renderScan(empty)).not.toThrow()
+    const output = renderScan(empty)
+    expect(output).not.toContain('Top Accounts')
+    expect(output).not.toContain('Narratives')
+    expect(output).not.toContain('Signals')
+  })
+})
+
+describe('renderPulse', () => {
+  const pulse: PulseSnapshot = {
+    metrics: { tweetCount: 30, totalEngagement: 3000, uniqueAuthors: 10, engagementPerTweet: 100 },
+    sentiment: { avg: -0.2, positive: 8, neutral: 12, negative: 10 },
+    bullSignals: ['ETF inflows rising'],
+    bearSignals: ['Whale selling detected'],
+    keyVoices: [{ handle: 'bob', sentiment: -0.3, reach: 50000 }],
+  }
+
+  it('includes bull and bear signals', () => {
+    const output = renderPulse(pulse)
+    expect(output).toContain('ETF inflows rising')
+    expect(output).toContain('Whale selling detected')
+  })
+
+  it('includes key voices', () => {
+    const output = renderPulse(pulse)
+    expect(output).toContain('@bob')
+    expect(output).toContain('50K')
+  })
+
+  it('handles empty signals and voices', () => {
+    const empty: PulseSnapshot = {
+      ...pulse,
+      bullSignals: [],
+      bearSignals: [],
+      keyVoices: [],
+    }
+    const output = renderPulse(empty)
+    expect(output).not.toContain('Bull Signals')
+    expect(output).not.toContain('Bear Signals')
+    expect(output).not.toContain('Key Voices')
+  })
+})
+
+describe('renderTrace', () => {
+  const trace: TraceSnapshot = {
+    metrics: { tweetCount: 20, totalEngagement: 2000, uniqueAuthors: 8, engagementPerTweet: 100 },
+    origin: { account: 'origin_user', date: '2026-03-01', tweetId: '111', content: 'First claim' },
+    timeline: [{ phase: 'Phase 1', tweetCount: 5, keyAmplifiers: ['amp1', 'amp2'], timeframe: 'Mar 1-2' }],
+    mutations: [{ original: 'original claim', variant: 'mutated claim' }],
+    reach: { totalTweets: 20, totalEngagement: 2000, uniqueAuthors: 8 },
+  }
+
+  it('includes origin info', () => {
+    const output = renderTrace(trace)
+    expect(output).toContain('@origin_user')
+    expect(output).toContain('First claim')
+  })
+
+  it('includes timeline with amplifiers', () => {
+    const output = renderTrace(trace)
+    expect(output).toContain('Phase 1')
+    expect(output).toContain('@amp1')
+  })
+
+  it('includes mutations', () => {
+    const output = renderTrace(trace)
+    expect(output).toContain('original claim')
+    expect(output).toContain('mutated claim')
+  })
+
+  it('handles null origin', () => {
+    const noOrigin: TraceSnapshot = { ...trace, origin: null as any }
+    expect(() => renderTrace(noOrigin)).not.toThrow()
+  })
+
+  it('handles empty timeline and mutations', () => {
+    const empty: TraceSnapshot = { ...trace, timeline: [], mutations: [] }
+    const output = renderTrace(empty)
+    expect(output).not.toContain('Timeline')
+    expect(output).not.toContain('Mutations')
+  })
+})
+
+describe('renderRead', () => {
+  const read: ReadSnapshot = {
+    tweet: {
+      id: '12345',
+      author: 'testuser',
+      text: 'Important tweet content',
+      engagement: { likes: 100, retweets: 20, replies: 5, impressions: 5000 },
+      postedAt: '2026-03-10T12:00:00Z',
+    },
+    analysis: 'This tweet signals market shift',
+    significance: 'high',
+    signals: ['Potential reversal'],
+  }
+
+  it('includes tweet author and text', () => {
+    const output = renderRead(read)
+    expect(output).toContain('@testuser')
+    expect(output).toContain('Important tweet content')
+  })
+
+  it('includes engagement metrics', () => {
+    const output = renderRead(read)
+    expect(output).toContain('100 likes')
+    expect(output).toContain('20 RTs')
+  })
+
+  it('includes analysis and significance', () => {
+    const output = renderRead(read)
+    expect(output).toContain('This tweet signals market shift')
+    expect(output).toContain('high')
+  })
+
+  it('includes signals', () => {
+    const output = renderRead(read)
+    expect(output).toContain('Potential reversal')
+  })
+})
+
+describe('renderScope', () => {
+  const scope: ScopeSnapshot = {
+    account: { handle: 'testuser', followers: 50000, following: 500, tweetCount: 3000 },
+    recentActivity: {
+      avgEngagement: 150,
+      postsAnalyzed: 20,
+      topTweet: { id: '555', text: 'Best tweet ever', engagement: 500 },
+    },
+    contentPatterns: ['AI', 'crypto'],
+    recentFocus: ['LLMs', 'DeFi'],
+    networkPosition: 'Tech influencer',
+    influence: 'high',
+    signalValue: 'medium',
+  }
+
+  it('includes account info', () => {
+    const output = renderScope(scope)
+    expect(output).toContain('@testuser')
+    expect(output).toContain('50K followers')
+  })
+
+  it('includes recent activity', () => {
+    const output = renderScope(scope)
+    expect(output).toContain('20 posts analyzed')
+    expect(output).toContain('Best tweet ever')
+  })
+
+  it('includes content patterns and focus', () => {
+    const output = renderScope(scope)
+    expect(output).toContain('AI')
+    expect(output).toContain('LLMs')
+  })
+
+  it('handles null topTweet', () => {
+    const noTop: ScopeSnapshot = {
+      ...scope,
+      recentActivity: { ...scope.recentActivity, topTweet: null },
+    }
+    expect(() => renderScope(noTop)).not.toThrow()
+  })
+
+  it('handles empty content patterns and focus', () => {
+    const empty: ScopeSnapshot = {
+      ...scope,
+      contentPatterns: [],
+      recentFocus: [],
+    }
+    const output = renderScope(empty)
+    expect(output).not.toContain('Content Patterns')
+    expect(output).not.toContain('Recent Focus')
+  })
+})
+
+describe('renderAgentBrief', () => {
+  const brief: AgentBrief = {
+    signalLine: 'Bitcoin is cautiously bullish',
+    sentiment: 0.3,
+    summary: ['Finding 1', 'Finding 2'],
+    contradictions: ['Contradiction A'],
+    keyAccounts: [{ handle: 'alice', reach: 5000, sentiment: 0.5, stance: 'Bullish' }],
+    evidence: [{ source: 'scan', key: 'Sentiment', detail: 'Net positive' }],
+    confidence: { overall: 0.7, volume: 'moderate' as const, consistency: 0.1, diversity: 0.8 },
+    sampleSize: 50,
+    staleness: null,
+    citations: [],
+  }
+  const opts = { stepCount: 3, durationMs: 5000, tweetCount: 50, accountCount: 15, cost: 0.01 }
+
+  it('includes signal line', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).toContain('Bitcoin is cautiously bullish')
+  })
+
+  it('includes key findings', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).toContain('Finding 1')
+    expect(output).toContain('Finding 2')
+  })
+
+  it('includes contradictions', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).toContain('Contradiction A')
+  })
+
+  it('includes key accounts with stance', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).toContain('@alice')
+    expect(output).toContain('Bullish')
+  })
+
+  it('includes footer with stats', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).toContain('3 steps')
+    expect(output).toContain('5.0s')
+    expect(output).toContain('$0.0100')
+  })
+
+  it('shows staleness warning when > 1 hour', () => {
+    const staleBrief = { ...brief, staleness: 7200_000 } // 2 hours
+    const output = renderAgentBrief(staleBrief, opts)
+    expect(output).toContain('stale')
+    expect(output).toContain('2h ago')
+  })
+
+  it('does not show staleness warning when null', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).not.toContain('stale')
+  })
+
+  it('shows previous sentiment comparison when provided', () => {
+    const output = renderAgentBrief(brief, { ...opts, previousSentiment: -0.2 })
+    expect(output).toContain('was -0.2')
+  })
+
+  it('handles empty summary, contradictions, accounts', () => {
+    const emptyBrief: AgentBrief = {
+      ...brief,
+      summary: [],
+      contradictions: [],
+      keyAccounts: [],
+    }
+    const output = renderAgentBrief(emptyBrief, opts)
+    expect(output).not.toContain('Key Findings')
+    expect(output).not.toContain('Top Voices')
+    expect(output).not.toContain('Contradictions')
+  })
+})
+
+describe('renderAgentBriefMd', () => {
+  const brief: AgentBrief = {
+    signalLine: 'Bitcoin is cautiously bullish',
+    sentiment: 0.3,
+    summary: ['Finding 1'],
+    contradictions: ['Issue A'],
+    keyAccounts: [{ handle: 'alice', reach: 5000, sentiment: 0.5, stance: 'Bullish' }],
+    evidence: [],
+    confidence: { overall: 0.7, volume: 'moderate' as const, consistency: 0.1, diversity: 0.8 },
+    sampleSize: 50,
+    staleness: null,
+    citations: [],
+  }
+  const opts = { stepCount: 3, durationMs: 5000, tweetCount: 50, accountCount: 15, cost: 0.01 }
+
+  it('renders markdown heading with signal line', () => {
+    const output = renderAgentBriefMd(brief, opts)
+    expect(output).toContain('## Bitcoin is cautiously bullish')
+  })
+
+  it('renders markdown table for key accounts', () => {
+    const output = renderAgentBriefMd(brief, opts)
+    expect(output).toContain('| @alice | 5K | 0.5 | Bullish |')
+  })
+
+  it('renders contradictions as list items', () => {
+    const output = renderAgentBriefMd(brief, opts)
+    expect(output).toContain('- Issue A')
+  })
+
+  it('includes confidence footer', () => {
+    const output = renderAgentBriefMd(brief, opts)
+    expect(output).toContain('Confidence: 0.7')
+    expect(output).toContain('moderate')
+  })
+})
+
+describe('formatStructuredOutput', () => {
+  function makeStructuredResult(overrides: Partial<StructuredCommandResult<ScanSnapshot>> = {}): StructuredCommandResult<ScanSnapshot> {
+    return {
+      command: 'scan',
+      topic: 'bitcoin',
+      data: {
+        metrics: { tweetCount: 10, totalEngagement: 500, uniqueAuthors: 5, engagementPerTweet: 50 },
+        sentiment: { avg: 0.3, positive: 5, neutral: 3, negative: 2 },
+        topAccounts: [],
+        narratives: [],
+        signals: [],
+      },
+      cost: 0.003,
+      timestamp: 1710000000000,
+      diff: [],
+      timeSinceLast: 0,
+      citations: [],
+      ...overrides,
+    }
+  }
+
+  it('json format includes command, topic, data, cost, timestamp', () => {
+    const output = formatStructuredOutput(makeStructuredResult(), 'json', renderScan)
+    const parsed = JSON.parse(output)
+    expect(parsed.command).toBe('scan')
+    expect(parsed.topic).toBe('bitcoin')
+    expect(parsed.data.metrics.tweetCount).toBe(10)
+    expect(parsed.cost).toBe(0.003)
+  })
+
+  it('csv format includes header and data row', () => {
+    const output = formatStructuredOutput(makeStructuredResult(), 'csv', renderScan)
+    const lines = output.split('\n')
+    expect(lines[0]).toBe('command,topic,data,cost,timestamp')
+    expect(lines[1]).toContain('"scan"')
+    expect(lines[1]).toContain('"bitcoin"')
+  })
+
+  it('md format includes heading and cost', () => {
+    const output = formatStructuredOutput(makeStructuredResult(), 'md', renderScan)
+    expect(output).toContain('## scan')
+    expect(output).toContain('**Topic:** bitcoin')
+    expect(output).toContain('$0.0030')
+  })
+
+  it('table format includes command, topic, and rendered snapshot', () => {
+    const output = formatStructuredOutput(makeStructuredResult(), 'table', renderScan)
+    expect(output).toContain('scan')
+    expect(output).toContain('bitcoin')
+    expect(output).toContain('$0.0030')
+  })
+
+  it('table format includes citations when present', () => {
+    const result = makeStructuredResult({
+      citations: [
+        { type: 'url_citation', url: 'https://x.com/user/status/123', title: 'A tweet' },
+      ],
+    })
+    const output = formatStructuredOutput(result, 'table', renderScan)
+    expect(output).toContain('Sources')
+    expect(output).toContain('x.com/user/status/123')
+  })
+
+  it('table format omits citations when empty', () => {
+    const output = formatStructuredOutput(makeStructuredResult(), 'table', renderScan)
+    expect(output).not.toContain('Sources')
   })
 })

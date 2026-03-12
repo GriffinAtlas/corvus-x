@@ -1309,3 +1309,193 @@ describe('computeKeyVoices engagement-weighted', () => {
     expect(result[0].handle).toBe('alice')
   })
 })
+
+describe('computeSentiment boundary conditions', () => {
+  it('classifies score at exactly 0.3 as neutral', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.3, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.neutral).toBe(1)
+    expect(result.positive).toBe(0)
+  })
+
+  it('classifies score at exactly -0.3 as neutral', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: -0.3, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.neutral).toBe(1)
+    expect(result.negative).toBe(0)
+  })
+
+  it('classifies score at 0.31 as positive', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.31, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.positive).toBe(1)
+  })
+
+  it('classifies score at -0.31 as negative', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: -0.31, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.negative).toBe(1)
+  })
+
+  it('clamps sentiment values above 1', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 5.0, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.avg).toBe(1)
+    expect(result.positive).toBe(1)
+  })
+
+  it('clamps sentiment values below -1', () => {
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: -9.0, narrative: 'x' }]
+    const result = computeSentiment(scores)
+    expect(result.avg).toBe(-1)
+    expect(result.negative).toBe(1)
+  })
+
+  it('weighted path uses clamped values not raw', () => {
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 5.0, narrative: 'x' }, // clamped to 1.0
+      { index: 1, sentiment: -5.0, narrative: 'x' }, // clamped to -1.0
+    ]
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', metrics: { likes: 10, retweets: 0, replies: 0, impressions: 0 } }),
+      makeTweet({ id: '2', authorId: 'b', metrics: { likes: 10, retweets: 0, replies: 0, impressions: 0 } }),
+    ]
+    const result = computeSentiment(scores, tweets)
+    // Equal weights, clamped values of 1 and -1 => avg = 0
+    expect(result.avg).toBe(0)
+    // rawAvg should also be clamped: (1 + -1) / 2 = 0
+    expect(result.rawAvg).toBe(0)
+  })
+
+  it('handles score with index out of tweets range', () => {
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.5, narrative: 'x' },
+      { index: 99, sentiment: -0.5, narrative: 'y' }, // out of range
+    ]
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', metrics: { likes: 100, retweets: 0, replies: 0, impressions: 0 } }),
+    ]
+    const result = computeSentiment(scores, tweets)
+    // index 99 falls back to weight=1 (since tweet is null)
+    // tweet[0] weight = 100, tweet[99] weight = 1
+    // weighted avg = (100*0.5 + 1*-0.5) / (100 + 1) ≈ 0.49
+    expect(result.avg).toBeCloseTo(0.49, 1)
+  })
+})
+
+describe('computeTopAccounts edge cases', () => {
+  it('returns empty array for empty tweets', () => {
+    const result = computeTopAccounts([], [], [])
+    expect(result).toEqual([])
+  })
+
+  it('falls back to authorId when user not in map', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'unknown_id' }),
+    ]
+    const scores: GrokTweetScore[] = [{ index: 0, sentiment: 0.5, narrative: 'x' }]
+    const result = computeTopAccounts(tweets, scores, [])
+    expect(result[0].handle).toBe('unknown_id')
+    expect(result[0].followers).toBe(0)
+  })
+
+  it('respects custom limit parameter', () => {
+    const tweets = Array.from({ length: 5 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores: GrokTweetScore[] = tweets.map((_, i) => ({
+      index: i,
+      sentiment: 0,
+      narrative: 'x',
+    }))
+    const result = computeTopAccounts(tweets, scores, [], 2)
+    expect(result).toHaveLength(2)
+  })
+
+  it('aggregates engagement across multiple tweets from same author', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', metrics: { likes: 10, retweets: 0, replies: 0, impressions: 0 } }),
+      makeTweet({ id: '2', authorId: 'a', metrics: { likes: 20, retweets: 0, replies: 0, impressions: 0 } }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.5, narrative: 'x' },
+      { index: 1, sentiment: 0.3, narrative: 'x' },
+    ]
+    const result = computeTopAccounts(tweets, scores, [])
+    expect(result).toHaveLength(1) // same author
+    expect(result[0].postCount).toBe(2)
+    expect(result[0].engagementScore).toBe(30) // 10 + 20
+    expect(result[0].avgSentiment).toBe(0.4) // (0.5 + 0.3) / 2
+  })
+})
+
+describe('computeConfidence edge cases', () => {
+  it('returns 0 diversity when all tweets from same author', () => {
+    const tweets = Array.from({ length: 10 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: 'same' }),
+    )
+    const scores: GrokTweetScore[] = tweets.map((_, i) => ({
+      index: i,
+      sentiment: 0.5,
+      narrative: 'x',
+    }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.diversity).toBeCloseTo(0.1, 3) // 1/10 = 0.1
+    expect(result.volume).toBe('low') // < 30
+  })
+
+  it('volume threshold at exactly 30 tweets is moderate', () => {
+    const tweets = Array.from({ length: 30 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores: GrokTweetScore[] = tweets.map((_, i) => ({
+      index: i,
+      sentiment: 0,
+      narrative: 'x',
+    }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('moderate')
+  })
+
+  it('volume threshold at exactly 100 tweets is high', () => {
+    const tweets = Array.from({ length: 100 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores: GrokTweetScore[] = tweets.map((_, i) => ({
+      index: i,
+      sentiment: 0,
+      narrative: 'x',
+    }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.volume).toBe('high')
+  })
+
+  it('perfect consistency when all sentiments identical', () => {
+    const tweets = Array.from({ length: 10 }, (_, i) =>
+      makeTweet({ id: String(i), authorId: `a${i}` }),
+    )
+    const scores: GrokTweetScore[] = tweets.map((_, i) => ({
+      index: i,
+      sentiment: 0.5,
+      narrative: 'x',
+    }))
+    const result = computeConfidence(tweets, scores)
+    expect(result.consistency).toBe(0) // zero std deviation
+  })
+})
+
+describe('detectContradictions with empty/single results', () => {
+  it('returns empty array for empty results', () => {
+    expect(detectContradictions([])).toEqual([])
+  })
+
+  it('returns empty for single non-sentiment result', () => {
+    const result = detectContradictions([{
+      command: 'read',
+      snapshot: { tweet: {}, analysis: '', significance: 'low', signals: [] } as any,
+      tweets: [],
+      scores: [],
+    }])
+    expect(result).toEqual([])
+  })
+})

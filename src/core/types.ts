@@ -1,8 +1,7 @@
 import type { Snapshot, GrokTweetScore } from './schemas.js'
 import type { DiffLine } from './differ.js'
-import type { Tweet } from './x-adapter.js'
+import type { Tweet, XAdapter } from './x-adapter.js'
 import type { GrokAdapter } from './grok-adapter.js'
-import type { XAdapter } from './x-adapter.js'
 import type { ZodType } from 'zod/v4'
 
 export interface CorvusDeps {

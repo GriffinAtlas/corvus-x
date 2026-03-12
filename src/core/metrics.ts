@@ -10,8 +10,8 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
   GatherSnapshot,
+  Snapshot,
 } from './schemas.js'
-import type { Snapshot } from './schemas.js'
 
 // Engagement weights derived from X's open-sourced algorithm (Heavy Ranker, April 2023)
 // Source: twitter/the-algorithm-ml, normalized to likes = 1.0
@@ -68,12 +68,12 @@ export function computeSentiment(scores: GrokTweetScore[], tweets?: Tweet[]): Se
   let neutral = 0
   let negative = 0
   let total = 0
+  const clamped = scores.map((s) => Math.max(-1, Math.min(1, s.sentiment)))
 
-  for (const s of scores) {
-    const clamped = Math.max(-1, Math.min(1, s.sentiment))
-    total += clamped
-    if (clamped > 0.3) positive++
-    else if (clamped < -0.3) negative++
+  for (const val of clamped) {
+    total += val
+    if (val > 0.3) positive++
+    else if (val < -0.3) negative++
     else neutral++
   }
 
@@ -83,12 +83,11 @@ export function computeSentiment(scores: GrokTweetScore[], tweets?: Tweet[]): Se
   if (tweets && tweets.length > 0) {
     let weightedSum = 0
     let totalWeight = 0
-    for (const s of scores) {
-      const tweet = s.index >= 0 && s.index < tweets.length ? tweets[s.index] : null
-      const weight = tweet ? computeEngagementScore(tweet) : 1
-      const effectiveWeight = Math.max(weight, 1)
-      weightedSum += Math.max(-1, Math.min(1, s.sentiment)) * effectiveWeight
-      totalWeight += effectiveWeight
+    for (let i = 0; i < scores.length; i++) {
+      const tweet = scores[i].index >= 0 && scores[i].index < tweets.length ? tweets[scores[i].index] : null
+      const weight = Math.max(tweet ? computeEngagementScore(tweet) : 1, 1)
+      weightedSum += clamped[i] * weight
+      totalWeight += weight
     }
     if (totalWeight > 0) {
       avg = Math.round((weightedSum / totalWeight) * 100) / 100
@@ -138,7 +137,7 @@ export function computeTopAccounts(
   }
 
   return entries
-    .sort((a, b) => (b.engagementScore ?? 0) - (a.engagementScore ?? 0) || b.followers - a.followers)
+    .sort((a, b) => b.engagementScore! - a.engagementScore! || b.followers - a.followers)
     .slice(0, limit)
 }
 

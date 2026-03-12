@@ -122,16 +122,17 @@ export class GrokAdapter {
     })
   }
 
-  async query(prompt: string, options: QueryOptions = {}): Promise<GrokResponse> {
-    const model = options.model ?? DEFAULT_MODEL
-
-    if (options.xSearchHandles?.length && options.xSearchExcludeHandles?.length) {
-      throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
-    }
-
+  private buildMessages(prompt: string, options: QueryOptions): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
     if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
     messages.push({ role: 'user', content: prompt })
+    return messages
+  }
+
+  private buildTools(options: QueryOptions): OpenAI.Chat.Completions.ChatCompletionTool[] {
+    if (options.xSearchHandles?.length && options.xSearchExcludeHandles?.length) {
+      throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
+    }
 
     const tools: unknown[] = []
     if (options.enableXSearch) {
@@ -145,14 +146,25 @@ export class GrokAdapter {
     if (options.enableWebSearch) {
       tools.push({ type: 'web_search' })
     }
+    return tools as OpenAI.Chat.Completions.ChatCompletionTool[]
+  }
+
+  private computeCost(model: string, inputTokens: number, outputTokens: number, toolCallCount: number): number {
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_MODEL]
+    const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
+    return tokenCost + toolCallCount * TOOL_COST_PER_CALL
+  }
+
+  async query(prompt: string, options: QueryOptions = {}): Promise<GrokResponse> {
+    const model = options.model ?? DEFAULT_MODEL
+    const messages = this.buildMessages(prompt, options)
+    const tools = this.buildTools(options)
 
     const createParams = {
       model,
       messages,
       max_tokens: options.maxTokens ?? 2048,
-      ...(tools.length > 0
-        ? { tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] }
-        : {}),
+      ...(tools.length > 0 ? { tools } : {}),
       ...(options.responseSchema && isGrok4Family(model)
         ? { response_format: zodResponseFormat(options.responseSchema, 'response') }
         : {}),
@@ -175,11 +187,8 @@ export class GrokAdapter {
         const inputTokens = response.usage?.prompt_tokens ?? 0
         const outputTokens = response.usage?.completion_tokens ?? 0
         const toolCallCount = response.choices[0]?.message?.tool_calls?.length ?? 0
-        const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_MODEL]
-        const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
-        const costUsd = tokenCost + toolCallCount * TOOL_COST_PER_CALL
+        const costUsd = this.computeCost(model, inputTokens, outputTokens, toolCallCount)
 
-        // Extract citations from annotations
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const annotations: any[] = (response.choices[0]?.message as any)?.annotations ?? []
         const seenUrls = new Set<string>()
@@ -218,27 +227,8 @@ export class GrokAdapter {
     onChunk: (text: string) => void,
   ): Promise<GrokResponse> {
     const model = options.model ?? DEFAULT_MODEL
-
-    if (options.xSearchHandles?.length && options.xSearchExcludeHandles?.length) {
-      throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
-    }
-
-    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
-    if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
-    messages.push({ role: 'user', content: prompt })
-
-    const tools: unknown[] = []
-    if (options.enableXSearch) {
-      const tool: Record<string, unknown> = { type: 'x_search' }
-      if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
-      if (options.xSearchToDate) tool.to_date = options.xSearchToDate
-      if (options.xSearchHandles?.length) tool.allowed_x_handles = options.xSearchHandles
-      if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
-      tools.push(tool)
-    }
-    if (options.enableWebSearch) {
-      tools.push({ type: 'web_search' })
-    }
+    const messages = this.buildMessages(prompt, options)
+    const tools = this.buildTools(options)
 
     const createParams = {
       model,
@@ -246,9 +236,7 @@ export class GrokAdapter {
       max_tokens: options.maxTokens ?? 2048,
       stream: true as const,
       stream_options: { include_usage: true },
-      ...(tools.length > 0
-        ? { tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] }
-        : {}),
+      ...(tools.length > 0 ? { tools } : {}),
     }
 
     const stream = await this.client.chat.completions.create(createParams)
@@ -275,9 +263,7 @@ export class GrokAdapter {
     }
 
     const toolCallCount = (options.enableXSearch ? 1 : 0) + (options.enableWebSearch ? 1 : 0)
-    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_MODEL]
-    const tokenCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
-    const costUsd = tokenCost + toolCallCount * TOOL_COST_PER_CALL
+    const costUsd = this.computeCost(model, inputTokens, outputTokens, toolCallCount)
 
     return {
       text,

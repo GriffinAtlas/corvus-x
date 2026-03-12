@@ -132,13 +132,11 @@ export function formatStructuredOutput<T extends Snapshot>(
 
 export function renderCitations(citations: GrokCitation[]): string {
   if (citations.length === 0) return ''
-  const lines = ['', `  ${t.heading('Sources')}`]
-  for (let i = 0; i < citations.length; i++) {
-    const c = citations[i]
-    const display = c.url.replace(/^https?:\/\//, '')
-    lines.push(`    [${i + 1}] ${display}`)
-  }
-  return lines.join('\n')
+  return [
+    '',
+    `  ${t.heading('Sources')}`,
+    ...citations.map((c, i) => `    [${i + 1}] ${c.url.replace(/^https?:\/\//, '')}`),
+  ].join('\n')
 }
 
 function compactNum(n: number): string {
