@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (815 tests)
+npm test                     # vitest run (819 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -103,6 +103,7 @@ tests/                       # mirrors src/ structure 1:1
 - **No `corvus cost` command** — cost ledger exists on disk (`~/.corvus/cost-ledger.json`) but no CLI command reads cumulative spend.
 - **Cache has no max-size limit** — files accumulate indefinitely until manual `corvus cache clear` or `evictExpired()`.
 - **eslint-plugin-react-hooks blocked** — peer dep requires ESLint <=9, we're on ESLint 10. TUI React hooks unlinted until upstream fix.
+- **X username validation assumes 15-char max** — `X_USERNAME_RE` in `x-adapter.ts` enforces `[A-Za-z0-9_]{1,15}`. If X/Twitter increases the limit, this regex must be updated.
 - **Always smoke-test after build** — `npm run build && node dist/bin/corvus.js --version`. Tests run against source (tsx), not compiled output.
 
 ## Commit Style

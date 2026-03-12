@@ -242,7 +242,7 @@ Costs are logged to `~/.corvus/cost-ledger.json`.
 | Data | X API v2 (optional — tweets, users, metrics) |
 | CLI | Commander |
 | Interactive TUI | Ink 6 + React 19 |
-| Testing | Vitest (815 tests) |
+| Testing | Vitest (819 tests) |
 
 ## License
 
