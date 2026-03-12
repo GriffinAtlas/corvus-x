@@ -103,6 +103,32 @@ describe('XAdapter', () => {
     expect(url).toContain('/users/by/username/test_user')
   })
 
+  it('getUser rejects usernames with path traversal characters', async () => {
+    await expect(adapter.getUser('foo/../tweets')).rejects.toThrow('Invalid X username')
+  })
+
+  it('getUser rejects usernames with query string characters', async () => {
+    await expect(adapter.getUser('foo?bar=baz')).rejects.toThrow('Invalid X username')
+  })
+
+  it('getUser rejects usernames with hash characters', async () => {
+    await expect(adapter.getUser('foo#fragment')).rejects.toThrow('Invalid X username')
+  })
+
+  it('getUser rejects empty username', async () => {
+    await expect(adapter.getUser('')).rejects.toThrow('Invalid X username')
+  })
+
+  it('getUser rejects username longer than 15 characters', async () => {
+    await expect(adapter.getUser('a'.repeat(16))).rejects.toThrow('Invalid X username')
+  })
+
+  it('getUser accepts valid usernames with underscores and digits', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_USER }))
+    const user = await adapter.getUser('test_user_123')
+    expect(user.username).toBe('corvus_dev')
+  })
+
   it('getUserTweets returns array of parsed tweets', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: [RAW_TWEET, RAW_TWEET] }))
     const tweets = await adapter.getUserTweets('user_1')

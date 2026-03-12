@@ -1000,6 +1000,44 @@ describe('AgentExecutor — error and edge cases', () => {
     expect(mockGrok.query).toHaveBeenCalledTimes(3)
   })
 
+  it('filters invalid commands from replan responses', async () => {
+    const replanResponse = JSON.stringify({
+      action: 'revise',
+      steps: [
+        { command: 'scope', args: { username: 'alice' }, reasoning: 'Valid lead' },
+        { command: 'eval', args: { topic: 'exploit' }, reasoning: 'Invalid command' },
+        { command: 'shell', args: { topic: 'inject' }, reasoning: 'Also invalid' },
+        { command: 'scan', args: { topic: 'followup' }, reasoning: 'Valid scan' },
+      ],
+    })
+    const mockGrok = makeMockGrok([replanResponse])
+    const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
+
+    const plan: AgentPlan = {
+      goal: 'Test',
+      steps: [
+        { command: 'scan', args: { topic: 'test' }, reasoning: 'Step 1' },
+        { command: 'pulse', args: { topic: 'test' }, reasoning: 'Will be replaced' },
+      ],
+    }
+
+    const onReplan = vi.fn()
+    const executor = new AgentExecutor(deps, 'test', plan, {
+      ...defaultOptions,
+      replan: true,
+      onReplan,
+    })
+    const context = await executor.execute(0)
+
+    expect(onReplan).toHaveBeenCalled()
+    const revisedSteps = onReplan.mock.calls[0][0]
+    expect(revisedSteps.every((s: { command: string }) =>
+      ['scan', 'pulse', 'trace', 'gather', 'read', 'scope'].includes(s.command),
+    )).toBe(true)
+    expect(revisedSteps.some((s: { command: string }) => s.command === 'eval')).toBe(false)
+    expect(revisedSteps.some((s: { command: string }) => s.command === 'shell')).toBe(false)
+  })
+
   it('does not extract duplicate leads', async () => {
     const deps: CorvusDeps = {
       grok: makeMockGrok([]),

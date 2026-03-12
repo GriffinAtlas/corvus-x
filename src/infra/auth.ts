@@ -48,7 +48,7 @@ export class AuthManager {
     const creds = this.readCreds()
     mutate(creds)
     try {
-      fs.mkdirSync(this.baseDir, { recursive: true })
+      fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 })
       fs.writeFileSync(this.credPath, JSON.stringify(creds, null, 2), { mode: 0o600 })
     } catch (err) {
       throw new Error(`Failed to write credentials to ${this.credPath}`, { cause: err })

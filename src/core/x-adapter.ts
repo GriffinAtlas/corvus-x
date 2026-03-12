@@ -48,6 +48,8 @@ export class XApiError extends Error {
   }
 }
 
+const X_USERNAME_RE = /^[A-Za-z0-9_]{1,15}$/
+
 export class XAdapter {
   private bearerToken: string
   private timeoutMs: number
@@ -74,6 +76,9 @@ export class XAdapter {
   }
 
   async getUser(username: string): Promise<XUser> {
+    if (!X_USERNAME_RE.test(username)) {
+      throw new XApiError(400, `Invalid X username: ${username}`)
+    }
     const params = new URLSearchParams({
       'user.fields': 'description,public_metrics,verified',
     })

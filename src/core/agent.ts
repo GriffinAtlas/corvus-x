@@ -395,12 +395,16 @@ export class AgentExecutor {
     const decision = parseGrokJson<ReplanDecision>(response.text)
 
     if (decision.action === 'revise' && 'steps' in decision && Array.isArray(decision.steps)) {
+      const validCommands = new Set(['scan', 'pulse', 'trace', 'gather', 'read', 'scope'])
       const maxAdditional = remaining.length + 3
-      return decision.steps.slice(0, maxAdditional).map((s) => ({
-        command: s.command,
-        args: s.args ?? {},
-        reasoning: s.reasoning ?? '',
-      }))
+      return decision.steps
+        .filter((s) => validCommands.has(s.command))
+        .slice(0, maxAdditional)
+        .map((s) => ({
+          command: s.command,
+          args: s.args ?? {},
+          reasoning: s.reasoning ?? '',
+        }))
     }
 
     return null

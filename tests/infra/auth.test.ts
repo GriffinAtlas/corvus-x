@@ -118,6 +118,15 @@ describe('AuthManager', () => {
     expect(deepAuth.getGrokKey()).toBe('test-key')
   })
 
+  it('creates base directory with restricted permissions on Unix', () => {
+    if (process.platform === 'win32') return
+    const restricted = path.join(tmpDir, 'restricted-dir')
+    const restrictedAuth = new AuthManager(restricted)
+    restrictedAuth.setGrokKey('test-key')
+    const stats = fs.statSync(restricted)
+    expect(stats.mode & 0o777).toBe(0o700)
+  })
+
   it('writes credentials as valid JSON on disk', () => {
     auth.setGrokKey('disk-key')
     auth.setXToken('disk-token')
