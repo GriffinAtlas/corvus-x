@@ -92,7 +92,7 @@ export const CROW_LARGE = t.accent(
 ⠀⠀⠀⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣱⣵⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`,
 )
 
-const CROW_SMALL_LINES = [
+export const CROW_SMALL_LINES = [
   '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄⣀⣀⠀⠀⠀⠀',
   '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⡿⠋⠉⠀⠀⠀⠀',
   '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀',
@@ -103,7 +103,7 @@ const CROW_SMALL_LINES = [
   '⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠷⠤⠀⠀⠀⠀⠀⠀⠀⠀⠀',
 ]
 
-const LOGO_LINES = [
+export const LOGO_LINES = [
   '  ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═╗',
   '  ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗',
   '  ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝',
