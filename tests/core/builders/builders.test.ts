@@ -212,7 +212,8 @@ describe('buildScanSnapshot — X API path', () => {
 
     expect(result.data.metrics.tweetCount).toBe(2)
     expect(result.data.metrics.uniqueAuthors).toBe(2)
-    expect(result.data.sentiment.avg).toBeCloseTo(0.15, 2) // (0.5 + -0.2)/2
+    expect(result.data.sentiment.avg).toBeCloseTo(0.2, 2) // engagement-weighted: (0.5*87 + -0.2*63.5) / 150.5
+    expect(result.data.sentiment.rawAvg).toBeCloseTo(0.15, 2) // simple: (0.5 + -0.2)/2
     expect(result.data.sentiment.positive).toBe(1) // 0.5 > 0.3
     expect(result.data.sentiment.neutral).toBe(1) // -0.2 between thresholds
     expect(result.data.sentiment.negative).toBe(0)
@@ -333,7 +334,7 @@ describe('buildPulseSnapshot — X API path', () => {
     expect(result.data.keyVoices[1].handle).toBe('bob')
     expect(result.data.keyVoices[1].reach).toBe(2000)
     expect(result.data.metrics.tweetCount).toBe(2)
-    expect(result.data.sentiment.avg).toBeCloseTo(0.1, 2) // (0.5 + -0.3)/2
+    expect(result.data.sentiment.avg).toBeCloseTo(0.16, 2) // engagement-weighted: (0.5*87 + -0.3*63.5) / 150.5
   })
 
   it('throws on empty tweets', async () => {
@@ -673,7 +674,7 @@ describe('buildGatherSnapshot — X API path', () => {
     expect(result.data.webContext).toEqual(['Recent news article', 'Conference announcement'])
     expect(result.data.outlook).toBe('Positive trajectory expected')
     expect(result.data.metrics.tweetCount).toBe(2)
-    expect(result.data.sentiment.avg).toBeCloseTo(0.15, 2) // (0.4 + -0.1)/2
+    expect(result.data.sentiment.avg).toBeCloseTo(0.19, 2) // engagement-weighted: (0.4*87 + -0.1*63.5) / 150.5
     expect(result.data.sentiment.positive).toBe(1)
     expect(result.data.sentiment.neutral).toBe(1)
     expect(result.data.sentiment.negative).toBe(0)

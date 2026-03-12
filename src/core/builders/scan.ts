@@ -7,6 +7,7 @@ import {
 } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
+import { GrokScanResponseSchema } from '../validators.js'
 import {
   computeGrokOnlyMetrics,
   computeGrokOnlySentiment,
@@ -72,12 +73,12 @@ async function buildScanFromXApi(
   const tweetBlock = formatTweetsForAnalysis(tweets, users)
   const response = await deps.grok.query(
     `Analyze these ${tweets.length} tweets about "${topic}":\n\n${tweetBlock}`,
-    { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072 },
+    { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072, responseSchema: GrokScanResponseSchema },
   )
 
   const grok = parseGrokJson<GrokScanResponse>(response.text)
   const metrics = computeBaseMetrics(tweets)
-  const sentiment = computeSentiment(grok.tweetAnalysis)
+  const sentiment = computeSentiment(grok.tweetAnalysis, tweets)
   const topAccounts = computeTopAccounts(tweets, grok.tweetAnalysis, users)
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
@@ -88,7 +89,7 @@ async function buildScanFromXApi(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt: computeNewestTweetAt(tweets),
-    citations: [],
+    citations: response.citations,
   }
 }
 
@@ -123,6 +124,6 @@ async function buildScanFromGrok(
     tweets: [],
     scores: grok.tweetAnalysis,
     newestTweetAt: null,
-    citations: [],
+    citations: response.citations,
   }
 }

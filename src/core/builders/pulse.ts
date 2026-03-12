@@ -1,6 +1,7 @@
 import { computeBaseMetrics, computeSentiment, computeKeyVoices, computeNewestTweetAt } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
+import { GrokPulseResponseSchema } from '../validators.js'
 import { computeGrokOnlyMetrics, computeGrokOnlySentiment } from './grok-only.js'
 import type { GrokPulseResponse, PulseSnapshot } from '../schemas.js'
 import type { GrokOnlyPulseResponse } from './grok-only.js'
@@ -63,12 +64,12 @@ async function buildPulseFromXApi(
   const tweetBlock = formatTweetsForAnalysis(tweets, users)
   const response = await deps.grok.query(
     `Read the pulse on "${topic}" from these ${tweets.length} tweets:\n\n${tweetBlock}`,
-    { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072 },
+    { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072, responseSchema: GrokPulseResponseSchema },
   )
 
   const grok = parseGrokJson<GrokPulseResponse>(response.text)
   const metrics = computeBaseMetrics(tweets)
-  const sentiment = computeSentiment(grok.tweetAnalysis)
+  const sentiment = computeSentiment(grok.tweetAnalysis, tweets)
   const keyVoices = computeKeyVoices(tweets, grok.tweetAnalysis, users)
 
   return {
@@ -78,7 +79,7 @@ async function buildPulseFromXApi(
     tweets,
     scores: grok.tweetAnalysis,
     newestTweetAt: computeNewestTweetAt(tweets),
-    citations: [],
+    citations: response.citations,
   }
 }
 
@@ -108,6 +109,6 @@ async function buildPulseFromGrok(
     tweets: [],
     scores: grok.tweetAnalysis,
     newestTweetAt: null,
-    citations: [],
+    citations: response.citations,
   }
 }
