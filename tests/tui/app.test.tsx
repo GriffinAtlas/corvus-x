@@ -27,9 +27,9 @@ vi.mock('../../src/core/x-adapter.js', () => ({
 import { App } from '../../src/tui/app.js'
 
 describe('App', () => {
-  it('renders header with version', () => {
+  it('renders header with logo', () => {
     const { lastFrame } = render(<App version="0.1.0" />)
-    expect(lastFrame()!).toContain('corvus')
+    expect(lastFrame()!).toContain('╔═╗╔═╗╦═╗╦')
   })
 
   it('renders status line', () => {

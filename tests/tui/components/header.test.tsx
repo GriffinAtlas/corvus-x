@@ -4,17 +4,20 @@ import { render } from 'ink-testing-library'
 import { Header } from '../../../src/tui/components/header.js'
 
 describe('Header', () => {
-  it('shows version in compact mode', () => {
-    const { lastFrame } = render(<Header version="0.1.0" firstRun={false} />)
+  it('shows CORVUS logo and version in compact mode', () => {
+    const { lastFrame } = render(<Header version="0.2.0" firstRun={false} />)
     const frame = lastFrame()!
-    expect(frame).toContain('corvus')
-    expect(frame).toContain('0.1.0')
+    expect(frame).toContain('╔═╗╔═╗╦═╗╦')
+    expect(frame).toContain('0.2.0')
   })
 
-  it('shows welcome message on first run', () => {
-    const { lastFrame } = render(<Header version="0.1.0" firstRun={true} />)
+  it('shows crow art, logo, and help on first run', () => {
+    const { lastFrame } = render(<Header version="0.2.0" firstRun={true} />)
     const frame = lastFrame()!
-    expect(frame).toContain('corvus')
+    expect(frame).toContain('⣠⣤⣄⣀⣀')
+    expect(frame).toContain('╔═╗╔═╗╦═╗╦')
+    expect(frame).toContain('X intelligence agent')
     expect(frame).toContain('Commands:')
+    expect(frame).toContain('corvus auth setup')
   })
 })
