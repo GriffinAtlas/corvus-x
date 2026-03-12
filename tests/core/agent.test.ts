@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../src/core/agent.js'
-import type { AgentPlan, AgentOptions } from '../../src/core/agent.js'
+import type { AgentPlan, AgentOptions, AgentContext } from '../../src/core/agent.js'
 import type { GrokAdapter } from '../../src/core/grok-adapter.js'
 import type { CorvusDeps } from '../../src/core/types.js'
 import type { GrokResponse } from '../../src/core/types.js'
@@ -430,6 +430,7 @@ describe('AgentSynthesizer', () => {
             narrative: 'test',
           })),
           newestTweetAt: Date.now() - 60_000,
+          citations: [],
         },
       ],
       totalCost: 0.003,
@@ -524,6 +525,7 @@ describe('AgentSynthesizer', () => {
             narrative: 'bearish',
           })),
           newestTweetAt: Date.now(),
+          citations: [],
         },
         {
           step: { command: 'pulse' as const, args: { topic: 'btc' }, reasoning: '' },
@@ -555,6 +557,7 @@ describe('AgentSynthesizer', () => {
             narrative: 'mixed',
           })),
           newestTweetAt: Date.now(),
+          citations: [],
         },
       ],
       totalCost: 0.005,
@@ -602,6 +605,7 @@ describe('AgentSynthesizer', () => {
           ],
           scores: [{ index: 0, sentiment: 0.5, narrative: 'x' }],
           newestTweetAt: Date.now(),
+          citations: [],
         },
         {
           step: { command: 'pulse' as const, args: { topic: 'test' }, reasoning: '' },
@@ -620,6 +624,7 @@ describe('AgentSynthesizer', () => {
           ],
           scores: [{ index: 0, sentiment: -0.5, narrative: 'y' }],
           newestTweetAt: Date.now(),
+          citations: [],
         },
       ],
       totalCost: 0.003,
@@ -682,6 +687,7 @@ describe('AgentSynthesizer', () => {
           ],
           scores: [{ index: 0, sentiment: 0.5, narrative: 'x' }],
           newestTweetAt: null,
+          citations: [],
         },
         {
           step: { command: 'pulse' as const, args: { topic: 'test' }, reasoning: '' },
@@ -700,6 +706,7 @@ describe('AgentSynthesizer', () => {
           ],
           scores: [{ index: 0, sentiment: -0.5, narrative: 'y' }],
           newestTweetAt: null,
+          citations: [],
         },
       ],
       totalCost: 0.003,
@@ -744,6 +751,7 @@ describe('AgentSynthesizer', () => {
           ],
           scores: [{ index: 0, sentiment: 0.5, narrative: 'x' }],
           newestTweetAt: 1000,
+          citations: [],
         },
         {
           step: { command: 'pulse' as const, args: { topic: 'test' }, reasoning: '' },
@@ -762,6 +770,7 @@ describe('AgentSynthesizer', () => {
           ],
           scores: [{ index: 0, sentiment: -0.5, narrative: 'y' }],
           newestTweetAt: 2000,
+          citations: [],
         },
       ],
       totalCost: 0.003,
@@ -1040,5 +1049,118 @@ describe('AgentExecutor — error and edge cases', () => {
 
     expect(context.results).toHaveLength(1)
     expect(context.results[0].command).toBe('scan')
+  })
+})
+
+describe('AgentSynthesizer citations', () => {
+  it('includes citations array in brief from aggregated step citations', async () => {
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          signalLine: 'Test signal',
+          summary: ['finding 1'],
+          contradictions: [],
+          keyAccounts: [],
+          evidence: [],
+        }),
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+    }
+
+    const synthesizer = new AgentSynthesizer(mockGrok as any)
+    const context: AgentContext = {
+      goal: 'test',
+      question: 'what is happening?',
+      results: [
+        {
+          step: { command: 'scan', args: { topic: 'test' }, reasoning: 'start' },
+          command: 'scan',
+          snapshot: {
+            metrics: { tweetCount: 10, totalEngagement: 100, uniqueAuthors: 5, engagementPerTweet: 10 },
+            sentiment: { avg: 0.5, rawAvg: 0.5, positive: 5, neutral: 3, negative: 2 },
+            topAccounts: [],
+            narratives: [],
+            signals: [],
+          } as any,
+          cost: 0.001,
+          durationMs: 1000,
+          tweets: [],
+          scores: [],
+          newestTweetAt: null,
+          citations: [{ type: 'url_citation', url: 'https://x.com/foo/status/123', title: 'A tweet' }],
+        },
+      ],
+      totalCost: 0.001,
+      leads: [],
+    }
+
+    const brief = await synthesizer.synthesize(context)
+    expect(brief.citations).toHaveLength(1)
+    expect(brief.citations[0].url).toBe('https://x.com/foo/status/123')
+  })
+
+  it('deduplicates citations across steps', async () => {
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: JSON.stringify({ signalLine: 'Test', summary: [], contradictions: [], keyAccounts: [], evidence: [] }),
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+    }
+
+    const synthesizer = new AgentSynthesizer(mockGrok as any)
+    const sameUrl = { type: 'url_citation', url: 'https://x.com/same' }
+    const context: AgentContext = {
+      goal: 'test',
+      question: 'q',
+      results: [
+        { step: { command: 'scan', args: {}, reasoning: '' }, command: 'scan', snapshot: {} as any, cost: 0, durationMs: 0, tweets: [], scores: [], newestTweetAt: null, citations: [sameUrl] },
+        { step: { command: 'pulse', args: {}, reasoning: '' }, command: 'pulse', snapshot: {} as any, cost: 0, durationMs: 0, tweets: [], scores: [], newestTweetAt: null, citations: [sameUrl] },
+      ],
+      totalCost: 0,
+      leads: [],
+    }
+
+    const brief = await synthesizer.synthesize(context)
+    expect(brief.citations).toHaveLength(1)
+  })
+})
+
+describe('AgentSynthesizer onChunk', () => {
+  it('calls queryStream when onChunk provided', async () => {
+    const mockGrok = {
+      query: vi.fn(),
+      queryStream: vi.fn().mockResolvedValue({
+        text: JSON.stringify({ signalLine: 'Test', summary: [], contradictions: [], keyAccounts: [], evidence: [] }),
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+    }
+
+    const synthesizer = new AgentSynthesizer(mockGrok as any)
+    const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [] }
+
+    await synthesizer.synthesize(context, (text) => {})
+    expect(mockGrok.queryStream).toHaveBeenCalled()
+    expect(mockGrok.query).not.toHaveBeenCalled()
+  })
+
+  it('uses query() when no onChunk provided', async () => {
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: JSON.stringify({ signalLine: 'Test', summary: [], contradictions: [], keyAccounts: [], evidence: [] }),
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+      queryStream: vi.fn(),
+    }
+
+    const synthesizer = new AgentSynthesizer(mockGrok as any)
+    const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [] }
+
+    await synthesizer.synthesize(context)
+    expect(mockGrok.query).toHaveBeenCalled()
+    expect(mockGrok.queryStream).not.toHaveBeenCalled()
   })
 })
