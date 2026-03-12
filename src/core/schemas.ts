@@ -1,3 +1,5 @@
+import type { GrokCitation } from './types.js'
+
 // ── Grok JSON response shapes ──
 
 export interface GrokTweetScore {
@@ -66,6 +68,7 @@ export interface AccountEntry {
   postCount: number
   followers: number
   avgSentiment: number
+  engagementScore?: number
 }
 
 export interface NarrativeEntry {
@@ -77,6 +80,7 @@ export interface NarrativeEntry {
 
 export interface SentimentBreakdown {
   avg: number
+  rawAvg?: number
   positive: number
   neutral: number
   negative: number
@@ -212,6 +216,7 @@ export interface AgentBrief {
   confidence: ConfidenceScore
   sampleSize: number
   staleness: number | null
+  citations: GrokCitation[]
 }
 
 export type Snapshot =
@@ -234,6 +239,7 @@ export interface StoredSnapshot<T extends Snapshot = Snapshot> {
   cost: number
   tweets?: import('./x-adapter.js').Tweet[]
   scores?: GrokTweetScore[]
+  citations?: GrokCitation[]
 }
 
 // ── Diff match keys ──

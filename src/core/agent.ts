@@ -477,6 +477,7 @@ export class AgentSynthesizer {
       confidence,
       sampleSize,
       staleness,
+      citations: [],
     }
 
     return brief
