@@ -15,7 +15,7 @@ function readVersion(): string {
     try {
       return JSON.parse(readFileSync(join(__dirname, depth, 'package.json'), 'utf-8')).version
     } catch {
-      /* file not found at this depth */
+      /* not at this depth */
     }
   }
   return '0.0.0'
@@ -36,7 +36,7 @@ const program = new Command()
 
 program
   .name('corvus')
-  .description('Autonomous X intelligence agent — one question in, full investigation out')
+  .description('X intelligence agent')
   .version(VERSION)
   .option('--no-color', 'disable color output')
   .hook('preAction', () => {

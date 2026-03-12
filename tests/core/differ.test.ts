@@ -163,11 +163,12 @@ describe('diffSnapshots', () => {
     expect(added!.path).toBe('b')
   })
 
-  it('treats null vs non-null as a change — falls through with no diff line', () => {
-    // null is typeof "object" but the nested-object branch requires both non-null,
-    // so null vs string falls through every branch and produces no diff line.
+  it('detects null vs non-null as a change', () => {
     const lines = diffSnapshots({ x: null }, { x: 'hello' } as any, {})
-    expect(lines).toEqual([])
+    expect(lines).toHaveLength(1)
+    expect(lines[0].type).toBe('changed')
+    expect(lines[0].oldValue).toBe('null')
+    expect(lines[0].newValue).toBe('hello')
   })
 
   it('handles negative delta in formatDiffLines', () => {
@@ -185,6 +186,59 @@ describe('diffSnapshots', () => {
     const output = formatDiffLines(lines, 60_000)
     expect(output).toContain('tweetCount')
     expect(output).not.toContain('metrics.')
+  })
+
+  it('detects boolean value change', () => {
+    const lines = diffSnapshots({ flag: true }, { flag: false } as any, {})
+    expect(lines).toHaveLength(1)
+    expect(lines[0].type).toBe('changed')
+    expect(lines[0].oldValue).toBe('true')
+    expect(lines[0].newValue).toBe('false')
+  })
+
+  it('null on both sides produces no diffs', () => {
+    const lines = diffSnapshots({ x: null }, { x: null }, {})
+    expect(lines).toEqual([])
+  })
+
+  it('mixed array types with same length and no match key produces no diff', () => {
+    const lines = diffSnapshots(
+      { items: [1, 'two', 3] },
+      { items: [1, 'two', 4] } as any,
+      {},
+    )
+    // first element is number (not string), no match key — falls to length comparison
+    // same length (3) → no diff
+    expect(lines).toEqual([])
+  })
+
+  it('empty array vs populated string array detects added items', () => {
+    const lines = diffSnapshots({ tags: [] }, { tags: ['new'] } as any, {})
+    // newVal[0] is 'string' → enters string set branch
+    const added = lines.find((l) => l.type === 'added')
+    expect(added).toBeDefined()
+    expect(added!.path).toBe('tags')
+    expect(added!.newValue).toBe('new')
+  })
+
+  it('deeply nested objects produce dotted path', () => {
+    const lines = diffSnapshots({ a: { b: { c: 1 } } }, { a: { b: { c: 2 } } }, {})
+    expect(lines).toHaveLength(1)
+    expect(lines[0].path).toBe('a.b.c')
+    expect(lines[0].type).toBe('changed')
+    expect(lines[0].oldValue).toBe('1')
+    expect(lines[0].newValue).toBe('2')
+  })
+
+  it('formatDelta with non-numeric values omits delta from output', () => {
+    const lines: DiffLine[] = [
+      { path: 'status', type: 'changed', oldValue: 'abc', newValue: 'xyz' },
+    ]
+    const output = formatDiffLines(lines, 60_000)
+    expect(output).toContain('abc')
+    expect(output).toContain('xyz')
+    // no delta like (+N) or (-N) should appear
+    expect(output).not.toMatch(/\([+-]\d/)
   })
 })
 
@@ -265,5 +319,30 @@ describe('formatDiffLines', () => {
     const lines: DiffLine[] = [{ path: 'count', type: 'changed', oldValue: '1', newValue: '2' }]
     const output = formatDiffLines(lines, 24 * 60 * 60 * 1000)
     expect(output).toContain('1d ago')
+  })
+
+  it('renders all three diff types in a single output', () => {
+    const lines: DiffLine[] = [
+      { path: 'score', type: 'changed', oldValue: '10', newValue: '20' },
+      { path: 'newField', type: 'added', newValue: 'hello' },
+      { path: 'oldField', type: 'removed', oldValue: 'goodbye' },
+    ]
+    const output = formatDiffLines(lines, 60_000)
+    // changed line with arrow
+    expect(output).toContain('score')
+    expect(output).toContain('→')
+    // added line with + prefix
+    expect(output).toContain('+ newField')
+    expect(output).toContain('hello')
+    // removed line with - prefix
+    expect(output).toContain('- oldField')
+    expect(output).toContain('goodbye')
+  })
+
+  it('handles negative timeSince by showing negative minutes', () => {
+    const lines: DiffLine[] = [{ path: 'x', type: 'changed', oldValue: '1', newValue: '2' }]
+    const output = formatDiffLines(lines, -120_000)
+    // Math.floor(-120000 / 60000) = -2, which is < 60, so format as minutes
+    expect(output).toContain('-2m ago')
   })
 })

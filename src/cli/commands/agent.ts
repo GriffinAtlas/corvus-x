@@ -6,8 +6,7 @@ import { ConfigManager } from '../../infra/config.js'
 import { GrokAdapter, MODEL_PRICING, DEFAULT_MODEL } from '../../core/grok-adapter.js'
 import { XAdapter } from '../../core/x-adapter.js'
 import { SnapshotStore } from '../../core/snapshots.js'
-import { diffSnapshots } from '../../core/differ.js'
-import { formatDiffLines } from '../../core/differ.js'
+import { diffSnapshots, formatDiffLines } from '../../core/differ.js'
 import { AGENT_MATCH_KEYS } from '../../core/schemas.js'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../core/agent.js'
 import { StepProgress } from '../progress.js'
@@ -15,7 +14,7 @@ import { renderAgentBrief, renderAgentBriefMd } from '../output.js'
 import type { AgentPlan, AgentStep } from '../../core/agent.js'
 import type { AgentBrief } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
-import type { CommandDeps } from '../run-command.js'
+import type { CorvusDeps } from '../../core/types.js'
 
 function stepLabel(step: AgentStep): string {
   const target = step.args.topic ?? step.args.username ?? step.args.tweetId ?? ''
@@ -138,7 +137,7 @@ export function registerAgentCommand(program: Command): void {
         }
 
         const xToken = auth.getXToken()
-        const deps: CommandDeps = {
+        const deps: CorvusDeps = {
           grok: new GrokAdapter(grokKey),
           x: xToken ? new XAdapter(xToken) : null,
         }

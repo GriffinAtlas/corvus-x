@@ -206,4 +206,89 @@ describe('SnapshotStore', () => {
     expect(loaded!.tweets).toBeUndefined()
     expect(loaded!.scores).toBeUndefined()
   })
+
+  it('loadLatest throws on corrupted JSON file', () => {
+    freshStore()
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(9999999)
+    store.save('scan', 'corrupt', { ok: true } as any, 'raw', 0.001)
+
+    // Overwrite the saved file with invalid JSON
+    const hash = crypto.createHash('sha256').update('corrupt').digest('hex').slice(0, 12)
+    const snapshotFile = path.join(tmpDir, 'snapshots', `scan-${hash}`, '9999999.json')
+    fs.writeFileSync(snapshotFile, '{{not valid json!!!}')
+
+    expect(() => store.loadLatest('scan', 'corrupt')).toThrow()
+  })
+
+  it('listTopics skips empty subdirectories', () => {
+    freshStore()
+    // Create the snapshots dir with an empty command subdirectory
+    const snapshotsDir = path.join(tmpDir, 'snapshots')
+    fs.mkdirSync(path.join(snapshotsDir, 'scan-empty'), { recursive: true })
+
+    const topics = store.listTopics()
+    expect(topics).toEqual([])
+  })
+
+  it('listTopics skips non-directory files in snapshots dir', () => {
+    freshStore()
+    // Save one real snapshot so snapshots dir exists
+    store.save('scan', 'real-topic', { ok: true } as any, 'raw', 0.001)
+
+    // Place a regular file (not a directory) in the snapshots dir
+    fs.writeFileSync(path.join(tmpDir, 'snapshots', 'stray-file.txt'), 'not a dir')
+
+    const topics = store.listTopics()
+    // Should only include the real topic, not the stray file
+    expect(topics.length).toBe(1)
+    expect(topics[0].command).toBe('scan')
+  })
+
+  it('loadAll returns snapshots in chronological order', () => {
+    freshStore()
+    const nowSpy = vi.spyOn(Date, 'now')
+
+    // Save in non-chronological order: 3000, 1000, 2000
+    nowSpy.mockReturnValue(3000)
+    store.save('scan', 'order-test', { n: 3 } as any, 'r3', 0.001)
+    nowSpy.mockReturnValue(1000)
+    store.save('scan', 'order-test', { n: 1 } as any, 'r1', 0.001)
+    nowSpy.mockReturnValue(2000)
+    store.save('scan', 'order-test', { n: 2 } as any, 'r2', 0.001)
+
+    const all = store.loadAll('scan', 'order-test')
+    expect(all.length).toBe(3)
+    // listFiles sorts lexicographically: "1000.json" < "2000.json" < "3000.json"
+    expect(all[0].timestamp).toBe(1000)
+    expect(all[1].timestamp).toBe(2000)
+    expect(all[2].timestamp).toBe(3000)
+  })
+
+  it('save with empty topic string', () => {
+    freshStore()
+    // sha256('') is a valid hash — should not throw
+    store.save('scan', '', { empty: true } as any, 'raw', 0.001)
+    const loaded = store.loadLatest('scan', '')
+    expect(loaded).not.toBeNull()
+    expect(loaded!.data).toEqual({ empty: true })
+    expect(loaded!.topic).toBe('')
+  })
+
+  it('concurrent-ish saves to same topic both persist', () => {
+    freshStore()
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(5000000)
+    store.save('scan', 'rapid', { n: 1 } as any, 'r1', 0.001)
+    nowSpy.mockReturnValue(5000001)
+    store.save('scan', 'rapid', { n: 2 } as any, 'r2', 0.002)
+
+    const all = store.loadAll('scan', 'rapid')
+    expect(all.length).toBe(2)
+    expect(all[0].data).toEqual({ n: 1 })
+    expect(all[1].data).toEqual({ n: 2 })
+    const latest = store.loadLatest('scan', 'rapid')
+    expect(latest).not.toBeNull()
+    expect(latest!.data).toEqual({ n: 2 })
+  })
 })

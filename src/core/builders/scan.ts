@@ -3,6 +3,7 @@ import {
   computeSentiment,
   computeTopAccounts,
   computeNarratives,
+  computeNewestTweetAt,
 } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
@@ -80,19 +81,13 @@ async function buildScanFromXApi(
   const topAccounts = computeTopAccounts(tweets, grok.tweetAnalysis, users)
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
-  const newestTweetAt =
-    tweets.reduce((max, t) => {
-      const ts = new Date(t.createdAt).getTime()
-      return Number.isFinite(ts) && ts > max ? ts : max
-    }, 0) || null
-
   return {
     data: { metrics, sentiment, topAccounts, narratives, signals: grok.signals },
     raw: response.text,
     cost: response.usage.costUsd,
     tweets,
     scores: grok.tweetAnalysis,
-    newestTweetAt,
+    newestTweetAt: computeNewestTweetAt(tweets),
   }
 }
 

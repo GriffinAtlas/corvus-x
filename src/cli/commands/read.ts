@@ -3,12 +3,10 @@ import { t } from '../theme.js'
 import { runStructuredCommand } from '../run-command.js'
 import { renderRead } from '../output.js'
 import { buildReadSnapshot, extractTweetId } from '../../core/builders/read.js'
-import type { ReadSnapshot, MatchKeys } from '../../core/schemas.js'
+import type { ReadSnapshot } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
 
 export { buildReadSnapshot, extractTweetId } from '../../core/builders/read.js'
-
-const READ_MATCH_KEYS: MatchKeys = {}
 
 export function registerReadCommand(program: Command): void {
   program
@@ -33,7 +31,7 @@ export function registerReadCommand(program: Command): void {
         format: options.format,
         cost: options.cost,
         spinnerText: `read · ${tweetId}`,
-        matchKeys: READ_MATCH_KEYS,
+        matchKeys: {},
         renderSnapshot: renderRead,
         buildSnapshot: (deps) => buildReadSnapshot(deps, tweetId),
       })

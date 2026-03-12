@@ -8,6 +8,8 @@ import {
   computeKeyVoices,
   computeConfidence,
   detectContradictions,
+  toUserMap,
+  computeNewestTweetAt,
 } from '../../src/core/metrics.js'
 import type { Tweet, XUser } from '../../src/core/x-adapter.js'
 import type { GrokTweetScore, GrokNarrative } from '../../src/core/schemas.js'
@@ -1008,5 +1010,102 @@ describe('detectContradictions', () => {
     expect(result.length).toBeGreaterThanOrEqual(2)
     expect(result.some((c) => c.includes('diverges'))).toBe(true)
     expect(result.some((c) => c.includes('Crash incoming'))).toBe(true)
+  })
+})
+
+describe('toUserMap', () => {
+  it('returns empty map for empty array', () => {
+    const result = toUserMap([])
+    expect(result).toBeInstanceOf(Map)
+    expect(result.size).toBe(0)
+  })
+
+  it('maps single user id to user', () => {
+    const user = makeUser({ id: 'u1', username: 'alice' })
+    const result = toUserMap([user])
+    expect(result.size).toBe(1)
+    expect(result.get('u1')).toBe(user)
+  })
+
+  it('maps multiple users with correct keys', () => {
+    const alice = makeUser({ id: 'u1', username: 'alice' })
+    const bob = makeUser({ id: 'u2', username: 'bob' })
+    const carol = makeUser({ id: 'u3', username: 'carol' })
+    const result = toUserMap([alice, bob, carol])
+    expect(result.size).toBe(3)
+    expect(result.get('u1')).toBe(alice)
+    expect(result.get('u2')).toBe(bob)
+    expect(result.get('u3')).toBe(carol)
+  })
+
+  it('last user wins when duplicate IDs are present', () => {
+    const first = makeUser({ id: 'dup', username: 'first' })
+    const second = makeUser({ id: 'dup', username: 'second' })
+    const result = toUserMap([first, second])
+    expect(result.size).toBe(1)
+    expect(result.get('dup')).toBe(second)
+    expect(result.get('dup')!.username).toBe('second')
+  })
+})
+
+describe('computeNewestTweetAt', () => {
+  it('returns null for empty array', () => {
+    const result = computeNewestTweetAt([])
+    expect(result).toBeNull()
+  })
+
+  it('returns timestamp for single tweet', () => {
+    const tweet = makeTweet({ id: '1', authorId: 'a', createdAt: '2026-03-10T12:00:00Z' })
+    const result = computeNewestTweetAt([tweet])
+    expect(result).toBe(new Date('2026-03-10T12:00:00Z').getTime())
+  })
+
+  it('returns the newest timestamp from multiple tweets', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', createdAt: '2026-03-08T00:00:00Z' }),
+      makeTweet({ id: '2', authorId: 'b', createdAt: '2026-03-10T00:00:00Z' }),
+      makeTweet({ id: '3', authorId: 'c', createdAt: '2026-03-09T00:00:00Z' }),
+    ]
+    const result = computeNewestTweetAt(tweets)
+    expect(result).toBe(new Date('2026-03-10T00:00:00Z').getTime())
+  })
+
+  it('returns the shared timestamp when all tweets have the same date', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', createdAt: '2026-03-10T06:00:00Z' }),
+      makeTweet({ id: '2', authorId: 'b', createdAt: '2026-03-10T06:00:00Z' }),
+    ]
+    const result = computeNewestTweetAt(tweets)
+    expect(result).toBe(new Date('2026-03-10T06:00:00Z').getTime())
+  })
+
+  it('returns null when all tweets have invalid dates', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', createdAt: 'not-a-date' }),
+      makeTweet({ id: '2', authorId: 'b', createdAt: 'also-invalid' }),
+    ]
+    const result = computeNewestTweetAt(tweets)
+    expect(result).toBeNull()
+  })
+
+  it('returns newest valid date when mixed with invalid dates', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', createdAt: 'not-a-date' }),
+      makeTweet({ id: '2', authorId: 'b', createdAt: '2026-03-09T00:00:00Z' }),
+      makeTweet({ id: '3', authorId: 'c', createdAt: 'garbage' }),
+      makeTweet({ id: '4', authorId: 'd', createdAt: '2026-03-10T00:00:00Z' }),
+    ]
+    const result = computeNewestTweetAt(tweets)
+    expect(result).toBe(new Date('2026-03-10T00:00:00Z').getTime())
+  })
+
+  it('returns a positive number for past tweets', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a', createdAt: '2020-01-01T00:00:00Z' }),
+      makeTweet({ id: '2', authorId: 'b', createdAt: '2019-06-15T12:30:00Z' }),
+    ]
+    const result = computeNewestTweetAt(tweets)
+    expect(result).toBeTypeOf('number')
+    expect(result).toBeGreaterThan(0)
   })
 })

@@ -1,4 +1,4 @@
-import { computeBaseMetrics, computeSentiment, computeKeyVoices } from '../metrics.js'
+import { computeBaseMetrics, computeSentiment, computeKeyVoices, computeNewestTweetAt } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
 import { computeGrokOnlyMetrics, computeGrokOnlySentiment } from './grok-only.js'
@@ -71,19 +71,13 @@ async function buildPulseFromXApi(
   const sentiment = computeSentiment(grok.tweetAnalysis)
   const keyVoices = computeKeyVoices(tweets, grok.tweetAnalysis, users)
 
-  const newestTweetAt =
-    tweets.reduce((max, t) => {
-      const ts = new Date(t.createdAt).getTime()
-      return Number.isFinite(ts) && ts > max ? ts : max
-    }, 0) || null
-
   return {
     data: { metrics, sentiment, bullSignals: grok.bullSignals, bearSignals: grok.bearSignals, keyVoices },
     raw: response.text,
     cost: response.usage.costUsd,
     tweets,
     scores: grok.tweetAnalysis,
-    newestTweetAt,
+    newestTweetAt: computeNewestTweetAt(tweets),
   }
 }
 

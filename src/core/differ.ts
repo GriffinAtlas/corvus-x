@@ -135,6 +135,13 @@ function diffRecords(
       lines.push(...diffRecords(oldVal, newVal, matchKeys, fullPath))
       continue
     }
+
+    lines.push({
+      path: fullPath,
+      type: 'changed',
+      oldValue: formatValue(oldVal),
+      newValue: formatValue(newVal),
+    })
   }
 
   return lines

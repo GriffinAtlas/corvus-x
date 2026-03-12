@@ -1,14 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { ScanSnapshot, PulseSnapshot, TraceSnapshot } from '../../src/core/schemas.js'
-import type { GatherSnapshot, ReadSnapshot, ScopeSnapshot } from '../../src/core/schemas.js'
-import type { CorvusDeps } from '../../src/core/types.js'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type {
+  ScanSnapshot,
+  PulseSnapshot,
+  TraceSnapshot,
+  GatherSnapshot,
+  ReadSnapshot,
+  ScopeSnapshot,
+  AgentBrief,
+} from '../../src/core/schemas.js'
+import { extractTweetId } from '../../src/core/builders/read.js'
 
-// Mock auth + config so initDeps() works
 vi.mock('../../src/infra/auth.js', () => ({
-  AuthManager: vi.fn().mockImplementation(() => ({
-    getGrokKey: () => 'xai-test-key',
-    getXToken: () => null,
-  })),
+  AuthManager: class {
+    getGrokKey() { return 'xai-test-key' }
+    getXToken() { return null }
+  },
 }))
 
 vi.mock('../../src/infra/config.js', () => ({
@@ -16,11 +22,11 @@ vi.mock('../../src/infra/config.js', () => ({
 }))
 
 vi.mock('../../src/core/grok-adapter.js', () => ({
-  GrokAdapter: vi.fn().mockImplementation(() => ({})),
+  GrokAdapter: class {},
 }))
 
 vi.mock('../../src/core/x-adapter.js', () => ({
-  XAdapter: vi.fn(),
+  XAdapter: class {},
 }))
 
 const makeBuildResult = <T>(data: T, cost = 0.003) => ({
@@ -43,43 +49,60 @@ const scanData: ScanSnapshot = {
 const pulseData: PulseSnapshot = {
   metrics: { tweetCount: 10, totalEngagement: 400, uniqueAuthors: 7, engagementPerTweet: 40 },
   sentiment: { avg: -0.1, positive: 3, neutral: 4, negative: 3 },
-  topAccounts: [{ handle: 'bob', postCount: 5, followers: 10000, avgSentiment: -0.2 }],
-  signals: { bullish: ['Signal A'], bearish: ['Signal B'], catalysts: ['Catalyst 1'] },
-  momentum: { direction: 'bearish' as const, strength: 0.6, description: 'Weakening' },
+  bullSignals: ['Bull signal A'],
+  bearSignals: ['Bear signal B'],
+  keyVoices: [{ handle: 'bob', sentiment: -0.2, reach: 10000 }],
 }
 
 const traceData: TraceSnapshot = {
   metrics: { tweetCount: 10, totalEngagement: 300, uniqueAuthors: 6, engagementPerTweet: 30 },
-  origin: { handle: 'origin_user', tweetId: '111', summary: 'First claim', date: '2026-03-01' },
-  phases: [{ label: 'Phase 1', timeRange: '2026-03-01 to 03-02', keyTweets: 5, description: 'Spread' }],
-  amplifiers: [{ handle: 'amplifier1', reach: 50000, role: 'Broadcaster' }],
-  mutations: [{ from: 'original claim', to: 'mutated claim', significance: 'high' as const }],
+  origin: { account: 'origin_user', date: '2026-03-01', tweetId: '111', content: 'First claim' },
+  timeline: [
+    {
+      phase: 'Phase 1',
+      tweetCount: 5,
+      keyAmplifiers: ['amplifier1'],
+      timeframe: '2026-03-01 to 03-02',
+    },
+  ],
+  mutations: [{ original: 'original claim', variant: 'mutated claim' }],
+  reach: { totalTweets: 10, totalEngagement: 300, uniqueAuthors: 6 },
 }
 
 const gatherData: GatherSnapshot = {
   metrics: { tweetCount: 10, totalEngagement: 600, uniqueAuthors: 9, engagementPerTweet: 60 },
   sentiment: { avg: 0.2, positive: 4, neutral: 4, negative: 2 },
+  topPosts: [{ id: '999', author: 'topuser', text: 'Top post', engagement: 200 }],
   narratives: [{ theme: 'test', description: 'Narrative', tweetCount: 10, avgSentiment: 0.2 }],
-  webContext: [{ source: 'news.com', headline: 'Big news', relevance: 'high' as const }],
-  outlook: { shortTerm: 'Stable', mediumTerm: 'Growing', risks: ['Risk 1'] },
+  webContext: ['Major news article about the topic'],
+  outlook: 'Stable short-term, growing medium-term',
 }
 
 const readData: ReadSnapshot = {
-  tweetId: '12345',
-  authorHandle: 'testuser',
-  text: 'Test tweet',
-  significance: 'moderate' as const,
-  analysis: 'Analysis of tweet',
+  tweet: {
+    id: '12345',
+    author: 'testuser',
+    text: 'Test tweet content',
+    engagement: { likes: 100, retweets: 20, replies: 5, impressions: 5000 },
+    postedAt: '2026-03-10T12:00:00Z',
+  },
+  analysis: 'Analysis of the tweet content and significance',
+  significance: 'medium',
   signals: ['Signal from tweet'],
-  context: 'Background context',
 }
 
 const scopeData: ScopeSnapshot = {
-  handle: 'testuser',
-  influence: { level: 'moderate' as const, reach: 10000, description: 'Growing account' },
-  contentPatterns: { topics: ['AI', 'tech'], postingFrequency: 'daily', style: 'analytical' },
+  account: { handle: 'testuser', followers: 10000, following: 500, tweetCount: 3000 },
+  recentActivity: {
+    avgEngagement: 150,
+    postsAnalyzed: 10,
+    topTweet: { id: '555', text: 'Best tweet', engagement: 500 },
+  },
+  contentPatterns: ['AI', 'tech'],
   recentFocus: ['AI agents', 'LLMs'],
-  signalValue: { score: 0.7, description: 'Reliable signal' },
+  networkPosition: 'Mid-tier tech voice',
+  influence: 'medium',
+  signalValue: 'high',
 }
 
 vi.mock('../../src/core/builders/scan.js', () => ({
@@ -98,23 +121,38 @@ vi.mock('../../src/core/builders/gather.js', () => ({
   buildGatherSnapshot: vi.fn(async () => makeBuildResult(gatherData)),
 }))
 
-vi.mock('../../src/core/builders/read.js', () => ({
-  buildReadSnapshot: vi.fn(async () => makeBuildResult(readData)),
-  extractTweetId: vi.fn((input: string) => {
-    const match = input.match(/(\d{4,})/)
-    return match ? match[1] : null
-  }),
-}))
+vi.mock('../../src/core/builders/read.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../src/core/builders/read.js')>()
+  return {
+    ...original,
+    buildReadSnapshot: vi.fn(async () => makeBuildResult(readData)),
+  }
+})
 
 vi.mock('../../src/core/builders/scope.js', () => ({
   buildScopeSnapshot: vi.fn(async () => makeBuildResult(scopeData)),
 }))
 
 vi.mock('../../src/core/agent.js', () => {
+  const brief: AgentBrief = {
+    signalLine: 'Test signal',
+    sentiment: 0.3,
+    summary: ['Finding 1'],
+    contradictions: [],
+    keyAccounts: [],
+    evidence: [],
+    confidence: { overall: 0.7, volume: 'moderate', consistency: 0.8, diversity: 0.6 },
+    sampleSize: 10,
+    staleness: null,
+  }
+
   class MockPlanner {
     async plan() {
       return {
-        plan: { goal: 'Investigate test', steps: [{ command: 'scan', args: { topic: 'test' }, reasoning: 'start' }] },
+        plan: {
+          goal: 'Investigate test',
+          steps: [{ command: 'scan', args: { topic: 'test' }, reasoning: 'start' }],
+        },
         costUsd: 0.001,
       }
     }
@@ -132,17 +170,7 @@ vi.mock('../../src/core/agent.js', () => {
   }
   class MockSynthesizer {
     async synthesize() {
-      return {
-        signalLine: 'Test signal',
-        sentiment: 0.3,
-        summary: ['Finding 1'],
-        contradictions: [],
-        keyAccounts: [],
-        evidence: [],
-        confidence: { score: 0.7, label: 'moderate', sampleSize: 10, staleness: null },
-        sampleSize: 10,
-        staleness: null,
-      }
+      return brief
     }
   }
   return {
@@ -152,107 +180,221 @@ vi.mock('../../src/core/agent.js', () => {
   }
 })
 
-// Grab the mocked functions for assertions
+import { createServer } from '../../src/mcp/server.js'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { buildScanSnapshot } from '../../src/core/builders/scan.js'
 import { buildPulseSnapshot } from '../../src/core/builders/pulse.js'
 import { buildTraceSnapshot } from '../../src/core/builders/trace.js'
 import { buildGatherSnapshot } from '../../src/core/builders/gather.js'
-import { buildReadSnapshot, extractTweetId } from '../../src/core/builders/read.js'
+import { buildReadSnapshot } from '../../src/core/builders/read.js'
 import { buildScopeSnapshot } from '../../src/core/builders/scope.js'
-import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../src/core/agent.js'
 
-import { createServer } from '../../src/mcp/server.js'
+async function connectClient() {
+  const mcpServer = createServer()
+  const client = new Client({ name: 'test-client', version: '0.0.1' })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  await Promise.all([
+    client.connect(clientTransport),
+    mcpServer.server.connect(serverTransport),
+  ])
+  return { client, mcpServer }
+}
 
-// McpServer doesn't expose tool handlers directly, so we test createServer()
-// returns a valid server and test the helper functions indirectly.
+function parseContent(result: Awaited<ReturnType<Client['callTool']>>) {
+  const text = result.content as { type: string; text: string }[]
+  return JSON.parse(text[0].text)
+}
 
 describe('MCP server', () => {
-  it('createServer returns an McpServer instance', () => {
+  it('createServer returns an McpServer with registerTool and connect', () => {
     const server = createServer()
-    expect(server).toBeDefined()
-    expect(server).toHaveProperty('registerTool')
-    expect(server).toHaveProperty('connect')
+    expect(typeof server.registerTool).toBe('function')
+    expect(typeof server.connect).toBe('function')
   })
 
-  // Since McpServer doesn't provide a direct way to call tools in unit tests,
-  // we test the wiring by verifying the server can be created without errors
-  // and the mocked builders are properly importable.
+  it('can be created multiple times without error', () => {
+    const s1 = createServer()
+    const s2 = createServer()
+    expect(s1).not.toBe(s2)
+  })
 
-  describe('tool wiring', () => {
-    it('scan builder is callable with expected args', async () => {
-      const deps = {} as CorvusDeps
-      const result = await buildScanSnapshot(deps, 'bitcoin', 50)
-      expect(result.data).toEqual(scanData)
-      expect(result.cost).toBe(0.003)
+  it('all zod schemas are valid', () => {
+    expect(() => createServer()).not.toThrow()
+  })
+
+  describe('tool handlers via MCP client', () => {
+    let client: Client
+    let mcpServer: Awaited<ReturnType<typeof createServer>>
+
+    beforeEach(async () => {
+      vi.mocked(buildScanSnapshot).mockClear()
+      vi.mocked(buildPulseSnapshot).mockClear()
+      vi.mocked(buildTraceSnapshot).mockClear()
+      vi.mocked(buildGatherSnapshot).mockClear()
+      vi.mocked(buildReadSnapshot).mockClear()
+      vi.mocked(buildScopeSnapshot).mockClear()
+      ;({ client, mcpServer } = await connectClient())
     })
 
-    it('pulse builder is callable with expected args', async () => {
-      const deps = {} as CorvusDeps
-      const result = await buildPulseSnapshot(deps, 'bitcoin', 50)
-      expect(result.data).toEqual(pulseData)
+    afterEach(async () => {
+      await client.close()
+      await mcpServer.close()
     })
 
-    it('trace builder is callable with expected args', async () => {
-      const deps = {} as CorvusDeps
-      const result = await buildTraceSnapshot(deps, 'test narrative', 50)
-      expect(result.data).toEqual(traceData)
+    it('lists all 7 tools', async () => {
+      const { tools } = await client.listTools()
+      const names = tools.map((t) => t.name).sort()
+      expect(names).toEqual([
+        'corvus_agent',
+        'corvus_gather',
+        'corvus_pulse',
+        'corvus_read',
+        'corvus_scan',
+        'corvus_scope',
+        'corvus_trace',
+      ])
     })
 
-    it('gather builder is callable with expected args', async () => {
-      const deps = {} as CorvusDeps
-      const result = await buildGatherSnapshot(deps, 'AI regulation', 50)
-      expect(result.data).toEqual(gatherData)
+    it('corvus_scan calls buildScanSnapshot and returns data with _cost', async () => {
+      const result = await client.callTool({
+        name: 'corvus_scan',
+        arguments: { topic: 'bitcoin', maxResults: 25 },
+      })
+      const parsed = parseContent(result)
+      expect(vi.mocked(buildScanSnapshot)).toHaveBeenCalledOnce()
+      const [deps, topic, maxResults] = vi.mocked(buildScanSnapshot).mock.calls[0]
+      expect(topic).toBe('bitcoin')
+      expect(maxResults).toBe(25)
+      expect(deps).toHaveProperty('grok')
+      expect(parsed._cost).toBe(0.003)
+      expect(parsed.metrics.tweetCount).toBe(10)
+      expect(parsed.signals).toEqual(['Signal 1'])
     })
 
-    it('read builder is callable with tweet ID', async () => {
-      const deps = {} as CorvusDeps
-      const result = await buildReadSnapshot(deps, '12345')
-      expect(result.data).toEqual(readData)
+    it('corvus_pulse calls buildPulseSnapshot with correct args', async () => {
+      const result = await client.callTool({
+        name: 'corvus_pulse',
+        arguments: { topic: 'ETH merge', maxResults: 30 },
+      })
+      const parsed = parseContent(result)
+      const [, topic, maxResults] = vi.mocked(buildPulseSnapshot).mock.calls[0]
+      expect(topic).toBe('ETH merge')
+      expect(maxResults).toBe(30)
+      expect(parsed.bullSignals).toEqual(['Bull signal A'])
+      expect(parsed.bearSignals).toEqual(['Bear signal B'])
     })
 
-    it('scope builder is callable with username', async () => {
-      const deps = {} as CorvusDeps
-      const result = await buildScopeSnapshot(deps, 'testuser', 10)
-      expect(result.data).toEqual(scopeData)
+    it('corvus_trace calls buildTraceSnapshot with narrative arg', async () => {
+      const result = await client.callTool({
+        name: 'corvus_trace',
+        arguments: { narrative: 'lab leak', maxResults: 40 },
+      })
+      const parsed = parseContent(result)
+      const [, narrative, maxResults] = vi.mocked(buildTraceSnapshot).mock.calls[0]
+      expect(narrative).toBe('lab leak')
+      expect(maxResults).toBe(40)
+      expect(parsed.origin.account).toBe('origin_user')
+    })
+
+    it('corvus_gather calls buildGatherSnapshot with correct args', async () => {
+      const result = await client.callTool({
+        name: 'corvus_gather',
+        arguments: { topic: 'AI regulation', maxResults: 50 },
+      })
+      const parsed = parseContent(result)
+      const [, topic, maxResults] = vi.mocked(buildGatherSnapshot).mock.calls[0]
+      expect(topic).toBe('AI regulation')
+      expect(maxResults).toBe(50)
+      expect(parsed.webContext).toEqual(['Major news article about the topic'])
+      expect(parsed.outlook).toBe('Stable short-term, growing medium-term')
+    })
+
+    it('corvus_read calls buildReadSnapshot with extracted tweet ID', async () => {
+      const result = await client.callTool({
+        name: 'corvus_read',
+        arguments: { tweetIdOrUrl: 'https://x.com/user/status/12345' },
+      })
+      const parsed = parseContent(result)
+      const [, tweetId] = vi.mocked(buildReadSnapshot).mock.calls[0]
+      expect(tweetId).toBe('12345')
+      expect(parsed.tweet.author).toBe('testuser')
+      expect(parsed.significance).toBe('medium')
+    })
+
+    it('corvus_read returns error for invalid tweet ID', async () => {
+      const result = await client.callTool({
+        name: 'corvus_read',
+        arguments: { tweetIdOrUrl: 'not-a-tweet' },
+      })
+      expect(result.isError).toBe(true)
+      const parsed = parseContent(result)
+      expect(parsed.error).toBe('Invalid tweet ID or URL')
+      expect(vi.mocked(buildReadSnapshot)).not.toHaveBeenCalled()
+    })
+
+    it('corvus_scope strips @ and calls buildScopeSnapshot', async () => {
+      const result = await client.callTool({
+        name: 'corvus_scope',
+        arguments: { username: '@elonmusk', tweetCount: 20 },
+      })
+      const parsed = parseContent(result)
+      const [, handle, tweetCount] = vi.mocked(buildScopeSnapshot).mock.calls[0]
+      expect(handle).toBe('elonmusk')
+      expect(tweetCount).toBe(20)
+      expect(parsed.account.handle).toBe('testuser')
+      expect(parsed.influence).toBe('medium')
+    })
+
+    it('corvus_agent runs plan-execute-synthesize pipeline', async () => {
+      const result = await client.callTool({
+        name: 'corvus_agent',
+        arguments: { question: 'What is happening with AI?', maxSteps: 4, budget: 0.05 },
+      })
+      const parsed = parseContent(result)
+      expect(parsed.brief.signalLine).toBe('Test signal')
+      expect(parsed.brief.confidence.overall).toBe(0.7)
+      expect(parsed.stepsExecuted).toBe(1)
+      expect(parsed._cost).toBe(0.005)
     })
   })
 
   describe('extractTweetId', () => {
-    it('extracts numeric ID from URL', () => {
+    it('extracts ID from x.com status URL', () => {
       expect(extractTweetId('https://x.com/user/status/1234567890')).toBe('1234567890')
     })
 
-    it('extracts raw numeric ID', () => {
+    it('extracts ID from twitter.com status URL', () => {
+      expect(extractTweetId('https://twitter.com/user/status/9876543210')).toBe('9876543210')
+    })
+
+    it('extracts ID from URL with query parameters', () => {
+      expect(extractTweetId('https://x.com/user/status/111222333?s=20')).toBe('111222333')
+    })
+
+    it('accepts raw numeric ID', () => {
       expect(extractTweetId('1234567890')).toBe('1234567890')
     })
 
-    it('returns null for invalid input', () => {
+    it('returns null for plain text', () => {
       expect(extractTweetId('abc')).toBeNull()
     })
-  })
 
-  describe('agent pipeline', () => {
-    it('planner, executor, synthesizer chain works', async () => {
-      const grok = {} as any
-      const planner = new AgentPlanner(grok)
-      const { plan, costUsd } = await planner.plan('test question')
-      expect(plan.goal).toBe('Investigate test')
-      expect(costUsd).toBe(0.001)
+    it('returns null for empty string', () => {
+      expect(extractTweetId('')).toBeNull()
+    })
 
-      const deps = {} as CorvusDeps
-      const executor = new AgentExecutor(deps, 'test question', plan, {
-        maxSteps: 6,
-        budget: 0.1,
-        replan: true,
-      })
-      const context = await executor.execute(costUsd)
-      expect(context.results).toHaveLength(1)
-      expect(context.totalCost).toBe(0.005)
+    it('returns null for URL without /status/', () => {
+      expect(extractTweetId('https://x.com/user')).toBeNull()
+    })
 
-      const synthesizer = new AgentSynthesizer(grok)
-      const brief = await synthesizer.synthesize(context)
-      expect(brief.signalLine).toBe('Test signal')
-      expect(brief.confidence.score).toBe(0.7)
+    it('returns null for mixed alphanumeric', () => {
+      expect(extractTweetId('abc123def')).toBeNull()
+    })
+
+    it('handles very long numeric IDs', () => {
+      const longId = '18446744073709551615'
+      expect(extractTweetId(longId)).toBe(longId)
     })
   })
 })

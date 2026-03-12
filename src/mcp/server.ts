@@ -1,5 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod/v4'
+import { readFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -13,6 +16,16 @@ import { buildScopeSnapshot } from '../core/builders/scope.js'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../core/agent.js'
 import type { CorvusDeps } from '../core/types.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const PKG_VERSION: string = (() => {
+  for (const depth of ['../..', '../../..']) {
+    try {
+      return JSON.parse(readFileSync(join(__dirname, depth, 'package.json'), 'utf-8')).version
+    } catch { /* not at this depth */ }
+  }
+  return '0.0.0'
+})()
 
 function initDeps(): CorvusDeps {
   const auth = new AuthManager(ConfigManager.defaultDir())
@@ -41,7 +54,7 @@ function jsonResult(data: unknown, cost: number): CallToolResult {
 export function createServer(): McpServer {
   const server = new McpServer({
     name: 'corvus',
-    version: '0.2.0',
+    version: PKG_VERSION,
   })
 
   let deps: CorvusDeps | null = null
@@ -53,14 +66,12 @@ export function createServer(): McpServer {
     return deps
   }
 
-  // ── scan ──
-
   server.registerTool(
     'corvus_scan',
     {
       title: 'Scan Topic',
       description:
-        'Snapshot X discourse on a topic — returns narratives, top voices, sentiment, engagement metrics. Run again later to see what changed.',
+        'Snapshot X discourse on a topic — narratives, top voices, sentiment, engagement metrics.',
       inputSchema: z.object({
         topic: z.string().describe('Topic or query to scan'),
         maxResults: z
@@ -78,14 +89,12 @@ export function createServer(): McpServer {
     },
   )
 
-  // ── pulse ──
-
   server.registerTool(
     'corvus_pulse',
     {
       title: 'Sentiment Pulse',
       description:
-        'Get the sentiment pulse on a topic — bull/bear signals, momentum indicators, key voices ranked by reach.',
+        'Sentiment pulse on a topic — bull/bear signals, key voices ranked by reach.',
       inputSchema: z.object({
         topic: z.string().describe('Topic or query to pulse'),
         maxResults: z
@@ -103,14 +112,12 @@ export function createServer(): McpServer {
     },
   )
 
-  // ── trace ──
-
   server.registerTool(
     'corvus_trace',
     {
       title: 'Trace Narrative',
       description:
-        'Map how a narrative spreads across X — identifies the origin tweet, amplification phases, key amplifiers, and how the framing mutated over time.',
+        'Trace how a narrative spreads — origin tweet, amplification phases, key amplifiers, mutations.',
       inputSchema: z.object({
         narrative: z.string().describe('Narrative or claim to trace'),
         maxResults: z
@@ -128,14 +135,12 @@ export function createServer(): McpServer {
     },
   )
 
-  // ── gather ──
-
   server.registerTool(
     'corvus_gather',
     {
-      title: 'Deep Intelligence',
+      title: 'Gather Intelligence',
       description:
-        'Comprehensive intelligence gathering — combines X discourse analysis with web search for full context, including narratives, web developments, and forward-looking outlook.',
+        'X discourse + web search — narratives, sentiment, web context, and outlook.',
       inputSchema: z.object({
         topic: z.string().describe('Topic to investigate'),
         maxResults: z
@@ -153,14 +158,12 @@ export function createServer(): McpServer {
     },
   )
 
-  // ── read ──
-
   server.registerTool(
     'corvus_read',
     {
       title: 'Analyze Tweet',
       description:
-        'Deep analysis of a single tweet — returns significance level, contextual analysis, and extracted signals. Accepts a tweet ID or full x.com URL.',
+        'Analyze a single tweet — significance, context, and signals. Accepts a tweet ID or x.com URL.',
       inputSchema: z.object({
         tweetIdOrUrl: z
           .string()
@@ -180,14 +183,12 @@ export function createServer(): McpServer {
     },
   )
 
-  // ── scope ──
-
   server.registerTool(
     'corvus_scope',
     {
       title: 'Profile Account',
       description:
-        'Profile analysis of an X account — influence level, content patterns, recent focus areas, network position, and signal value assessment.',
+        'Profile an X account — influence, content patterns, recent focus, network position, signal value.',
       inputSchema: z.object({
         username: z
           .string()
@@ -208,14 +209,12 @@ export function createServer(): McpServer {
     },
   )
 
-  // ── agent ──
-
   server.registerTool(
     'corvus_agent',
     {
       title: 'Investigate',
       description:
-        'Autonomous multi-step investigation. Plans its own research across scan/pulse/trace/scope/gather, follows leads, detects contradictions, and synthesizes a structured intelligence brief with confidence scoring. This is the most powerful tool — use it for complex questions.',
+        'Multi-step investigation — plans research, follows leads, detects contradictions, synthesizes a brief with confidence scoring.',
       inputSchema: z.object({
         question: z.string().describe('Intelligence question to investigate'),
         maxSteps: z

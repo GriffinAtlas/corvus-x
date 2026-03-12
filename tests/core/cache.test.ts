@@ -181,4 +181,69 @@ describe('QueryCache', () => {
     expect(cache.get('ask', 'nan-ts')).toBeNull()
     expect(fs.existsSync(filePath)).toBe(false)
   })
+
+  it('corrupted ledger file does not prevent set from working', () => {
+    // Ensure base dir exists so we can write the ledger
+    fs.mkdirSync(tmpDir, { recursive: true })
+    fs.writeFileSync(path.join(tmpDir, 'cost-ledger.json'), 'NOT VALID JSON{{{')
+    // set() calls recordCost() → getLedger() which should return empty defaults
+    cache.set('ask', 'after-corrupt', 'response', 0.005)
+    const entry = cache.get('ask', 'after-corrupt')
+    expect(entry).not.toBeNull()
+    expect(entry!.response).toBe('response')
+    // ledger should have been recreated with just this one entry
+    const ledger = cache.getLedger()
+    expect(ledger.queryCount).toBe(1)
+    expect(ledger.totalUsd).toBeCloseTo(0.005, 6)
+  })
+
+  it('get returns null without error when cache dir was never created', () => {
+    const freshDir = path.join(tmpDir, 'never-created')
+    const freshCache = new QueryCache(freshDir)
+    // cache dir does not exist — get should return null, not throw
+    expect(freshCache.get('ask', 'anything')).toBeNull()
+  })
+
+  it('evictExpired deletes corrupted non-JSON files', () => {
+    // Create cache dir and write a non-JSON .json file
+    const cacheSubDir = path.join(tmpDir, 'cache')
+    fs.mkdirSync(cacheSubDir, { recursive: true })
+    fs.writeFileSync(path.join(cacheSubDir, 'garbage.json'), 'this is not json!!!')
+    // Also add a valid entry that is not expired
+    cache.set('ask', 'valid', 'response', 0.001, 60_000)
+    // evictExpired should clean up the corrupted file
+    const evicted = cache.evictExpired()
+    expect(evicted).toBe(1)
+    // corrupted file should be gone
+    expect(fs.existsSync(path.join(cacheSubDir, 'garbage.json'))).toBe(false)
+    // valid entry should still be accessible
+    expect(cache.get('ask', 'valid')).not.toBeNull()
+  })
+
+  it('concurrent-like writes with same key — second overwrites first', () => {
+    cache.set('ask', 'dup', 'first', 0.001)
+    cache.set('ask', 'dup', 'second', 0.002)
+    const entry = cache.get('ask', 'dup')
+    expect(entry).not.toBeNull()
+    expect(entry!.response).toBe('second')
+    expect(entry!.costUsd).toBe(0.002)
+  })
+
+  it('extremely long query string is handled by SHA-256', () => {
+    const longQuery = 'x'.repeat(10_000)
+    cache.set('ask', longQuery, 'long-response', 0.001)
+    const entry = cache.get('ask', longQuery)
+    expect(entry).not.toBeNull()
+    expect(entry!.response).toBe('long-response')
+    expect(entry!.query).toBe(longQuery)
+  })
+
+  it('special characters in query — unicode, newlines, null bytes', () => {
+    const specialQuery = 'hello\nworld\0\u{1F600}\u{4E16}\u{754C}'
+    cache.set('ask', specialQuery, 'special-response', 0.001)
+    const entry = cache.get('ask', specialQuery)
+    expect(entry).not.toBeNull()
+    expect(entry!.response).toBe('special-response')
+    expect(entry!.query).toBe(specialQuery)
+  })
 })

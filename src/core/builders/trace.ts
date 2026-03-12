@@ -1,4 +1,4 @@
-import { computeBaseMetrics } from '../metrics.js'
+import { computeBaseMetrics, computeNewestTweetAt, toUserMap } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
 import { computeGrokOnlyMetrics } from './grok-only.js'
@@ -107,7 +107,7 @@ async function buildTraceFromXApi(
   const { tweets, users } = await deps.x!.searchRecent(topic, maxResults, pages)
   if (tweets.length === 0) throw new Error(`No tweets found for "${topic}"`)
 
-  const userMap = new Map(users.map((u) => [u.id, u]))
+  const userMap = toUserMap(users)
   const tweetBlock = formatTweetsForAnalysis(tweets, users)
   const response = await deps.grok.query(
     `Trace how this narrative is spreading: "${topic}"\n\nTweets:\n${tweetBlock}`,
@@ -117,19 +117,13 @@ async function buildTraceFromXApi(
   const grok = parseGrokJson<GrokTraceResponse>(response.text)
   const data = buildTraceData(tweets, grok, userMap)
 
-  const newestTweetAt =
-    tweets.reduce((max, t) => {
-      const ts = new Date(t.createdAt).getTime()
-      return Number.isFinite(ts) && ts > max ? ts : max
-    }, 0) || null
-
   return {
     data,
     raw: response.text,
     cost: response.usage.costUsd,
     tweets,
     scores: grok.tweetAnalysis,
-    newestTweetAt,
+    newestTweetAt: computeNewestTweetAt(tweets),
   }
 }
 

@@ -13,6 +13,19 @@ import type {
 } from './schemas.js'
 import type { Snapshot } from './schemas.js'
 
+export function toUserMap(users: XUser[]): Map<string, XUser> {
+  return new Map(users.map((u) => [u.id, u]))
+}
+
+export function computeNewestTweetAt(tweets: Tweet[]): number | null {
+  return (
+    tweets.reduce((max, t) => {
+      const ts = new Date(t.createdAt).getTime()
+      return Number.isFinite(ts) && ts > max ? ts : max
+    }, 0) || null
+  )
+}
+
 export function computeBaseMetrics(tweets: Tweet[]): BaseMetrics {
   const tweetCount = tweets.length
   const totalEngagement = tweets.reduce(
@@ -61,9 +74,7 @@ export function computeTopAccounts(
   users: XUser[],
   limit = 10,
 ): AccountEntry[] {
-  const userMap = new Map<string, XUser>()
-  for (const u of users) userMap.set(u.id, u)
-
+  const userMap = toUserMap(users)
   const authorStats = new Map<string, { count: number; sentimentSum: number; authorId: string }>()
 
   for (let i = 0; i < tweets.length; i++) {
@@ -137,9 +148,7 @@ export function computeTopPosts(
   users: XUser[],
   limit = 5,
 ): { id: string; author: string; text: string; engagement: number }[] {
-  const userMap = new Map<string, XUser>()
-  for (const u of users) userMap.set(u.id, u)
-
+  const userMap = toUserMap(users)
   return tweets
     .map((t) => ({
       id: t.id,
@@ -157,9 +166,7 @@ export function computeKeyVoices(
   users: XUser[],
   limit = 10,
 ): { handle: string; sentiment: number; reach: number }[] {
-  const userMap = new Map<string, XUser>()
-  for (const u of users) userMap.set(u.id, u)
-
+  const userMap = toUserMap(users)
   const voiceMap = new Map<
     string,
     { sentimentSum: number; count: number; reach: number; handle: string }

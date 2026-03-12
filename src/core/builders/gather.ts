@@ -3,6 +3,7 @@ import {
   computeSentiment,
   computeTopPosts,
   computeNarratives,
+  computeNewestTweetAt,
 } from '../metrics.js'
 import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
@@ -15,7 +16,7 @@ import type { GrokGatherResponse, GatherSnapshot } from '../schemas.js'
 import type { GrokOnlyGatherResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are an intelligence analyst compiling a comprehensive brief. Analyze the tweets below and return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are an intelligence analyst. Analyze the tweets below and return ONLY a JSON object:
 {
   "tweetAnalysis": [{ "index": 0, "sentiment": 0.5, "narrative": "theme" }],
   "narratives": [{ "theme": "name", "description": "brief description" }],
@@ -31,7 +32,7 @@ Rules:
 - outlook: 1-2 sentence forward-looking assessment.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are an intelligence analyst compiling a comprehensive brief. Search X for recent posts about the given topic, also search the web for relevant context. Then analyze what you find. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are an intelligence analyst. Search X for recent posts about the given topic, also search the web for relevant context. Then analyze what you find. Return ONLY a JSON object:
 {
   "tweetCount": 25,
   "uniqueAuthors": 15,
@@ -87,12 +88,6 @@ async function buildGatherFromXApi(
   const topPosts = computeTopPosts(tweets, users)
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
-  const newestTweetAt =
-    tweets.reduce((max, t) => {
-      const ts = new Date(t.createdAt).getTime()
-      return Number.isFinite(ts) && ts > max ? ts : max
-    }, 0) || null
-
   return {
     data: {
       metrics,
@@ -106,7 +101,7 @@ async function buildGatherFromXApi(
     cost: response.usage.costUsd,
     tweets,
     scores: grok.tweetAnalysis,
-    newestTweetAt,
+    newestTweetAt: computeNewestTweetAt(tweets),
   }
 }
 

@@ -19,7 +19,27 @@ import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
 import type { DiffLine } from '../core/differ.js'
 
-export type CommandDeps = CorvusDeps
+function initDeps(): CorvusDeps {
+  const auth = new AuthManager(ConfigManager.defaultDir())
+  const grokKey = auth.getGrokKey()
+  if (!grokKey) {
+    console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
+    process.exit(1)
+  }
+  const xToken = auth.getXToken()
+  return {
+    grok: new GrokAdapter(grokKey),
+    x: xToken ? new XAdapter(xToken) : null,
+  }
+}
+
+async function showCostAndExit(): Promise<void> {
+  const { MODEL_PRICING, DEFAULT_MODEL } = await import('../core/grok-adapter.js')
+  const pricing = MODEL_PRICING[DEFAULT_MODEL]
+  console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
+  console.log(t.muted(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
+  console.log(t.muted(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
+}
 
 export interface RunCommandOptions {
   command: string
@@ -28,31 +48,19 @@ export interface RunCommandOptions {
   cost?: boolean
   spinnerText: string
   requiresXToken?: boolean
-  execute: (deps: CommandDeps) => Promise<GrokResponse>
+  execute: (deps: CorvusDeps) => Promise<GrokResponse>
 }
 
 export async function runCommand(opts: RunCommandOptions): Promise<void> {
-  const auth = new AuthManager(ConfigManager.defaultDir())
-
-  const grokKey = auth.getGrokKey()
-  if (!grokKey) {
-    console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
-    process.exit(1)
+  if (opts.cost) {
+    await showCostAndExit()
+    return
   }
 
-  const xToken = auth.getXToken()
-  if (opts.requiresXToken && !xToken) {
+  const auth = new AuthManager(ConfigManager.defaultDir())
+  if (opts.requiresXToken && !auth.getXToken()) {
     console.log(t.error(`\n  X API token required for ${opts.command}. Run: corvus auth setup\n`))
     process.exit(1)
-  }
-
-  if (opts.cost) {
-    const { MODEL_PRICING, DEFAULT_MODEL } = await import('../core/grok-adapter.js')
-    const pricing = MODEL_PRICING[DEFAULT_MODEL]
-    console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
-    console.log(t.muted(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
-    console.log(t.muted(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
-    return
   }
 
   const cache = new QueryCache(ConfigManager.defaultDir())
@@ -70,11 +78,7 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
     return
   }
 
-  const deps: CommandDeps = {
-    grok: new GrokAdapter(grokKey),
-    x: xToken ? new XAdapter(xToken) : null,
-  }
-
+  const deps = initDeps()
   const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
 
   try {
@@ -109,36 +113,18 @@ export interface RunStructuredCommandOptions<T extends Snapshot> {
   spinnerText: string
   matchKeys: MatchKeys
   renderSnapshot: (data: T) => string
-  buildSnapshot: (deps: CommandDeps) => Promise<BuildResult<T>>
+  buildSnapshot: (deps: CorvusDeps) => Promise<BuildResult<T>>
 }
 
 export async function runStructuredCommand<T extends Snapshot>(
   opts: RunStructuredCommandOptions<T>,
 ): Promise<void> {
-  const auth = new AuthManager(ConfigManager.defaultDir())
-
-  const grokKey = auth.getGrokKey()
-  if (!grokKey) {
-    console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
-    process.exit(1)
-  }
-
-  const xToken = auth.getXToken()
-
   if (opts.cost) {
-    const { MODEL_PRICING, DEFAULT_MODEL } = await import('../core/grok-adapter.js')
-    const pricing = MODEL_PRICING[DEFAULT_MODEL]
-    console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
-    console.log(t.muted(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
-    console.log(t.muted(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
+    await showCostAndExit()
     return
   }
 
-  const deps: CommandDeps = {
-    grok: new GrokAdapter(grokKey),
-    x: xToken ? new XAdapter(xToken) : null,
-  }
-
+  const deps = initDeps()
   const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
   const store = new SnapshotStore(ConfigManager.defaultDir())
 

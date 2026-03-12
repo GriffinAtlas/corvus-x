@@ -2,12 +2,10 @@ import { Command } from 'commander'
 import { runStructuredCommand } from '../run-command.js'
 import { renderScope } from '../output.js'
 import { buildScopeSnapshot } from '../../core/builders/scope.js'
-import type { ScopeSnapshot, MatchKeys } from '../../core/schemas.js'
+import type { ScopeSnapshot } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
 
 export { buildScopeSnapshot } from '../../core/builders/scope.js'
-
-const SCOPE_MATCH_KEYS: MatchKeys = {}
 
 export function registerScopeCommand(program: Command): void {
   program
@@ -30,7 +28,7 @@ export function registerScopeCommand(program: Command): void {
           format: options.format,
           cost: options.cost,
           spinnerText: `scope · @${handle}`,
-          matchKeys: SCOPE_MATCH_KEYS,
+          matchKeys: {},
           renderSnapshot: renderScope,
           buildSnapshot: (deps) => buildScopeSnapshot(deps, handle, tweetCount),
         })

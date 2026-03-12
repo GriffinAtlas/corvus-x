@@ -25,7 +25,9 @@ export {
   computeTopPosts,
   computeKeyVoices,
   computeConfidence,
+  computeNewestTweetAt,
   detectContradictions,
+  toUserMap,
 } from './core/metrics.js'
 
 // Storage & diff

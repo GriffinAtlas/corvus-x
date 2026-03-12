@@ -135,7 +135,12 @@ export class QueryCache {
           count++
         }
       } catch {
-        /* skip */
+        try {
+          fs.unlinkSync(path.join(this.cacheDir, file))
+          count++
+        } catch {
+          /* already gone */
+        }
       }
     }
     return count
