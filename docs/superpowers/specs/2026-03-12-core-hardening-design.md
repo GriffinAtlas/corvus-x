@@ -143,16 +143,21 @@ async queryStream(
 
 **New constants in `metrics.ts`:**
 ```typescript
-// Engagement weights from X's open-sourced algorithm (Heavy Ranker, April 2023)
+// Engagement weights derived from X's open-sourced algorithm (Heavy Ranker, April 2023)
 // Source: twitter/the-algorithm-ml, normalized to likes = 1.0
-// Replies = 27x because they indicate active engagement (the algorithm's highest
-// positive signal after two-way conversation at 150x, which we can't measure).
-// Retweets = 2x because they're passive amplification.
-// Bookmarks (20x) and profile clicks (24x) aren't available via X API v2.
+//
+// 2023 leak values: replies=27x, retweets=2x, likes=1x
+// 2026 observed behavior: replies ~13.5-20x, retweets ~10-20x (sources vary)
+// The algorithm has been re-tuned since the leak. Directional truth holds:
+//   replies >> retweets >> likes
+// but exact multipliers are approximate. Using conservative 2026 estimates.
+//
+// Bookmarks (~10-20x) and profile clicks (~12x) aren't available via X API v2.
+// Last calibrated: 2026-03-12. Revisit when new data surfaces.
 export const X_ENGAGEMENT_WEIGHTS = {
   like: 1.0,
-  retweet: 2.0,
-  reply: 27.0,
+  retweet: 10.0,
+  reply: 13.5,
 } as const
 ```
 
@@ -184,7 +189,7 @@ Sort order: `engagementScore` descending, `followers` as tiebreaker.
 
 `computeKeyVoices()` — sort by engagement score, not raw `followers`. Actual impact on the conversation, not vanity metrics.
 
-`computeTopPosts()` — sort by engagement score, not raw sum of all metrics. A tweet with 50 replies (score: 1,350) ranks above one with 500 likes and 0 replies (score: 500). Note: the `engagement` field on `GatherSnapshot.topPosts` changes meaning from raw sum (likes+RT+replies+impressions) to weighted score (likes×1 + RT×2 + replies×27, impressions excluded). This is intentional — impressions are a vanity metric, not an engagement signal.
+`computeTopPosts()` — sort by engagement score, not raw sum of all metrics. A tweet with 50 replies (score: 675) ranks above one with 500 likes and 0 replies (score: 500). Note: the `engagement` field on `GatherSnapshot.topPosts` changes meaning from raw sum (likes+RT+replies+impressions) to weighted score (likes×1 + RT×2 + replies×27, impressions excluded). This is intentional — impressions are a vanity metric, not an engagement signal.
 
 **Sentiment weighting:**
 
