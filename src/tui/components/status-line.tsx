@@ -9,26 +9,30 @@ interface Props {
   queryCount: number
 }
 
-const STATUS_INFO: Record<GrokStatus | XApiStatus, { color: string; label: string }> = {
-  connected: { color: 'green', label: 'connected' },
-  error: { color: 'red', label: 'error' },
-  optional: { color: 'yellow', label: 'optional' },
-  'no-key': { color: 'gray', label: 'no key' },
+const STATUS_DISPLAY: Record<GrokStatus | XApiStatus, { dot: string; color: string; label: string }> = {
+  connected: { dot: '●', color: 'green', label: 'ready' },
+  error: { dot: '●', color: 'red', label: 'error' },
+  optional: { dot: '○', color: 'yellow', label: 'not set' },
+  'no-key': { dot: '○', color: 'gray', label: 'no key' },
 }
 
 export function StatusLine({ grokStatus, xApiStatus, totalCost, queryCount }: Props) {
-  const grok = STATUS_INFO[grokStatus]
-  const xApi = STATUS_INFO[xApiStatus]
+  const grok = STATUS_DISPLAY[grokStatus]
+  const xApi = STATUS_DISPLAY[xApiStatus]
 
   return (
-    <Box paddingLeft={1}>
-      <Text dimColor>Grok: </Text>
+    <Box paddingLeft={2} marginBottom={0}>
+      <Text dimColor>{'╶ '}</Text>
+      <Text color={grok.color}>{grok.dot}</Text>
+      <Text dimColor>{' Grok '}</Text>
       <Text color={grok.color}>{grok.label}</Text>
-      <Text dimColor>{'  │  X API: '}</Text>
+      <Text dimColor>{'  '}</Text>
+      <Text color={xApi.color}>{xApi.dot}</Text>
+      <Text dimColor>{' X API '}</Text>
       <Text color={xApi.color}>{xApi.label}</Text>
-      <Text dimColor>{'  │  '}</Text>
-      <Text dimColor>{`$${totalCost.toFixed(3)}`}</Text>
-      <Text dimColor>{'  │  '}</Text>
+      <Text dimColor>{'  ╴  '}</Text>
+      <Text color="#7C3AED">{`$${totalCost.toFixed(3)}`}</Text>
+      <Text dimColor>{'  ·  '}</Text>
       <Text dimColor>{`${queryCount} ${queryCount === 1 ? 'query' : 'queries'}`}</Text>
     </Box>
   )

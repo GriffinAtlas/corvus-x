@@ -15,7 +15,7 @@ describe('InputBar', () => {
     const { lastFrame } = render(
       <InputBar onSubmit={() => {}} isLoading={true} />,
     )
-    expect(lastFrame()!).toContain('…')
+    expect(lastFrame()!).toContain('thinking')
   })
 
   it('provides command suggestions', () => {

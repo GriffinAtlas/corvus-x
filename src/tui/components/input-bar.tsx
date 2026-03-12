@@ -63,18 +63,19 @@ export function InputBar({ onSubmit, isLoading }: Props) {
 
   if (isLoading) {
     return (
-      <Box paddingLeft={1}>
-        <Text dimColor>{'… '}</Text>
+      <Box paddingLeft={2}>
+        <Text color="#7C3AED">{'◆ '}</Text>
+        <Text dimColor>thinking...</Text>
       </Box>
     )
   }
 
   return (
-    <Box paddingLeft={1}>
-      <Text color="magenta">{'❯ '}</Text>
+    <Box paddingLeft={2}>
+      <Text color="#B48AFF" bold>{'❯ '}</Text>
       <TextInput
         key={mountKey}
-        placeholder="scan, pulse, trace, ask, or just type..."
+        placeholder="type a command or question..."
         suggestions={SUGGESTIONS}
         defaultValue={value}
         onSubmit={handleSubmit}
