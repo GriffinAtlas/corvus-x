@@ -1,7 +1,7 @@
-import React, { useReducer, useMemo } from 'react'
-import { Box, Text, useApp, useInput } from 'ink'
+import React, { useReducer, useMemo, useState, useEffect } from 'react'
+import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { WelcomeView } from './components/welcome-view.js'
-import { ChatLog } from './components/chat-log.js'
+import { ChatViewport } from './components/chat-viewport.js'
 import { InputBar } from './components/input-bar.js'
 import { ShortcutBar } from './components/shortcut-bar.js'
 import { useCommand } from './hooks/use-command.js'
@@ -57,9 +57,35 @@ export function App({ version }: Props) {
 
   const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit)
 
+  const [scrollOffset, setScrollOffset] = useState(0)
+  const { stdout } = useStdout()
+  const terminalHeight = stdout?.rows ?? 24
+
+  // Auto-snap to bottom on new entries
+  const historyLength = session.history.length
+  useEffect(() => {
+    setScrollOffset(0)
+  }, [historyLength])
+
   useInput((_input, key) => {
     if (key.ctrl && _input === 'c') {
       exit()
+    }
+    if (key.pageUp) {
+      const step = Math.max(1, Math.floor((terminalHeight - 5) / 4))
+      setScrollOffset((prev) => Math.min(prev + step, Math.max(0, session.history.length - 1)))
+    }
+    if (key.pageDown) {
+      const step = Math.max(1, Math.floor((terminalHeight - 5) / 4))
+      setScrollOffset((prev) => Math.max(prev - step, 0))
+    }
+    if (key.meta && key.upArrow) {
+      // Home — scroll to top
+      setScrollOffset(Math.max(0, session.history.length - 1))
+    }
+    if (key.meta && key.downArrow) {
+      // End — scroll to bottom
+      setScrollOffset(0)
     }
   })
 
@@ -78,7 +104,11 @@ export function App({ version }: Props) {
             />
           ) : (
             <>
-              <ChatLog entries={session.history} />
+              <ChatViewport
+                entries={session.history}
+                scrollOffset={scrollOffset}
+                viewportHeight={terminalHeight - 5}
+              />
               <Box paddingLeft={3} marginBottom={0}>
                 <Text dimColor>
                   {`$${session.totalCost.toFixed(3)} · ${session.queryCount} ${session.queryCount === 1 ? 'query' : 'queries'}`}
