@@ -25,32 +25,31 @@ export function InputBar({ onSubmit, isLoading }: Props) {
   const [mountKey, setMountKey] = useState(0)
   const [value, setValue] = useState('')
 
+  function setInput(text: string, index: number) {
+    setValue(text)
+    setHistoryIndex(index)
+    setMountKey((k) => k + 1)
+  }
+
   useInput((_input, key) => {
     if (isLoading) return
 
     if (key.upArrow && inputHistory.length > 0) {
       const newIndex = Math.min(historyIndex + 1, inputHistory.length - 1)
-      setHistoryIndex(newIndex)
-      setValue(inputHistory[inputHistory.length - 1 - newIndex])
-      setMountKey((k) => k + 1)
+      setInput(inputHistory[inputHistory.length - 1 - newIndex], newIndex)
     }
 
     if (key.downArrow && historyIndex >= 0) {
       if (historyIndex <= 0) {
-        setHistoryIndex(-1)
-        setValue('')
+        setInput('', -1)
       } else {
         const newIndex = historyIndex - 1
-        setHistoryIndex(newIndex)
-        setValue(inputHistory[inputHistory.length - 1 - newIndex])
+        setInput(inputHistory[inputHistory.length - 1 - newIndex], newIndex)
       }
-      setMountKey((k) => k + 1)
     }
 
     if (key.escape) {
-      setValue('')
-      setHistoryIndex(-1)
-      setMountKey((k) => k + 1)
+      setInput('', -1)
     }
   })
 
@@ -58,9 +57,7 @@ export function InputBar({ onSubmit, isLoading }: Props) {
     const trimmed = submitted.trim()
     if (!trimmed) return
     setInputHistory((prev) => [...prev, trimmed])
-    setHistoryIndex(-1)
-    setValue('')
-    setMountKey((k) => k + 1)
+    setInput('', -1)
     onSubmit(trimmed)
   }
 

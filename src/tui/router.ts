@@ -4,8 +4,8 @@ export type ParsedCommand =
   | { type: 'error'; message: string }
   | { type: 'empty' }
 
-const TOPIC_COMMANDS = ['scan', 'pulse', 'trace', 'gather'] as const
-const SLASH_COMMANDS = ['help', 'cost', 'history', 'clear', 'exit'] as const
+const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace', 'gather'])
+const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit'])
 
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
@@ -21,7 +21,7 @@ export function parseInput(raw: string): ParsedCommand {
 
   if (input.startsWith('/')) {
     const cmd = input.slice(1).toLowerCase()
-    if ((SLASH_COMMANDS as readonly string[]).includes(cmd)) {
+    if (SLASH_COMMANDS.has(cmd)) {
       return { type: 'slash', command: cmd }
     }
     return { type: 'error', message: `Unknown command: ${input}. Type /help for available commands.` }
@@ -31,7 +31,7 @@ export function parseInput(raw: string): ParsedCommand {
   const keyword = (spaceIdx === -1 ? input : input.slice(0, spaceIdx)).toLowerCase()
   const rest = spaceIdx === -1 ? '' : input.slice(spaceIdx + 1).trim()
 
-  if ((TOPIC_COMMANDS as readonly string[]).includes(keyword)) {
+  if (TOPIC_COMMANDS.has(keyword)) {
     if (!rest) return { type: 'error', message: `Usage: ${keyword} <topic>` }
     return { type: 'command', command: keyword, args: { topic: rest } }
   }

@@ -80,12 +80,16 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           dispatch({ type: 'add-result', entry: { type: 'system', message: HELP_TEXT } })
           return
         case 'cost':
-          return // handled by StatusLine — no action needed
+          return // handled by StatusLine — always visible
         case 'clear':
           dispatch({ type: 'clear-history' })
           return
         case 'history':
-          return // same as bare `history` command below
+          dispatch({
+            type: 'add-result',
+            entry: { type: 'system', message: 'Session history is displayed above. Use /clear to reset.' },
+          })
+          return
         case 'exit':
           exit()
           return
@@ -98,7 +102,16 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       return
     }
 
-    dispatch({ type: 'add-entry', entry: { type: 'user', text: input } })
+    // history is instant — no loading state or user echo needed
+    if (parsed.command === 'history') {
+      dispatch({
+        type: 'add-result',
+        entry: { type: 'system', message: 'Session history is displayed above. Use /clear to reset.' },
+      })
+      return
+    }
+
+    dispatch({ type: 'add-query', entry: { type: 'user', text: input } })
     setIsLoading(true)
     const startTime = Date.now()
 
@@ -106,12 +119,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       const { command, args } = parsed
       const baseDir = ConfigManager.defaultDir()
 
-      if (command === 'history') {
-        dispatch({
-          type: 'add-result',
-          entry: { type: 'system', message: 'Session history is displayed above. Use /clear to reset.' },
-        })
-      } else if (command === 'ask') {
+      if (command === 'ask') {
         const response = await deps.grok.query(args.question, {
           enableXSearch: true,
           systemPrompt: 'You are Corvus, a sharp intelligence analyst. Be concise and direct. Lead with the key insight.',

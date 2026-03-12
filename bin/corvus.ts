@@ -86,7 +86,6 @@ program
 program
   .command('repl')
   .description('[deprecated] Use corvus (no args) for interactive mode')
-  .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
   .action(async () => {
     console.log('\n  corvus repl is deprecated. Run corvus (no args) for the interactive TUI.\n')
     process.exit(0)

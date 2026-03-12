@@ -11,9 +11,9 @@ describe('sessionReducer', () => {
     expect(initialSession.startTime).toBeGreaterThan(0)
   })
 
-  it('add-entry appends to history and increments queryCount', () => {
+  it('add-query appends to history and increments queryCount', () => {
     const state = sessionReducer(initialSession, {
-      type: 'add-entry',
+      type: 'add-query',
       entry: { type: 'user', text: 'scan bitcoin' },
     })
     expect(state.history).toHaveLength(1)
@@ -56,7 +56,7 @@ describe('sessionReducer', () => {
 
   it('clear-history empties history and resets queryCount', () => {
     let state = sessionReducer(initialSession, {
-      type: 'add-entry',
+      type: 'add-query',
       entry: { type: 'user', text: 'test' },
     })
     state = sessionReducer(state, { type: 'clear-history' })

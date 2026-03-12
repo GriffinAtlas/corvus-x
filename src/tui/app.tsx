@@ -15,7 +15,6 @@ import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
 import { XAdapter } from '../core/x-adapter.js'
-import type { CorvusDeps } from '../core/types.js'
 
 interface Props {
   version: string
@@ -30,20 +29,16 @@ export function App({ version }: Props) {
     const grokKey = auth.getGrokKey()
     const xToken = auth.getXToken()
 
-    let d: CorvusDeps | null = null
-    let gs: 'connected' | 'no-key' = 'no-key'
-    let xs: 'connected' | 'no-key' | 'optional' = 'no-key'
-
-    if (grokKey) {
-      d = {
-        grok: new GrokAdapter(grokKey),
-        x: xToken ? new XAdapter(xToken) : null,
-      }
-      gs = 'connected'
-      xs = xToken ? 'connected' : 'optional'
+    if (!grokKey) {
+      return { deps: null, grokStatus: 'no-key' as const, xApiStatus: 'no-key' as const, firstRun: !configExists }
     }
 
-    return { deps: d, grokStatus: gs, xApiStatus: xs, firstRun: !configExists }
+    return {
+      deps: { grok: new GrokAdapter(grokKey), x: xToken ? new XAdapter(xToken) : null },
+      grokStatus: 'connected' as const,
+      xApiStatus: xToken ? 'connected' as const : 'optional' as const,
+      firstRun: !configExists,
+    }
   }, [])
 
   const [session, dispatch] = useReducer(sessionReducer, {

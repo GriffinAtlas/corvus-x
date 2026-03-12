@@ -21,7 +21,7 @@ export interface Session {
 }
 
 export type SessionAction =
-  | { type: 'add-entry'; entry: ChatEntry }
+  | { type: 'add-query'; entry: ChatEntry }
   | { type: 'add-result'; entry: ChatEntry }
   | { type: 'add-cost'; cost: number }
   | { type: 'add-error'; message: string }
@@ -40,7 +40,7 @@ export const initialSession: Session = {
 
 export function sessionReducer(state: Session, action: SessionAction): Session {
   switch (action.type) {
-    case 'add-entry':
+    case 'add-query':
       return {
         ...state,
         history: [...state.history, action.entry],
