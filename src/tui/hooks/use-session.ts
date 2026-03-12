@@ -6,8 +6,9 @@ export type XApiStatus = 'connected' | 'error' | 'no-key' | 'optional'
 
 export type ChatEntry =
   | { type: 'user'; text: string }
-  | { type: 'result'; command: string; topic: string; rendered: string; cost: number; elapsed: number }
-  | { type: 'prose'; text: string; cost: number }
+  | { type: 'result'; command: string; topic: string; rendered: string;
+      cost: number; elapsed: number; expanded?: boolean }
+  | { type: 'prose'; text: string; cost: number; expanded?: boolean }
   | { type: 'error'; message: string }
   | { type: 'system'; message: string }
 
@@ -28,6 +29,7 @@ export type SessionAction =
   | { type: 'set-grok-status'; status: GrokStatus }
   | { type: 'set-x-status'; status: XApiStatus }
   | { type: 'clear-history' }
+  | { type: 'expand-entry'; index: number }
 
 export const initialSession: Session = {
   startTime: Date.now(),
@@ -64,6 +66,20 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
       return { ...state, xApiStatus: action.status }
     case 'clear-history':
       return { ...state, history: [], queryCount: 0, totalCost: 0 }
+    case 'expand-entry': {
+      if (!Number.isInteger(action.index) || action.index < 0 || action.index >= state.history.length) return state
+      const entry = state.history[action.index]
+      if (entry.type !== 'result' && entry.type !== 'prose') return state
+      if (entry.expanded) return state
+      return {
+        ...state,
+        history: state.history.map((e, i) => {
+          if (i !== action.index) return e
+          if (e.type === 'result' || e.type === 'prose') return { ...e, expanded: true }
+          return e
+        }),
+      }
+    }
   }
 }
 

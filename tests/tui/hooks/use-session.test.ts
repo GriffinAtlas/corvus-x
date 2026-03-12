@@ -73,4 +73,50 @@ describe('sessionReducer', () => {
     expect(state.history).toHaveLength(1)
     expect(state.history[0]).toEqual({ type: 'error', message: 'Rate limited. Resets at 12:00.' })
   })
+
+  it('expand-entry sets expanded on result entry', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'output', cost: 0.003, elapsed: 1200 },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    const entry = state.history[0]
+    expect(entry.type).toBe('result')
+    if (entry.type === 'result') expect(entry.expanded).toBe(true)
+  })
+
+  it('expand-entry sets expanded on prose entry', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'prose', text: 'long text', cost: 0.002 },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    const entry = state.history[0]
+    expect(entry.type).toBe('prose')
+    if (entry.type === 'prose') expect(entry.expanded).toBe(true)
+  })
+
+  it('expand-entry no-ops on user entry', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-query',
+      entry: { type: 'user', text: 'scan btc' },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    expect(state.history[0]).toEqual({ type: 'user', text: 'scan btc' })
+  })
+
+  it('expand-entry no-ops on out-of-bounds index', () => {
+    const state = sessionReducer(initialSession, { type: 'expand-entry', index: 99 })
+    expect(state.history).toEqual([])
+  })
+
+  it('expand-entry no-ops on already-expanded entry', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+    })
+    state = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    const state2 = sessionReducer(state, { type: 'expand-entry', index: 0 })
+    expect(state2.history[0]).toEqual(state.history[0])
+  })
 })
