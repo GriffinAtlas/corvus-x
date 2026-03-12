@@ -19,7 +19,7 @@ export function ProseResult({ text, cost, truncated, index }: Props) {
       paddingX={1}
     >
       <Text>{text}</Text>
-      {truncated && truncated > 0 && (
+      {(truncated ?? 0) > 0 && (
         <Box>
           <Text dimColor>{`  ... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
         </Box>

@@ -52,4 +52,55 @@ describe('ChatLog', () => {
     const frame = lastFrame()!
     expect(frame.indexOf('scan bitcoin')).toBeLessThan(frame.indexOf('Output'))
   })
+
+  it('truncates result entry to 25 lines', () => {
+    const longOutput = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n')
+    const entries: ChatEntry[] = [
+      { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
+    ]
+    const { lastFrame } = render(<ChatLog entries={entries} />)
+    const frame = lastFrame()!
+    expect(frame).toContain('line 1')
+    expect(frame).toContain('line 25')
+    expect(frame).not.toContain('line 26')
+    expect(frame).toContain('15 more lines')
+    expect(frame).toContain('/view 1')
+  })
+
+  it('does not truncate short result entry', () => {
+    const shortOutput = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join('\n')
+    const entries: ChatEntry[] = [
+      { type: 'result', command: 'scan', topic: 'btc', rendered: shortOutput, cost: 0.003, elapsed: 1200 },
+    ]
+    const { lastFrame } = render(<ChatLog entries={entries} />)
+    const frame = lastFrame()!
+    expect(frame).toContain('line 10')
+    expect(frame).not.toContain('more lines')
+  })
+
+  it('shows full content when expanded', () => {
+    const longOutput = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n')
+    const entries: ChatEntry[] = [
+      { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput,
+        cost: 0.003, elapsed: 1200, expanded: true },
+    ]
+    const { lastFrame } = render(<ChatLog entries={entries} />)
+    const frame = lastFrame()!
+    expect(frame).toContain('line 40')
+    expect(frame).not.toContain('more lines')
+  })
+
+  it('truncates prose entry to 50 lines', () => {
+    const longText = Array.from({ length: 70 }, (_, i) => `paragraph ${i + 1}`).join('\n')
+    const entries: ChatEntry[] = [
+      { type: 'prose', text: longText, cost: 0.002 },
+    ]
+    const { lastFrame } = render(<ChatLog entries={entries} />)
+    const frame = lastFrame()!
+    expect(frame).toContain('paragraph 1')
+    expect(frame).toContain('paragraph 50')
+    expect(frame).not.toContain('paragraph 51')
+    expect(frame).toContain('20 more lines')
+    expect(frame).toContain('/view 1')
+  })
 })

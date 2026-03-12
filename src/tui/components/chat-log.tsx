@@ -5,6 +5,9 @@ import { ResultCard } from './result-card.js'
 import { SystemNotice } from './system-notice.js'
 import type { ChatEntry } from '../hooks/use-session.js'
 
+const RESULT_MAX_LINES = 25
+const PROSE_MAX_LINES = 50
+
 interface Props {
   entries: ChatEntry[]
 }
@@ -18,19 +21,39 @@ function renderEntry(entry: ChatEntry, index: number) {
           <Text bold>{entry.text}</Text>
         </Box>
       )
-    case 'result':
+    case 'result': {
+      const lines = entry.rendered.split('\n')
+      const shouldTruncate = !entry.expanded && lines.length > RESULT_MAX_LINES
+      const rendered = shouldTruncate ? lines.slice(0, RESULT_MAX_LINES).join('\n') : entry.rendered
+      const truncated = shouldTruncate ? lines.length - RESULT_MAX_LINES : 0
       return (
         <ResultCard
           key={index}
           command={entry.command}
           topic={entry.topic}
-          rendered={entry.rendered}
+          rendered={rendered}
           cost={entry.cost}
           elapsed={entry.elapsed}
+          truncated={truncated}
+          index={index}
         />
       )
-    case 'prose':
-      return <ProseResult key={index} text={entry.text} cost={entry.cost} />
+    }
+    case 'prose': {
+      const lines = entry.text.split('\n')
+      const shouldTruncate = !entry.expanded && lines.length > PROSE_MAX_LINES
+      const text = shouldTruncate ? lines.slice(0, PROSE_MAX_LINES).join('\n') : entry.text
+      const truncated = shouldTruncate ? lines.length - PROSE_MAX_LINES : 0
+      return (
+        <ProseResult
+          key={index}
+          text={text}
+          cost={entry.cost}
+          truncated={truncated}
+          index={index}
+        />
+      )
+    }
     case 'error':
       return <SystemNotice key={index} type="error" message={entry.message} />
     case 'system':

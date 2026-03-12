@@ -32,7 +32,7 @@ export function ResultCard({ command, topic, rendered, cost, elapsed, truncated,
       <Box marginTop={0}>
         <Text>{rendered}</Text>
       </Box>
-      {truncated && truncated > 0 && (
+      {(truncated ?? 0) > 0 && (
         <Box>
           <Text dimColor>{`  ... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
         </Box>
