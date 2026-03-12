@@ -28,4 +28,22 @@ describe('ResultCard', () => {
     )
     expect(lastFrame()!).toContain('Sentiment: 0.72')
   })
+
+  it('shows truncation footer when truncated > 0', () => {
+    const { lastFrame } = render(
+      <ResultCard command="scan" topic="btc" rendered="output" cost={0.003} elapsed={1200}
+        truncated={32} index={0} />,
+    )
+    const frame = lastFrame()!
+    expect(frame).toContain('32 more lines')
+    expect(frame).toContain('/view 1')
+  })
+
+  it('hides truncation footer when truncated is 0', () => {
+    const { lastFrame } = render(
+      <ResultCard command="scan" topic="btc" rendered="output" cost={0.003} elapsed={1200}
+        truncated={0} index={0} />,
+    )
+    expect(lastFrame()!).not.toContain('more lines')
+  })
 })

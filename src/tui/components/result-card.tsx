@@ -7,9 +7,11 @@ interface Props {
   rendered: string
   cost: number
   elapsed: number
+  truncated?: number
+  index?: number
 }
 
-export function ResultCard({ command, topic, rendered, cost, elapsed }: Props) {
+export function ResultCard({ command, topic, rendered, cost, elapsed, truncated, index }: Props) {
   const elapsedStr = `${(elapsed / 1000).toFixed(1)}s`
 
   return (
@@ -30,6 +32,11 @@ export function ResultCard({ command, topic, rendered, cost, elapsed }: Props) {
       <Box marginTop={0}>
         <Text>{rendered}</Text>
       </Box>
+      {truncated && truncated > 0 && (
+        <Box>
+          <Text dimColor>{`  ... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
+        </Box>
+      )}
     </Box>
   )
 }
