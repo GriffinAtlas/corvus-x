@@ -30,5 +30,10 @@ Desktop.ini
 *.swo
 *~
 
+# Plugins & local config
+.superpowers/
+.mcp.json
+docs/superpowers/
+
 # npm
 *.tgz

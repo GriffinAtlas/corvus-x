@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (819 tests)
+npm test                     # vitest run (889 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
