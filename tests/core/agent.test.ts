@@ -1325,7 +1325,6 @@ describe('AgentExecutor — failed steps do not increment completedCount (bug 1)
     // Step 2 succeeds (completedCount=2 — not in REPLAN_STEPS, no replan).
     // So total replans = 1 (after step 0 only).
 
-    const { buildScanSnapshot } = await import('../../src/core/builders/scan.js')
     const { buildPulseSnapshot } = await import('../../src/core/builders/pulse.js')
 
     // Make step 1 (pulse) fail
