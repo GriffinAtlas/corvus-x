@@ -12,6 +12,7 @@ const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', 
 export class StepProgress {
   private steps: StepEntry[]
   private rendered = false
+  private renderedLineCount = 0
   private spinnerFrame = 0
   private spinnerTimer: ReturnType<typeof setInterval> | null = null
   private lastChangedIndex = -1
@@ -109,7 +110,7 @@ export class StepProgress {
 
     if (isTTY) {
       if (this.rendered) {
-        process.stdout.write(`\x1b[${this.steps.length}A`)
+        process.stdout.write(`\x1b[${this.renderedLineCount}A`)
       }
       for (const line of lines) {
         const stripped = strip(line)
@@ -117,6 +118,7 @@ export class StepProgress {
         process.stdout.write(line + ' '.repeat(padding) + '\n')
       }
       this.rendered = true
+      this.renderedLineCount = this.steps.length
     } else {
       if (!this.rendered) {
         for (const line of lines) {

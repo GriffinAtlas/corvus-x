@@ -207,9 +207,8 @@ describe('SnapshotStore', () => {
     expect(loaded!.scores).toBeUndefined()
   })
 
-  it('loadLatest returns null and warns when snapshot file is corrupted', () => {
+  it('loadLatest returns null when snapshot file is corrupted', () => {
     freshStore()
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const nowSpy = vi.spyOn(Date, 'now')
     nowSpy.mockReturnValue(9999999)
     store.save('scan', 'corrupt', { ok: true } as any, 'raw', 0.001)
@@ -219,13 +218,10 @@ describe('SnapshotStore', () => {
     fs.writeFileSync(snapshotFile, '{{not valid json!!!}')
 
     expect(store.loadLatest('scan', 'corrupt')).toBeNull()
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted snapshot'))
-    errSpy.mockRestore()
   })
 
   it('loadLatest falls back to earlier snapshot when latest is corrupted', () => {
     freshStore()
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const nowSpy = vi.spyOn(Date, 'now')
     nowSpy.mockReturnValue(1000000)
     store.save('scan', 'fallback', { version: 1 } as any, 'raw', 0.001)
@@ -240,12 +236,10 @@ describe('SnapshotStore', () => {
     const loaded = store.loadLatest('scan', 'fallback')
     expect(loaded).not.toBeNull()
     expect(loaded!.data).toEqual({ version: 1 })
-    errSpy.mockRestore()
   })
 
   it('loadAll skips corrupted snapshot files', () => {
     freshStore()
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const nowSpy = vi.spyOn(Date, 'now')
     nowSpy.mockReturnValue(1000000)
     store.save('scan', 'mixed', { n: 1 } as any, 'r1', 0.001)
@@ -263,12 +257,10 @@ describe('SnapshotStore', () => {
     expect(all.length).toBe(2)
     expect(all[0].data).toEqual({ n: 1 })
     expect(all[1].data).toEqual({ n: 3 })
-    errSpy.mockRestore()
   })
 
   it('listTopics skips directories where all snapshots are corrupted', () => {
     freshStore()
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const nowSpy = vi.spyOn(Date, 'now')
     nowSpy.mockReturnValue(1000000)
     store.save('scan', 'good-topic', { ok: true } as any, 'raw', 0.001)
@@ -283,12 +275,10 @@ describe('SnapshotStore', () => {
     const topics = store.listTopics()
     expect(topics.length).toBe(1)
     expect(topics[0].command).toBe('scan')
-    errSpy.mockRestore()
   })
 
   it('listTopics falls back to earlier snapshot when latest is corrupted', () => {
     freshStore()
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const nowSpy = vi.spyOn(Date, 'now')
     nowSpy.mockReturnValue(1000000)
     store.save('scan', 'partial-corrupt', { v: 1 } as any, 'raw', 0.001)
@@ -304,7 +294,6 @@ describe('SnapshotStore', () => {
     expect(topics.length).toBe(1)
     expect(topics[0].command).toBe('scan')
     expect(topics[0].latest).toBe(1000000)
-    errSpy.mockRestore()
   })
 
   it('listTopics skips empty subdirectories', () => {

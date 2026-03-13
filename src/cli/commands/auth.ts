@@ -13,6 +13,35 @@ function prompt(question: string): Promise<string> {
   })
 }
 
+function promptSecret(question: string): Promise<string> {
+  return new Promise((resolve) => {
+    process.stdout.write(question)
+    if (process.stdin.isTTY) process.stdin.setRawMode(true)
+    let input = ''
+    const onData = (ch: Buffer) => {
+      const c = ch.toString()
+      if (c === '\n' || c === '\r') {
+        if (process.stdin.isTTY) process.stdin.setRawMode(false)
+        process.stdin.removeListener('data', onData)
+        process.stdout.write('\n')
+        resolve(input.trim())
+      } else if (c === '\x7f' || c === '\b') {
+        if (input.length > 0) {
+          input = input.slice(0, -1)
+          process.stdout.write('\b \b')
+        }
+      } else if (c === '\x03') {
+        if (process.stdin.isTTY) process.stdin.setRawMode(false)
+        process.exit(1)
+      } else if (c >= ' ') {
+        input += c
+        process.stdout.write('*')
+      }
+    }
+    process.stdin.on('data', onData)
+  })
+}
+
 async function runSetup(): Promise<void> {
   const auth = new AuthManager(ConfigManager.defaultDir())
 
@@ -20,7 +49,7 @@ async function runSetup(): Promise<void> {
   console.log('  ─────────────────\n')
 
   console.log('  You need a Grok API key from https://console.x.ai\n')
-  const grokKey = await prompt('  Grok API key: ')
+  const grokKey = await promptSecret('  Grok API key: ')
 
   if (!grokKey) {
     console.log('\n  Grok API key is required. Aborting.')
@@ -33,7 +62,7 @@ async function runSetup(): Promise<void> {
   const addX = await prompt('  Add X API bearer token? (optional) [y/N]: ')
   if (addX.toLowerCase() === 'y') {
     console.log('\n  Get your token at https://developer.x.com\n')
-    const xToken = await prompt('  X Bearer Token: ')
+    const xToken = await promptSecret('  X Bearer Token: ')
     if (xToken) {
       auth.setXToken(xToken)
       console.log('  ✓ X API token saved\n')

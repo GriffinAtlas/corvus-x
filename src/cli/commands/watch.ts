@@ -112,6 +112,9 @@ export class Watcher {
         ...this.options.queryOptions,
       })
 
+      // If stopped while the request was in-flight, discard the result
+      if (!this.running) return
+
       this.cycles++
       this.totalCost += response.usage.costUsd
       this.previousSnapshot = response.text
@@ -126,6 +129,7 @@ export class Watcher {
         timestamp: Date.now(),
       })
     } catch (err) {
+      if (!this.running) return
       this.consecutiveErrors++
       this.options.onError(err instanceof Error ? err : new Error(String(err)))
       if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
@@ -228,7 +232,6 @@ export function registerWatchCommand(program: Command): void {
 
         process.on('SIGINT', () => {
           watcher.stop()
-          process.exit(0)
         })
 
         await watcher.start(grokKey)

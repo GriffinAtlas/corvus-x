@@ -186,6 +186,51 @@ describe('registerAskCommand', () => {
     expect(args.stream).toBe(true)
   })
 
+  describe('--from/--to date validation (bug 12)', () => {
+    it('rejects invalid calendar date like Feb 30', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await expect(
+        program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2026-02-30']),
+      ).rejects.toThrow('Invalid calendar date: 2026-02-30')
+      expect(mockQuery).not.toHaveBeenCalled()
+    })
+
+    it('rejects invalid calendar date like Apr 31', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await expect(
+        program.parseAsync(['node', 'corvus', 'ask', 'test', '--to', '2026-04-31']),
+      ).rejects.toThrow('Invalid calendar date: 2026-04-31')
+    })
+
+    it('rejects month 13', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await expect(
+        program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2026-13-01']),
+      ).rejects.toThrow('Invalid calendar date: 2026-13-01')
+    })
+
+    it('rejects malformed date format', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await expect(
+        program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2026/01/15']),
+      ).rejects.toThrow('expected YYYY-MM-DD')
+    })
+
+    it('accepts valid calendar date like Feb 28 in non-leap year', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      // 2025 is not a leap year, Feb 28 is valid
+      await program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2025-02-28'])
+      expect(mockQuery).toHaveBeenCalled()
+    })
+
+    it('rejects Feb 29 in non-leap year', async () => {
+      vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+      await expect(
+        program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2025-02-29']),
+      ).rejects.toThrow('Invalid calendar date: 2025-02-29')
+    })
+  })
+
   describe('--exclude-handle', () => {
     it('passes excluded_x_handles to grok query', async () => {
       vi.stubEnv('CORVUS_GROK_KEY', 'test-key')

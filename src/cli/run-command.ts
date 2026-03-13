@@ -82,6 +82,7 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
 
   try {
     let response: GrokResponse
+    let receivedContent = true
 
     if (opts.executeStream && opts.format === 'table') {
       let firstChunk = true
@@ -95,7 +96,8 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
         }
         process.stdout.write(text)
       })
-      if (!firstChunk) {
+      receivedContent = !firstChunk
+      if (receivedContent) {
         console.log('\n')
         console.log(`  ${t.muted(`cost: $${response.usage.costUsd.toFixed(4)}`)}`)
         console.log()
@@ -115,7 +117,9 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
       console.log(formatOutput(result, opts.format))
     }
 
-    cache.set(opts.command, opts.query, response.text, response.usage.costUsd)
+    if (receivedContent) {
+      cache.set(opts.command, opts.query, response.text, response.usage.costUsd)
+    }
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)

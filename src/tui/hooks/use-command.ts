@@ -14,7 +14,7 @@ import type { CorvusDeps } from '../../core/types.js'
 import type { Snapshot, MatchKeys } from '../../core/schemas.js'
 import type { BuildResult } from '../../core/types.js'
 import type { Dispatch } from 'react'
-import type { SessionAction } from './use-session.js'
+import type { ChatEntry, SessionAction } from './use-session.js'
 
 const HELP_TEXT = `Commands:
   scan <topic>        Snapshot X discourse on a topic
@@ -61,7 +61,7 @@ async function runStructured<T extends Snapshot>(
 
 // dispatch and exit are passed in rather than read from context,
 // because useCommand is called in the same component that provides the context.
-export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void) {
+export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void, history: ChatEntry[] = []) {
   const [isLoading, setIsLoading] = useState(false)
   const [phaseLabel, setPhaseLabel] = useState<string | null>(null)
 
@@ -96,6 +96,19 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           return
         case 'view': {
           const index = parseInt(parsed.args?.index ?? '') - 1
+          if (index < 0 || index >= history.length) {
+            dispatch({ type: 'add-error', message: `Entry ${index + 1} does not exist.` })
+            return
+          }
+          const entry = history[index]
+          if (entry.type !== 'result' && entry.type !== 'prose') {
+            dispatch({ type: 'add-error', message: `Entry ${index + 1} is not expandable.` })
+            return
+          }
+          if (entry.expanded) {
+            dispatch({ type: 'add-error', message: `Entry ${index + 1} is already expanded.` })
+            return
+          }
           dispatch({ type: 'expand-entry', index })
           return
         }
@@ -115,6 +128,14 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         entry: { type: 'system', message: 'Session history is displayed above. Use /clear to reset.' },
       })
       return
+    }
+
+    // Validate read input before committing to the query (adding user bubble + incrementing queryCount)
+    if (parsed.command === 'read') {
+      if (!extractTweetId(parsed.args.tweetIdOrUrl)) {
+        dispatch({ type: 'add-error', message: 'Invalid tweet ID or URL.' })
+        return
+      }
     }
 
     dispatch({ type: 'add-query', entry: { type: 'user', text: input } })
@@ -182,7 +203,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       setPhaseLabel(null)
       setIsLoading(false)
     }
-  }, [deps, dispatch, exit])
+  }, [deps, dispatch, exit, history])
 
   return { execute, isLoading, phaseLabel }
 }

@@ -60,9 +60,8 @@ export function parseGrokJson<T>(raw: string): T {
     throw new GrokParseError(raw, cleaned, new SyntaxError('No JSON object or array found'))
   }
 
-  const lastBrace = cleaned.lastIndexOf('}')
-  const lastBracket = cleaned.lastIndexOf(']')
-  const end = Math.max(lastBrace, lastBracket)
+  const openChar = cleaned[start]
+  const end = openChar === '{' ? cleaned.lastIndexOf('}') : cleaned.lastIndexOf(']')
 
   if (end < start) {
     throw new GrokParseError(raw, cleaned, new SyntaxError('No closing brace/bracket found'))
@@ -218,7 +217,7 @@ export class GrokAdapter {
       }
     }
 
-    throw lastError
+    throw lastError ?? new Error('Grok query: max retry attempts exhausted')
   }
 
   async queryStream(
@@ -244,13 +243,19 @@ export class GrokAdapter {
     let text = ''
     let inputTokens = 0
     let outputTokens = 0
+    const toolCallIndices = new Set<number>()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for await (const chunk of stream as any) {
-      const delta = chunk.choices?.[0]?.delta?.content
-      if (delta) {
-        text += delta
-        onChunk(delta)
+      const delta = chunk.choices?.[0]?.delta
+      if (delta?.content) {
+        text += delta.content
+        onChunk(delta.content)
+      }
+      if (Array.isArray(delta?.tool_calls)) {
+        for (const tc of delta.tool_calls) {
+          if (typeof tc.index === 'number') toolCallIndices.add(tc.index)
+        }
       }
       if (chunk.usage) {
         inputTokens = chunk.usage.prompt_tokens ?? 0
@@ -262,7 +267,7 @@ export class GrokAdapter {
       outputTokens = Math.ceil(text.length / 4)
     }
 
-    const toolCallCount = (options.enableXSearch ? 1 : 0) + (options.enableWebSearch ? 1 : 0)
+    const toolCallCount = toolCallIndices.size
     const costUsd = this.computeCost(model, inputTokens, outputTokens, toolCallCount)
 
     return {

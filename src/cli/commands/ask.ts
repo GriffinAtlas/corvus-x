@@ -9,14 +9,22 @@ Lead with the key insight. Include specific accounts and tweets when relevant.
 Add brief editorial context when useful ("worth watching", "contrarian signal").
 Do not use emoji. Do not use headers or markdown formatting.`
 
+function isValidCalendarDate(dateStr: string): boolean {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+}
+
 function validateDateRange(from?: string, to?: string): void {
   const isoDate = /^\d{4}-\d{2}-\d{2}$/
   if (from) {
     if (!isoDate.test(from)) throw new Error(`Invalid --from date: ${from} (expected YYYY-MM-DD)`)
+    if (!isValidCalendarDate(from)) throw new Error(`Invalid calendar date: ${from}`)
     if (new Date(from) > new Date()) throw new Error(`--from date is in the future: ${from}`)
   }
   if (to) {
     if (!isoDate.test(to)) throw new Error(`Invalid --to date: ${to} (expected YYYY-MM-DD)`)
+    if (!isValidCalendarDate(to)) throw new Error(`Invalid calendar date: ${to}`)
     if (new Date(to) > new Date()) throw new Error(`--to date is in the future: ${to}`)
   }
   if (from && to && new Date(to) < new Date(from)) {

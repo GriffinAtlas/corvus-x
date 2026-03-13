@@ -293,7 +293,8 @@ export class AgentExecutor {
       const step = steps[i]
 
       if (this.context.results.length > 0) {
-        const avgCost = this.context.totalCost / (this.context.results.length + 1)
+        const stepCost = this.context.totalCost - planCost
+        const avgCost = stepCost / this.context.results.length
         if (this.context.totalCost + avgCost > this.options.budget) {
           this.options.onStepSkip?.(i, step, 'budget exceeded')
           for (let j = i + 1; j < steps.length; j++) {
@@ -365,7 +366,6 @@ export class AgentExecutor {
         } else {
           this.options.onStepFail?.(i, step, err instanceof Error ? err : new Error(String(err)))
         }
-        completedCount++
       }
     }
 

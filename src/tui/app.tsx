@@ -55,7 +55,7 @@ export function App({ version }: Props) {
     xApiStatus,
   })
 
-  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit)
+  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit, session.history)
 
   const [scrollOffset, setScrollOffset] = useState(0)
   const { stdout } = useStdout()

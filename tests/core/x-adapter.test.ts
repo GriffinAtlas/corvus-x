@@ -421,6 +421,87 @@ describe('XAdapter timeout', () => {
   })
 })
 
+describe('XAdapter searchRecent — caps returned tweets (bug 17)', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('returns only maxResults tweets when API returns more', () => {
+    // Mock API returning 10 tweets but caller requests only 5
+    const tenTweets = Array.from({ length: 10 }, (_, i) => ({
+      ...RAW_TWEET,
+      id: String(i + 1),
+    }))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        data: tenTweets,
+        includes: { users: [RAW_USER] },
+        meta: {},
+      }),
+    )
+
+    const adapter = new XAdapter('test-token')
+    return adapter.searchRecent('test query', 5, 1).then((result) => {
+      expect(result.tweets).toHaveLength(5)
+      // Verify the first 5 tweets are returned in order
+      expect(result.tweets[0].id).toBe('1')
+      expect(result.tweets[4].id).toBe('5')
+    })
+  })
+
+  it('returns all tweets when API returns fewer than maxResults', () => {
+    const threeTweets = Array.from({ length: 3 }, (_, i) => ({
+      ...RAW_TWEET,
+      id: String(i + 1),
+    }))
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        data: threeTweets,
+        includes: { users: [RAW_USER] },
+        meta: {},
+      }),
+    )
+
+    const adapter = new XAdapter('test-token')
+    return adapter.searchRecent('test query', 5, 1).then((result) => {
+      expect(result.tweets).toHaveLength(3)
+    })
+  })
+
+  it('caps total tweets across multiple pages to maxResults * pages', () => {
+    // Request maxResults=5, pages=2 → totalDesired=10
+    // But each page returns 8 tweets (16 total) — should cap at 10
+    const page1 = Array.from({ length: 8 }, (_, i) => ({
+      ...RAW_TWEET,
+      id: String(i + 1),
+    }))
+    const page2 = Array.from({ length: 8 }, (_, i) => ({
+      ...RAW_TWEET,
+      id: String(i + 9),
+    }))
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: page1,
+          includes: { users: [RAW_USER] },
+          meta: { next_token: 'page2' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: page2,
+          includes: { users: [RAW_USER] },
+          meta: {},
+        }),
+      )
+
+    const adapter = new XAdapter('test-token')
+    return adapter.searchRecent('test query', 5, 2).then((result) => {
+      expect(result.tweets).toHaveLength(10)
+    })
+  })
+})
+
 describe('formatTweetsForAnalysis', () => {
   const tweets: Tweet[] = [
     {

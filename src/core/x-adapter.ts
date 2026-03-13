@@ -134,7 +134,8 @@ export class XAdapter {
       if (!nextToken) break
     }
 
-    return { tweets: allTweets, users: allUsers, nextToken }
+    const totalDesired = maxResults * pages
+    return { tweets: allTweets.slice(0, totalDesired), users: allUsers, nextToken }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

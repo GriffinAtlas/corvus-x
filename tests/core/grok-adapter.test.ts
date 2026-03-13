@@ -498,6 +498,26 @@ describe('parseGrokJson', () => {
     expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
   })
 
+  it('matches closing brace to opening brace, ignoring trailing brackets (bug 4)', () => {
+    // Old code used lastIndexOf('}') OR lastIndexOf(']') regardless of what opened.
+    // With opening '{', it would find the last ']' from the trailing array and try to
+    // parse '{"key":"value"} trailing [1,2,3]' which is invalid.
+    // Fixed code matches '{' to '}' and '[' to ']'.
+    const result = parseGrokJson<{ key: string }>('{"key":"value"} trailing [1,2,3]')
+    expect(result).toEqual({ key: 'value' })
+  })
+
+  it('matches closing bracket to opening bracket, ignoring trailing braces (bug 4)', () => {
+    const result = parseGrokJson<number[]>('[1,2,3] and then {"extra":"data"}')
+    expect(result).toEqual([1, 2, 3])
+  })
+
+  it('handles object with trailing array on same line (bug 4)', () => {
+    const raw = 'Response: {"signals": ["bull"]} see also [more, data]'
+    const result = parseGrokJson<{ signals: string[] }>(raw)
+    expect(result).toEqual({ signals: ['bull'] })
+  })
+
   it('handles array at top level with preamble', () => {
     const raw = 'Result:\n[{"id": 1}, {"id": 2}]'
     const result = parseGrokJson<{ id: number }[]>(raw)
@@ -763,10 +783,10 @@ describe('queryStream', () => {
     expect(args.stream_options).toEqual({ include_usage: true })
   })
 
-  it('estimates tool call cost for enabled tools', async () => {
+  it('counts tool calls from stream deltas', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hi' } }] }
+        yield { choices: [{ delta: { content: 'hi', tool_calls: [{ index: 0, id: 'call_1' }] } }] }
         yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
       },
     }
@@ -831,10 +851,11 @@ describe('queryStream', () => {
     expect(args.tools[1].type).toBe('web_search')
   })
 
-  it('counts both x_search and web_search tool costs', async () => {
+  it('counts multiple tool calls from stream deltas', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hi' } }] }
+        yield { choices: [{ delta: { content: 'hi', tool_calls: [{ index: 0, id: 'call_1' }] } }] }
+        yield { choices: [{ delta: { tool_calls: [{ index: 1, id: 'call_2' }] } }] }
         yield { choices: [{ delta: {} }], usage: { prompt_tokens: 100, completion_tokens: 50 } }
       },
     }

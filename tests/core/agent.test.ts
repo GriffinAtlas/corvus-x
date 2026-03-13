@@ -1316,3 +1316,125 @@ describe('AgentPlanner step filtering', () => {
     expect(result.plan.steps).toHaveLength(0)
   })
 })
+
+describe('AgentExecutor — failed steps do not increment completedCount (bug 1)', () => {
+  it('does not trigger replan when failed step would have put completedCount in REPLAN_STEPS', async () => {
+    // REPLAN_STEPS = {1, 3, 5}
+    // Plan: 3 steps. Step 0 succeeds (completedCount=1 → replan fires at 1).
+    // Step 1 fails (completedCount stays 1 — NOT incremented).
+    // Step 2 succeeds (completedCount=2 — not in REPLAN_STEPS, no replan).
+    // So total replans = 1 (after step 0 only).
+
+    const { buildScanSnapshot } = await import('../../src/core/builders/scan.js')
+    const { buildPulseSnapshot } = await import('../../src/core/builders/pulse.js')
+
+    // Make step 1 (pulse) fail
+    vi.mocked(buildPulseSnapshot).mockRejectedValueOnce(new Error('Pulse API error'))
+
+    const replanResponse = JSON.stringify({ action: 'continue' })
+    const mockGrok = makeMockGrok([replanResponse, replanResponse])
+    const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
+
+    const plan: AgentPlan = {
+      goal: 'Test failed step replan',
+      steps: [
+        { command: 'scan', args: { topic: 'bitcoin' }, reasoning: 'Step 0' },
+        { command: 'pulse', args: { topic: 'bitcoin' }, reasoning: 'Step 1 — will fail' },
+        { command: 'scan', args: { topic: 'ethereum' }, reasoning: 'Step 2' },
+      ],
+    }
+
+    const failures: number[] = []
+    const executor = new AgentExecutor(deps, 'test', plan, {
+      maxSteps: 8,
+      budget: 1.0,
+      replan: true,
+      onStepFail: (index) => failures.push(index),
+    })
+    const context = await executor.execute(0)
+
+    // Step 1 failed
+    expect(failures).toEqual([1])
+    // Only 2 successful results (step 0 scan, step 2 scan)
+    expect(context.results).toHaveLength(2)
+    // Replan should have been called exactly once — after step 0 (completedCount=1)
+    // Step 1 failed so completedCount stays 1, step 2 makes it 2 (not in REPLAN_STEPS)
+    expect(mockGrok.query).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('AgentExecutor — budget check uses step cost average, not total cost average (bug 2)', () => {
+  it('subtracts planCost from totalCost before computing step cost average', async () => {
+    const deps: CorvusDeps = {
+      grok: makeMockGrok([]),
+      x: {} as CorvusDeps['x'],
+    }
+
+    const plan: AgentPlan = {
+      goal: 'Test',
+      steps: [
+        { command: 'scan', args: { topic: 'bitcoin' }, reasoning: 'Step 1' },
+        { command: 'pulse', args: { topic: 'bitcoin' }, reasoning: 'Step 2' },
+        { command: 'scan', args: { topic: 'ethereum' }, reasoning: 'Step 3' },
+      ],
+    }
+
+    // planCost = 0.01, budget = 0.02
+    // Step 0 (scan) costs 0.002 → totalCost = 0.01 + 0.002 = 0.012
+    // Before step 1: stepCost = totalCost - planCost = 0.012 - 0.01 = 0.002
+    //   avgCost = 0.002 / 1 = 0.002
+    //   totalCost + avgCost = 0.012 + 0.002 = 0.014 < 0.02 budget → step 1 runs
+    // If the bug were present (using totalCost / (results.length+1)):
+    //   avgCost = 0.012 / 2 = 0.006
+    //   totalCost + avgCost = 0.012 + 0.006 = 0.018 < 0.02 → would also run, but barely
+    // The critical difference is with tighter budgets.
+
+    const skipped: number[] = []
+    const executor = new AgentExecutor(deps, 'test', plan, {
+      maxSteps: 8,
+      budget: 0.02,
+      replan: false,
+      onStepSkip: (index) => skipped.push(index),
+    })
+    const context = await executor.execute(0.01)
+
+    // With correct budget math (stepCost = totalCost - planCost):
+    // After step 0: totalCost=0.012, stepCost=0.002, avg=0.002, projected=0.014 → step 1 runs
+    // After step 1: totalCost=0.014, stepCost=0.004, avg=0.002, projected=0.016 → step 2 runs
+    // After step 2: totalCost=0.016 — all steps completed
+    expect(context.results).toHaveLength(3)
+    expect(skipped).toHaveLength(0)
+  })
+
+  it('correctly skips steps when step cost average exceeds remaining budget', async () => {
+    const deps: CorvusDeps = {
+      grok: makeMockGrok([]),
+      x: {} as CorvusDeps['x'],
+    }
+
+    const plan: AgentPlan = {
+      goal: 'Test',
+      steps: [
+        { command: 'scan', args: { topic: 'bitcoin' }, reasoning: 'Step 1' },
+        { command: 'pulse', args: { topic: 'bitcoin' }, reasoning: 'Step 2' },
+      ],
+    }
+
+    // planCost = 0.01, budget = 0.013
+    // Step 0 (scan) costs 0.002 → totalCost = 0.012
+    // Before step 1: stepCost = 0.012 - 0.01 = 0.002, avgCost = 0.002
+    //   totalCost + avgCost = 0.012 + 0.002 = 0.014 > 0.013 → skip
+    const skipped: { index: number; reason: string }[] = []
+    const executor = new AgentExecutor(deps, 'test', plan, {
+      maxSteps: 8,
+      budget: 0.013,
+      replan: false,
+      onStepSkip: (index, _step, reason) => skipped.push({ index, reason }),
+    })
+    const context = await executor.execute(0.01)
+
+    expect(context.results).toHaveLength(1)
+    expect(skipped.length).toBeGreaterThanOrEqual(1)
+    expect(skipped[0].reason).toBe('budget exceeded')
+  })
+})

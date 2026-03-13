@@ -1484,6 +1484,68 @@ describe('computeConfidence edge cases', () => {
   })
 })
 
+describe('computeTopAccounts — duplicate score indices (bug 8)', () => {
+  it('averages sentiment when multiple scores reference the same tweet index', () => {
+    // Two scores pointing to the same tweet (index 0) — author 'a'
+    // Sentiments: 0.8 and 0.2. Average should be (0.8 + 0.2) / 2 = 0.5
+    // Then avgSentiment for author 'a' = 0.5 / 1 post = 0.5
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a' }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.8, narrative: 'bull' },
+      { index: 0, sentiment: 0.2, narrative: 'neutral' },
+    ]
+    const users = [makeUser({ id: 'a', username: 'alice' })]
+    const result = computeTopAccounts(tweets, scores, users)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].handle).toBe('alice')
+    expect(result[0].postCount).toBe(1)
+    // The fix averages duplicate scores: (0.8 + 0.2) / 2 = 0.5 per tweet
+    // avgSentiment = 0.5 / 1 = 0.5
+    expect(result[0].avgSentiment).toBe(0.5)
+  })
+
+  it('averages duplicate scores across multiple tweets from same author', () => {
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a' }),
+      makeTweet({ id: '2', authorId: 'a' }),
+    ]
+    // Tweet 0 has two scores: 0.6 and 0.4 → avg = 0.5
+    // Tweet 1 has two scores: -0.2 and -0.8 → avg = -0.5
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 0.6, narrative: 'x' },
+      { index: 0, sentiment: 0.4, narrative: 'y' },
+      { index: 1, sentiment: -0.2, narrative: 'x' },
+      { index: 1, sentiment: -0.8, narrative: 'y' },
+    ]
+    const users = [makeUser({ id: 'a', username: 'alice' })]
+    const result = computeTopAccounts(tweets, scores, users)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].postCount).toBe(2)
+    // sentimentSum = 0.5 + (-0.5) = 0.0, avgSentiment = 0.0 / 2 = 0
+    expect(result[0].avgSentiment).toBe(0)
+  })
+
+  it('does not drop sentiment when scores share an index', () => {
+    // Regression: if the code used find() instead of filter(), only the first
+    // matching score would be used, dropping the second.
+    const tweets = [
+      makeTweet({ id: '1', authorId: 'a' }),
+    ]
+    const scores: GrokTweetScore[] = [
+      { index: 0, sentiment: 1.0, narrative: 'x' },
+      { index: 0, sentiment: 1.0, narrative: 'y' },
+    ]
+    const result = computeTopAccounts(tweets, scores, [])
+
+    // Both scores contribute. avg = (1.0+1.0)/2 = 1.0 per tweet, /1 post = 1.0
+    expect(result[0].avgSentiment).toBe(1.0)
+  })
+})
+
 describe('detectContradictions with empty/single results', () => {
   it('returns empty array for empty results', () => {
     expect(detectContradictions([])).toEqual([])

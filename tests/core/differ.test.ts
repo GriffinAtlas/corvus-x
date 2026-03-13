@@ -240,6 +240,46 @@ describe('diffSnapshots', () => {
     // no delta like (+N) or (-N) should appear
     expect(output).not.toMatch(/\([+-]\d/)
   })
+
+  it('diffObjectFields detects field removals in matched array entries (bug 9)', () => {
+    // When a matched array entry has a field in old but not in new,
+    // diffObjectFields should report it as 'removed'.
+    const oldData = {
+      accounts: [
+        { handle: 'alice', score: 0.5, followers: 5000 },
+        { handle: 'bob', score: 0.3 },
+      ],
+    }
+    const newData = {
+      accounts: [
+        { handle: 'alice', score: 0.5 },
+        { handle: 'bob', score: 0.3 },
+      ],
+    }
+    const lines = diffSnapshots(oldData, newData, { accounts: 'handle' })
+    const removed = lines.find((l) => l.type === 'removed' && l.path.includes('alice'))
+    expect(removed).toBeDefined()
+    expect(removed!.path).toContain('followers')
+    expect(removed!.oldValue).toMatch(/5[,.]?000/)
+  })
+
+  it('diffObjectFields detects field additions in matched array entries (bug 9 corollary)', () => {
+    const oldData = {
+      accounts: [
+        { handle: 'alice', score: 0.5 },
+      ],
+    }
+    const newData = {
+      accounts: [
+        { handle: 'alice', score: 0.5, followers: 8000 },
+      ],
+    }
+    const lines = diffSnapshots(oldData, newData, { accounts: 'handle' })
+    const added = lines.find((l) => l.type === 'added' && l.path.includes('alice'))
+    expect(added).toBeDefined()
+    expect(added!.path).toContain('followers')
+    expect(added!.newValue).toMatch(/8[,.]?000/)
+  })
 })
 
 describe('formatDiffLines', () => {

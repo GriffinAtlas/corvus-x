@@ -117,8 +117,10 @@ export function computeTopAccounts(
     existing.count++
     existing.engagementScore += computeEngagementScore(tweet)
 
-    const score = scores.find((s) => s.index === i)
-    if (score) existing.sentimentSum += score.sentiment
+    const matching = scores.filter((s) => s.index === i)
+    if (matching.length > 0) {
+      existing.sentimentSum += matching.reduce((sum, s) => sum + s.sentiment, 0) / matching.length
+    }
 
     authorStats.set(tweet.authorId, existing)
   }
@@ -206,7 +208,7 @@ export function computeKeyVoices(
 
   for (let i = 0; i < tweets.length; i++) {
     const tweet = tweets[i]
-    const score = scores.find((s) => s.index === i)
+    const matching = scores.filter((s) => s.index === i)
     const user = userMap.get(tweet.authorId)
     const handle = user?.username ?? tweet.authorId
     const existing = voiceMap.get(handle) ?? {
@@ -218,7 +220,9 @@ export function computeKeyVoices(
     }
     existing.count++
     existing.engagementScore += computeEngagementScore(tweet)
-    if (score) existing.sentimentSum += score.sentiment
+    if (matching.length > 0) {
+      existing.sentimentSum += matching.reduce((sum, s) => sum + s.sentiment, 0) / matching.length
+    }
     voiceMap.set(handle, existing)
   }
 

@@ -154,24 +154,30 @@ function diffObjectFields(
   id: string,
 ): DiffLine[] {
   const lines: DiffLine[] = []
-  for (const field of Object.keys(newItem)) {
+  for (const field of new Set([...Object.keys(oldItem), ...Object.keys(newItem)])) {
     const oldVal = oldItem[field]
     const newVal = newItem[field]
     if (oldVal === newVal) continue
 
-    if (typeof newVal === 'number' && typeof oldVal === 'number') {
+    const fullPath = `${parentPath}[${id}].${field}`
+
+    if (oldVal === undefined && newVal !== undefined) {
+      lines.push({ path: fullPath, type: 'added', newValue: formatValue(newVal) })
+    } else if (oldVal !== undefined && newVal === undefined) {
+      lines.push({ path: fullPath, type: 'removed', oldValue: formatValue(oldVal) })
+    } else if (typeof newVal === 'number' && typeof oldVal === 'number') {
       lines.push({
-        path: `${parentPath}[${id}].${field}`,
+        path: fullPath,
         type: 'changed',
         oldValue: formatNum(oldVal),
         newValue: formatNum(newVal),
       })
     } else if (typeof newVal === 'string' && typeof oldVal === 'string') {
       lines.push({
-        path: `${parentPath}[${id}].${field}`,
+        path: fullPath,
         type: 'changed',
-        oldValue: oldVal,
-        newValue: newVal,
+        oldValue: oldVal as string,
+        newValue: newVal as string,
       })
     }
   }

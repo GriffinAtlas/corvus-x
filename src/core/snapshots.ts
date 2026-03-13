@@ -77,7 +77,9 @@ export class SnapshotStore {
     }[] = []
     for (const entry of fs.readdirSync(this.baseDir)) {
       const fullPath = path.join(this.baseDir, entry)
-      if (!fs.statSync(fullPath).isDirectory()) continue
+      let stat: fs.Stats
+      try { stat = fs.statSync(fullPath) } catch { continue }
+      if (!stat.isDirectory()) continue
       const files = this.listFiles(fullPath)
       if (files.length === 0) continue
       let latestSnapshot: StoredSnapshot | null = null
@@ -101,7 +103,6 @@ export class SnapshotStore {
     try {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
     } catch {
-      console.error(`  warning: corrupted snapshot file, skipping: ${filePath}`)
       return null
     }
   }
