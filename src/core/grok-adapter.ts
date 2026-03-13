@@ -133,19 +133,16 @@ export class GrokAdapter {
       throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
     }
 
-    const tools: unknown[] = []
+    if (!options.enableXSearch && !options.enableWebSearch) return []
+
+    const tool: Record<string, unknown> = { type: 'live_search' }
     if (options.enableXSearch) {
-      const tool: Record<string, unknown> = { type: 'x_search' }
       if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
       if (options.xSearchToDate) tool.to_date = options.xSearchToDate
       if (options.xSearchHandles?.length) tool.allowed_x_handles = options.xSearchHandles
       if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
-      tools.push(tool)
     }
-    if (options.enableWebSearch) {
-      tools.push({ type: 'web_search' })
-    }
-    return tools as OpenAI.Chat.Completions.ChatCompletionTool[]
+    return [tool] as OpenAI.Chat.Completions.ChatCompletionTool[]
   }
 
   private computeCost(model: string, inputTokens: number, outputTokens: number, toolCallCount: number): number {

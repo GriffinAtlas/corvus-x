@@ -232,6 +232,7 @@ describe('registerScopeCommand', () => {
 
   it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', '')
     mockQuery.mockResolvedValueOnce(grokOnlyScopeResponse())
 
     await program.parseAsync(['node', 'corvus', 'scope', 'testuser'])

@@ -53,6 +53,7 @@ describe('registerAuthCommand', () => {
 
   it('auth status shows mixed state — grok set, x not set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', '')
 
     await program.parseAsync(['node', 'corvus', 'auth', 'status'])
 

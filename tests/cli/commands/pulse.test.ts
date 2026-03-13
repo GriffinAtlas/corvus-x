@@ -200,6 +200,7 @@ describe('registerPulseCommand', () => {
 
   it('falls back to Grok-only when no X token is set', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', '')
     mockQuery.mockResolvedValueOnce(grokOnlyPulseResponse())
 
     await program.parseAsync(['node', 'corvus', 'pulse', 'test'])
