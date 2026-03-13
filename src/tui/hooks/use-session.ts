@@ -46,13 +46,15 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
       return {
         ...state,
         history: [...state.history, action.entry],
-        queryCount: state.queryCount + 1,
       }
-    case 'add-result':
+    case 'add-result': {
+      const isApiResult = action.entry.type === 'result' || action.entry.type === 'prose'
       return {
         ...state,
         history: [...state.history, action.entry],
+        queryCount: state.queryCount + (isApiResult ? 1 : 0),
       }
+    }
     case 'add-cost':
       return { ...state, totalCost: state.totalCost + action.cost }
     case 'add-error':

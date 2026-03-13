@@ -79,21 +79,15 @@ describe('AuthManager', () => {
     expect(auth.getGrokKey()).toBe('env-only-key')
   })
 
-  it('returns null and warns when credentials file is corrupted', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('returns null silently when credentials file is corrupted', () => {
     fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '{{{not json')
     expect(auth.getGrokKey()).toBeNull()
     expect(auth.getXToken()).toBeNull()
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted'))
-    errSpy.mockRestore()
   })
 
-  it('returns null and warns when credentials file is empty', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('returns null silently when credentials file is empty', () => {
     fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '')
     expect(auth.getGrokKey()).toBeNull()
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted'))
-    errSpy.mockRestore()
   })
 
   it('returns null when credentials file contains empty object', () => {
@@ -103,11 +97,9 @@ describe('AuthManager', () => {
   })
 
   it('can write after corrupted file exists', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     fs.writeFileSync(path.join(tmpDir, 'credentials.json'), 'garbage')
     auth.setGrokKey('recovered-key')
     expect(auth.getGrokKey()).toBe('recovered-key')
-    errSpy.mockRestore()
   })
 
   it('creates base directory if it does not exist', () => {

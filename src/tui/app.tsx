@@ -1,4 +1,4 @@
-import React, { useReducer, useMemo, useState, useEffect } from 'react'
+import React, { useReducer, useRef, useState, useEffect } from 'react'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { WelcomeView } from './components/welcome-view.js'
 import { ChatViewport } from './components/chat-viewport.js'
@@ -16,38 +16,50 @@ import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
 import { XAdapter } from '../core/x-adapter.js'
 import { SnapshotStore } from '../core/snapshots.js'
+import type { CorvusDeps } from '../core/types.js'
+import type { GrokStatus, XApiStatus } from './hooks/use-session.js'
+
+export interface AppInit {
+  deps: CorvusDeps | null
+  grokStatus: GrokStatus
+  xApiStatus: XApiStatus
+  recentTopics: { command: string; topic: string; latest: number }[]
+}
+
+export function initApp(): AppInit {
+  const auth = new AuthManager(ConfigManager.defaultDir())
+  const grokKey = auth.getGrokKey()
+  const xToken = auth.getXToken()
+
+  let deps: CorvusDeps | null = null
+  let grokStatus: GrokStatus = 'no-key'
+  let xApiStatus: XApiStatus = 'no-key'
+
+  if (grokKey) {
+    deps = { grok: new GrokAdapter(grokKey), x: xToken ? new XAdapter(xToken) : null }
+    grokStatus = 'connected'
+    xApiStatus = xToken ? 'connected' : 'optional'
+  }
+
+  let recentTopics: AppInit['recentTopics'] = []
+  try {
+    const store = new SnapshotStore(ConfigManager.defaultDir())
+    recentTopics = store.listTopics().slice(0, 5)
+  } catch {
+    // no snapshots yet
+  }
+
+  return { deps, grokStatus, xApiStatus, recentTopics }
+}
 
 interface Props {
   version: string
+  init: AppInit
 }
 
-export function App({ version }: Props) {
+export function App({ version, init }: Props) {
   const { exit } = useApp()
-
-  const { deps, grokStatus, xApiStatus } = useMemo(() => {
-    const auth = new AuthManager(ConfigManager.defaultDir())
-    const grokKey = auth.getGrokKey()
-    const xToken = auth.getXToken()
-
-    if (!grokKey) {
-      return { deps: null, grokStatus: 'no-key' as const, xApiStatus: 'no-key' as const }
-    }
-
-    return {
-      deps: { grok: new GrokAdapter(grokKey), x: xToken ? new XAdapter(xToken) : null },
-      grokStatus: 'connected' as const,
-      xApiStatus: xToken ? ('connected' as const) : ('optional' as const),
-    }
-  }, [])
-
-  const recentTopics = useMemo(() => {
-    try {
-      const store = new SnapshotStore(ConfigManager.defaultDir())
-      return store.listTopics().slice(0, 5)
-    } catch {
-      return []
-    }
-  }, [])
+  const { deps, grokStatus, xApiStatus, recentTopics } = init
 
   const [session, dispatch] = useReducer(sessionReducer, {
     ...initialSession,
@@ -58,33 +70,49 @@ export function App({ version }: Props) {
   const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit, session.history)
 
   const [scrollOffset, setScrollOffset] = useState(0)
+  const userScrolled = useRef(false)
   const { stdout } = useStdout()
   const terminalHeight = stdout?.rows ?? 24
 
-  // Auto-snap to bottom on new entries
+  // Auto-snap to bottom on new entries — only when user hasn't scrolled away
   const historyLength = session.history.length
   useEffect(() => {
-    setScrollOffset(0)
+    if (!userScrolled.current) {
+      setScrollOffset(0)
+    }
   }, [historyLength])
 
   useInput((_input, key) => {
-    if (key.ctrl && _input === 'c') {
-      exit()
-    }
+    const maxOffset = Math.max(0, session.history.length - 1)
+
     if (key.pageUp) {
-      const step = Math.max(1, Math.floor((terminalHeight - 5) / 4))
-      setScrollOffset((prev) => Math.min(prev + step, Math.max(0, session.history.length - 1)))
+      userScrolled.current = true
+      setScrollOffset((prev) => Math.min(prev + 3, maxOffset))
+    }
+    if (key.shift && key.upArrow) {
+      userScrolled.current = true
+      setScrollOffset((prev) => Math.min(prev + 1, maxOffset))
     }
     if (key.pageDown) {
-      const step = Math.max(1, Math.floor((terminalHeight - 5) / 4))
-      setScrollOffset((prev) => Math.max(prev - step, 0))
+      setScrollOffset((prev) => {
+        const next = Math.max(prev - 3, 0)
+        if (next === 0) userScrolled.current = false
+        return next
+      })
+    }
+    if (key.shift && key.downArrow) {
+      setScrollOffset((prev) => {
+        const next = Math.max(prev - 1, 0)
+        if (next === 0) userScrolled.current = false
+        return next
+      })
     }
     if (key.meta && key.upArrow) {
-      // Home — scroll to top
-      setScrollOffset(Math.max(0, session.history.length - 1))
+      userScrolled.current = true
+      setScrollOffset(maxOffset)
     }
     if (key.meta && key.downArrow) {
-      // End — scroll to bottom
+      userScrolled.current = false
       setScrollOffset(0)
     }
   })
@@ -93,7 +121,7 @@ export function App({ version }: Props) {
     <SessionContext value={session}>
       <DispatchContext value={dispatch}>
         <Box flexDirection="column">
-          {session.queryCount === 0 ? (
+          {session.history.length === 0 ? (
             <WelcomeView
               version={version}
               grokStatus={session.grokStatus}

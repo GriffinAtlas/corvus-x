@@ -2,7 +2,7 @@ import React from 'react'
 import { Box, Text } from 'ink'
 
 const SHORTCUTS = [
-  { key: 'PgUp/PgDn', desc: 'scroll' },
+  { key: 'Shift+↑↓', desc: 'scroll' },
   { key: 'Alt+↑↓', desc: 'top/bottom' },
   { key: 'Tab', desc: 'autocomplete' },
   { key: '↑↓', desc: 'history' },

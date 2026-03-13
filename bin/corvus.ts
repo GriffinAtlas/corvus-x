@@ -102,8 +102,9 @@ program
     }
     const { render } = await import('ink')
     const React = await import('react')
-    const { App } = await import('../src/tui/app.js')
-    render(React.createElement(App, { version: VERSION }))
+    const { App, initApp } = await import('../src/tui/app.js')
+    const init = initApp()
+    render(React.createElement(App, { version: VERSION, init }))
   })
 
 program.parse()

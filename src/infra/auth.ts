@@ -39,7 +39,6 @@ export class AuthManager {
     try {
       return JSON.parse(raw)
     } catch {
-      console.error(`  warning: ${this.credPath} is corrupted, ignoring`)
       return {}
     }
   }

@@ -11,20 +11,29 @@ describe('sessionReducer', () => {
     expect(initialSession.startTime).toBeGreaterThan(0)
   })
 
-  it('add-query appends to history and increments queryCount', () => {
+  it('add-query appends to history without incrementing queryCount', () => {
     const state = sessionReducer(initialSession, {
       type: 'add-query',
       entry: { type: 'user', text: 'scan bitcoin' },
     })
     expect(state.history).toHaveLength(1)
     expect(state.history[0]).toEqual({ type: 'user', text: 'scan bitcoin' })
-    expect(state.queryCount).toBe(1)
+    expect(state.queryCount).toBe(0)
   })
 
-  it('add-result appends result entry without incrementing queryCount', () => {
+  it('add-result with result entry increments queryCount', () => {
     const state = sessionReducer(initialSession, {
       type: 'add-result',
       entry: { type: 'result', command: 'scan', topic: 'bitcoin', rendered: 'output', cost: 0.003, elapsed: 1200 },
+    })
+    expect(state.history).toHaveLength(1)
+    expect(state.queryCount).toBe(1)
+  })
+
+  it('add-result with system entry does not increment queryCount', () => {
+    const state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'system', message: 'help text' },
     })
     expect(state.history).toHaveLength(1)
     expect(state.queryCount).toBe(0)
