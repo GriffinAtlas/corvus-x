@@ -75,6 +75,8 @@ describe('REPL', () => {
   })
 
   it('exits with code 1 when no grok key', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', '')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', '')
     try {
       const { startRepl } = await import('../../src/cli/repl.js')
       await startRepl()

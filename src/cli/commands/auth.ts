@@ -23,6 +23,7 @@ function promptSecret(question: string): Promise<string> {
       if (c === '\n' || c === '\r') {
         if (process.stdin.isTTY) process.stdin.setRawMode(false)
         process.stdin.removeListener('data', onData)
+        process.stdin.pause()
         process.stdout.write('\n')
         resolve(input.trim())
       } else if (c === '\x7f' || c === '\b') {
@@ -32,12 +33,15 @@ function promptSecret(question: string): Promise<string> {
         }
       } else if (c === '\x03') {
         if (process.stdin.isTTY) process.stdin.setRawMode(false)
+        process.stdin.removeListener('data', onData)
+        process.stdin.pause()
         process.exit(1)
       } else if (c >= ' ') {
         input += c
         process.stdout.write('*')
       }
     }
+    process.stdin.resume()
     process.stdin.on('data', onData)
   })
 }

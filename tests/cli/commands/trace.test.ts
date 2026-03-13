@@ -134,6 +134,8 @@ describe('registerTraceCommand', () => {
   })
 
   it('exits with code 1 when no grok key', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', '')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', '')
     try {
       await program.parseAsync(['node', 'corvus', 'trace', 'AI will replace jobs'])
     } catch {

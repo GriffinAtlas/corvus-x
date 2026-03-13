@@ -32,6 +32,8 @@ describe('registerAuthCommand', () => {
   })
 
   it('auth status shows unconfigured state when no keys', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', '')
+    vi.stubEnv('CORVUS_X_BEARER_TOKEN', '')
     await program.parseAsync(['node', 'corvus', 'auth', 'status'])
 
     expect(logs.some((l) => l.includes('corvus auth status'))).toBe(true)
