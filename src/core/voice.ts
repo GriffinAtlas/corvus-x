@@ -9,26 +9,25 @@ import { GrokVoiceProfileResponseSchema } from './validators.js'
 const VOICE_PROFILE_FILE = 'voice-profile.json'
 const STALENESS_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
-const VOICE_ANALYSIS_PROMPT = `You are a writing style analyst. Analyze the following posts from a single author and extract their writing voice profile. Return ONLY a JSON object:
+const VOICE_ANALYSIS_PROMPT = `Analyze these posts and extract the author's writing voice. Return ONLY a JSON object:
 {
   "traits": {
-    "tone": "brief description of overall tone (e.g. 'casual and direct', 'professional with dry humor')",
-    "vocabulary": "vocabulary level and style (e.g. 'technical, uses jargon freely', 'accessible, avoids buzzwords')",
-    "sentenceStyle": "sentence structure patterns (e.g. 'short punchy sentences', 'long flowing paragraphs')",
-    "emojiUsage": "how they use emoji (e.g. 'never', 'sparingly for emphasis', 'heavy use')",
-    "hashtagUsage": "how they use hashtags (e.g. 'never', '1-2 per post', 'heavy use')",
-    "humor": "humor style if any (e.g. 'none', 'sarcastic', 'self-deprecating', 'dry wit')",
-    "catchphrases": ["recurring phrases or patterns"],
+    "tone": "overall tone",
+    "vocabulary": "vocabulary style",
+    "sentenceStyle": "sentence patterns",
+    "emojiUsage": "emoji frequency",
+    "hashtagUsage": "hashtag frequency",
+    "humor": "humor style or none",
+    "catchphrases": ["recurring phrases"],
     "avgPostLength": 150,
-    "threadStyle": "how they structure threads if applicable (e.g. 'numbered lists', 'narrative flow', 'rarely threads')"
+    "threadStyle": "thread structure style"
   },
-  "topicPreferences": [{ "topic": "topic name", "frequency": 0.3 }]
+  "topicPreferences": [{ "topic": "name", "frequency": 0.3 }]
 }
 Rules:
-- Analyze the actual writing patterns, not what you think they should be.
-- catchphrases: real recurring phrases, not generic patterns. Empty array if none.
-- topicPreferences.frequency: proportion of posts about this topic (0.0 to 1.0).
-- avgPostLength: average character count of their posts.
+- Analyze actual patterns, not idealized ones.
+- catchphrases: real recurring phrases only. Empty array if none.
+- frequency: proportion of posts (0.0-1.0).
 - Return ONLY valid JSON.`
 
 export class VoiceProfileManager {

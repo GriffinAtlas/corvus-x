@@ -3,68 +3,49 @@ import { GrokProfileResponseSchema } from '../validators.js'
 import type { ProfileSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-interface GrokProfileResponse {
-  postFrequency: ProfileSnapshot['postFrequency']
-  contentMix: ProfileSnapshot['contentMix']
-  topPerformers: ProfileSnapshot['topPerformers']
-  voiceTraits: ProfileSnapshot['voiceTraits']
-  recommendations?: string[]
-  sentiment: number
-}
-
-interface GrokOnlyProfileResponse extends GrokProfileResponse {
-  displayName: string
-  followers: number
-  following: number
-}
-
-const SYSTEM_PROMPT = `You are a content strategy analyst profiling a social media account. Analyze the posts provided and return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are a content strategy analyst. Analyze the posts provided and return ONLY a JSON object:
 {
   "postFrequency": { "postsPerWeek": 5, "activeDays": ["Monday", "Wednesday"], "peakHours": [9, 14] },
   "contentMix": [{ "category": "TypeScript", "percentage": 40, "avgEngagement": 120 }],
-  "topPerformers": [{ "url": "", "content": "post text", "engagement": 500, "why": "reason it performed well" }],
+  "topPerformers": [{ "url": "", "content": "post text", "engagement": 500, "why": "reason" }],
   "voiceTraits": { "tone": "casual technical", "vocabulary": "developer jargon", "emojiUsage": "minimal", "avgLength": 180 },
   "recommendations": ["actionable suggestion"],
   "sentiment": 0.3
 }
 Rules:
-- postFrequency: calculated from the posts provided. peakHours in UTC (0-23).
-- contentMix: 3-7 content categories with percentage of total and avg engagement per post.
+- postFrequency: from the posts provided. peakHours in UTC (0-23).
+- contentMix: 3-7 categories with percentage and avg engagement.
 - topPerformers: 3-5 highest-engagement posts with why they worked.
-- voiceTraits: characterize their writing style objectively.
-- recommendations: 3-5 actionable suggestions for improving content strategy. Include ONLY when analyzing the user's own account.
-- sentiment: overall sentiment of their recent content (-1.0 to 1.0).
+- voiceTraits: characterize their writing style.
+- recommendations: 3-5 actionable suggestions. Only when analyzing the user's own account.
+- sentiment: -1.0 to 1.0.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are a content strategy analyst. Search X for this user's recent posts and profile information, then analyze their content strategy. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are a content strategy analyst. Search X for this user's recent posts and profile, then analyze. Return ONLY a JSON object:
 {
   "displayName": "User Name",
   "followers": 5000,
   "following": 200,
   "postFrequency": { "postsPerWeek": 5, "activeDays": ["Monday", "Wednesday"], "peakHours": [9, 14] },
   "contentMix": [{ "category": "TypeScript", "percentage": 40, "avgEngagement": 120 }],
-  "topPerformers": [{ "url": "", "content": "post text", "engagement": 500, "why": "reason it performed well" }],
+  "topPerformers": [{ "url": "", "content": "post text", "engagement": 500, "why": "reason" }],
   "voiceTraits": { "tone": "casual technical", "vocabulary": "developer jargon", "emojiUsage": "minimal", "avgLength": 180 },
   "recommendations": ["actionable suggestion"],
   "sentiment": 0.3
 }
 Rules:
-- Search X for this user's recent posts and profile.
 - displayName/followers/following: profile stats (best effort).
-- postFrequency: calculated from posts found. peakHours in UTC (0-23).
-- contentMix: 3-7 content categories.
+- postFrequency: from posts found. peakHours in UTC (0-23).
+- contentMix: 3-7 categories.
 - topPerformers: 3-5 highest-engagement posts.
 - voiceTraits: characterize their writing style.
-- recommendations: 3-5 actionable suggestions. Include ONLY when asked about the user's own account.
-- sentiment: overall sentiment (-1.0 to 1.0).
+- recommendations: 3-5 suggestions. Only when analyzing the user's own account.
+- sentiment: -1.0 to 1.0.
 - Return ONLY valid JSON.`
 
 export function resolveIsSelf(handle: string, selfHandle: string | null): boolean {
   return selfHandle !== null && handle.toLowerCase() === selfHandle.toLowerCase()
 }
-
-const SELF_INSTRUCTION = 'This is the user analyzing their OWN account. Include actionable recommendations.'
-const OTHER_INSTRUCTION = 'This is NOT the user\'s own account. Do NOT include recommendations.'
 
 export async function buildProfileSnapshot(
   deps: CorvusDeps,
@@ -102,12 +83,12 @@ async function buildProfileFromXApi(
     ),
   ].join('\n')
 
-  const selfContext = isSelf
-    ? `\n\n${SELF_INSTRUCTION}`
-    : `\n\n${OTHER_INSTRUCTION}`
+  const selfNote = isSelf
+    ? '\n\nThis is the user\'s OWN account. Include recommendations.'
+    : '\n\nNot the user\'s own account. Do NOT include recommendations.'
 
   const response = await deps.grok.query(
-    `Analyze the content strategy of @${handle}:\n\n${profileContext}${selfContext}`,
+    `Analyze the content strategy of @${handle}:\n\n${profileContext}${selfNote}`,
     {
       systemPrompt: SYSTEM_PROMPT,
       maxTokens: 4096,
@@ -115,7 +96,7 @@ async function buildProfileFromXApi(
     },
   )
 
-  const grok = parseGrokJson<GrokProfileResponse>(response.text, GrokProfileResponseSchema)
+  const grok = parseGrokJson<ProfileSnapshot>(response.text, GrokProfileResponseSchema)
 
   return {
     data: {
@@ -145,10 +126,10 @@ async function buildProfileFromGrok(
   handle: string,
   isSelf: boolean,
 ): Promise<BuildResult<ProfileSnapshot>> {
-  const selfContext = isSelf ? ` ${SELF_INSTRUCTION}` : ''
+  const selfNote = isSelf ? ' This is the user\'s OWN account. Include recommendations.' : ''
 
   const response = await deps.grok.query(
-    `Analyze the content strategy of this X account: @${handle}.${selfContext}`,
+    `Analyze the content strategy of this X account: @${handle}.${selfNote}`,
     {
       systemPrompt: GROK_ONLY_PROMPT,
       enableXSearch: true,
@@ -157,7 +138,8 @@ async function buildProfileFromGrok(
     },
   )
 
-  const grok = parseGrokJson<GrokOnlyProfileResponse>(response.text)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const grok = parseGrokJson<any>(response.text)
 
   return {
     data: {

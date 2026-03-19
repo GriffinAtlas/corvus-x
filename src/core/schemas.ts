@@ -116,8 +116,6 @@ export interface TraceSnapshot {
   }
 }
 
-// ── Growth command snapshot shapes ──
-
 export interface ProfileSnapshot {
   handle: string
   displayName: string
