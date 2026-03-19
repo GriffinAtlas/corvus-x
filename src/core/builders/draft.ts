@@ -16,7 +16,7 @@ Rules:
 - thread: only if asked for a thread. Array of posts, each under 280 chars.
 - angles: 2-3 alternative talking points the author could use.
 - hashtags: 1-3 relevant hashtags. Empty array if not appropriate for the voice.
-- Use live_search to ground the post in current discourse.
+- Ground the post in current X discourse.
 - Reference real conversations, people, events. Never fabricate.
 - Return ONLY valid JSON.`
 
@@ -32,7 +32,7 @@ Rules:
 - thread: only if asked for a thread.
 - angles: 2-3 alternative talking points.
 - hashtags: 1-3 relevant hashtags or empty array.
-- Use live_search for current context. Reference real discourse.
+- Reference real current discourse.
 - Return ONLY valid JSON.`
 
 interface GrokDraftResponse {

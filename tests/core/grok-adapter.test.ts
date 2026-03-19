@@ -66,14 +66,14 @@ describe('GrokAdapter', () => {
     expect(args.messages[0].role).toBe('user')
   })
 
-  it('passes live_search tool when enableXSearch is true', async () => {
+  it('passes x_search tool when enableXSearch is true', async () => {
     await adapter.query('trending?', { enableXSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].type).toBe('x_search')
   })
 
-  it('passes live_search with date and handle params', async () => {
+  it('passes x_search with date and handle params', async () => {
     await adapter.query('trending?', {
       enableXSearch: true,
       xSearchFromDate: '2026-01-01',
@@ -83,10 +83,10 @@ describe('GrokAdapter', () => {
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
     expect(args.tools[0]).toEqual({
-      type: 'live_search',
+      type: 'x_search',
       from_date: '2026-01-01',
       to_date: '2026-03-01',
-      allowed_x_handles: ['elonmusk', 'naval'],
+      x_handles: ['elonmusk', 'naval'],
     })
   })
 
@@ -94,27 +94,27 @@ describe('GrokAdapter', () => {
     await adapter.query('trending?', { enableXSearch: true, xSearchFromDate: '2026-01-01' })
     const args = mockCreate.mock.calls[0][0]
     const tool = args.tools[0]
-    expect(tool.type).toBe('live_search')
+    expect(tool.type).toBe('x_search')
     expect(tool.from_date).toBe('2026-01-01')
     expect(tool.to_date).toBeUndefined()
-    expect(tool.allowed_x_handles).toBeUndefined()
+    expect(tool.x_handles).toBeUndefined()
   })
 
-  it('passes live_search tool when enableWebSearch is true', async () => {
+  it('passes web_search tool when enableWebSearch is true', async () => {
     await adapter.query('news?', { enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].type).toBe('web_search')
   })
 
-  it('sends single live_search tool when both search options are true', async () => {
+  it('sends both x_search and web_search when both options are true', async () => {
     await adapter.query('search all', { enableXSearch: true, enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
   })
 
-  it('includes x_search params on live_search when both flags true', async () => {
+  it('includes x_search params when both flags true', async () => {
     await adapter.query('test', {
       enableXSearch: true,
       enableWebSearch: true,
@@ -122,11 +122,12 @@ describe('GrokAdapter', () => {
       xSearchHandles: ['user1'],
     })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({
-      type: 'live_search',
+    expect(args.tools).toHaveLength(2)
+    const xTool = args.tools.find((t: { type: string }) => t.type === 'x_search')
+    expect(xTool).toEqual({
+      type: 'x_search',
       from_date: '2026-01-01',
-      allowed_x_handles: ['user1'],
+      x_handles: ['user1'],
     })
   })
 
@@ -139,7 +140,7 @@ describe('GrokAdapter', () => {
     })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({ type: 'live_search' })
+    expect(args.tools[0]).toEqual({ type: 'web_search' })
   })
 
   it('omits tools property entirely when no search options', async () => {
@@ -159,7 +160,7 @@ describe('GrokAdapter', () => {
       xSearchExcludeHandles: [],
     })
     const tool = mockCreate.mock.calls[0][0].tools[0]
-    expect(tool).toEqual({ type: 'live_search' })
+    expect(tool).toEqual({ type: 'x_search' })
   })
 
   it('uses grok-4-1-fast by default', async () => {
@@ -686,8 +687,8 @@ describe('structured output', () => {
     const args = mockCreate.mock.calls[0][0]
     expect(args.response_format).toBeDefined()
     expect(args.response_format.type).toBe('json_schema')
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
   })
 
   it('does not add response_format for non-grok-4 model', async () => {
@@ -723,13 +724,13 @@ describe('excluded_x_handles', () => {
     adapter = new GrokAdapter('xai-test-key')
   })
 
-  it('adds excluded_x_handles to live_search tool config', async () => {
+  it('adds excluded_x_handles to x_search tool config', async () => {
     await adapter.query('test', {
       enableXSearch: true,
       xSearchExcludeHandles: ['bot1', 'bot2'],
     })
     const args = mockCreate.mock.calls[0][0]
-    const xTool = args.tools.find((t: any) => t.type === 'live_search')
+    const xTool = args.tools.find((t: any) => t.type === 'x_search')
     expect(xTool.excluded_x_handles).toEqual(['bot1', 'bot2'])
   })
 
@@ -755,7 +756,7 @@ describe('excluded_x_handles', () => {
   it('does not add excluded_x_handles when not provided', async () => {
     await adapter.query('test', { enableXSearch: true })
     const args = mockCreate.mock.calls[0][0]
-    const xTool = args.tools.find((t: any) => t.type === 'live_search')
+    const xTool = args.tools.find((t: any) => t.type === 'x_search')
     expect(xTool.excluded_x_handles).toBeUndefined()
   })
 })
@@ -930,7 +931,7 @@ describe('queryStream', () => {
     ).rejects.toThrow('mutually exclusive')
   })
 
-  it('passes single live_search tool to create() when both search options set', async () => {
+  it('passes x_search and web_search tools when both search options set', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
         yield { choices: [{ delta: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
@@ -940,8 +941,8 @@ describe('queryStream', () => {
 
     await adapter.queryStream('test', { enableXSearch: true, enableWebSearch: true }, () => {})
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
   })
 
   it('counts multiple tool calls from stream deltas', async () => {
@@ -1021,7 +1022,7 @@ describe('queryStream', () => {
     expect(result.usage.outputTokens).toBe(100)
   })
 
-  it('passes live_search tool with enableWebSearch only', async () => {
+  it('passes web_search tool with enableWebSearch only', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
         yield { choices: [{ delta: { content: 'ok' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
@@ -1032,7 +1033,7 @@ describe('queryStream', () => {
     await adapter.queryStream('test', { enableWebSearch: true }, () => {})
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({ type: 'live_search' })
+    expect(args.tools[0]).toEqual({ type: 'web_search' })
   })
 
   it('omits tools when no search flags set in stream', async () => {

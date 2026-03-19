@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) — investigate discourse and grow your presence, all from the terminal. It uses Grok's native `live_search` tool via the OpenAI SDK and X API v2 for direct data access.
+Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) — investigate discourse and grow your presence, all from the terminal. It uses Grok's native `x_search/web_search` tool via the OpenAI SDK and X API v2 for direct data access.
 
 **Author:** Roger Griffin (roger@griffinatlas.us)
 **Repo:** github.com/GriffinAtlas/corvus-x
@@ -71,7 +71,7 @@ tests/                       # mirrors src/ structure 1:1
 
 - **Dual-mode CLI** — Intel commands (agent, scan, pulse, trace) for investigating X discourse. Growth commands (profile, hooks, draft, review, timing) for growing your X presence.
 - **Data-first pipeline** — structured commands use `runStructuredCommand()`: FETCH → ANALYZE → COMPUTE → SNAPSHOT → DIFF. The `ask` command uses `runCommand()` for prose.
-- **Dual-path builders** — each builder has X API path (rich engagement data) or Grok-only path (live_search fallback). `CorvusDeps.x` being null triggers fallback.
+- **Dual-path builders** — each builder has X API path (rich engagement data) or Grok-only path (x_search/web_search fallback). `CorvusDeps.x` being null triggers fallback.
 - **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN → EXECUTE → REPLAN → SYNTHESIZE. Plans with scan/pulse/trace/profile only.
 - **BuildResult<T>** — all builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`.
 - **MCP server** — 5 tools via `McpServer`. Lazy-inits deps on first call.

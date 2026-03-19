@@ -85,7 +85,7 @@ describe('buildTimingSnapshot — self analysis', () => {
 })
 
 describe('buildTimingSnapshot — topic analysis', () => {
-  it('uses Grok live_search for topic-only mode', async () => {
+  it('uses Grok x_search for topic-only mode', async () => {
     const deps = makeDeps({ grokResponse: timingGrokResponse, x: null })
 
     const result = await buildTimingSnapshot(deps, { topic: 'AI agents' })

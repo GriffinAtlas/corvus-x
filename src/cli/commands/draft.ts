@@ -12,7 +12,7 @@ export function registerDraftCommand(program: Command): void {
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('--thread', 'generate a multi-post thread')
     .option('--reply-to <url>', 'draft a reply to this tweet/thread')
-    .option('--no-context', 'skip live_search, draft from topic only')
+    .option('--no-context', 'skip search, draft from topic only')
     .option('--cost', 'show estimated cost before executing')
     .action(
       async (
