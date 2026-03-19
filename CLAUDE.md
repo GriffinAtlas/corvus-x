@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthesizing intelligence from X (Twitter). It uses Grok's native `live_search` tool via the OpenAI SDK and X API v2 for direct data access.
+Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) — investigate discourse and grow your presence, all from the terminal. It uses Grok's native `live_search` tool via the OpenAI SDK and X API v2 for direct data access.
 
 **Author:** Roger Griffin (roger@griffinatlas.us)
 **Repo:** github.com/GriffinAtlas/corvus-x
@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (901 tests)
+npm test                     # vitest run (837 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -33,7 +33,7 @@ bin/corvus.ts                # entrypoint — registers all commands, calls prog
 bin/corvus-mcp.ts            # standalone MCP server entrypoint (stdio)
 src/
   cli/
-    commands/                # agent, ask, scan, read, scope, trace, pulse, gather, watch, auth, history, export
+    commands/                # agent, ask, scan, trace, pulse, profile, watch, auth, history, export
     run-command.ts           # shared runner — runCommand() for prose, runStructuredCommand() for data-first
     output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers, renderAgentBrief()
     progress.ts              # StepProgress — multi-line in-place step tracker for agent runs
@@ -43,19 +43,20 @@ src/
     agent.ts                 # AgentPlanner, AgentExecutor, AgentSynthesizer — autonomous investigation pipeline
     grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai, parseGrokJson, retry/timeout
     x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis, pagination)
-    builders/                # 6 build functions (scan, pulse, trace, gather, read, scope) + grok-only.ts helper + barrel
+    builders/                # 4 build functions (scan, pulse, trace, profile) + grok-only.ts helper + barrel
+    voice.ts                 # VoiceProfileManager — extract/store writing style from user's posts
     orchestrator.ts          # executeStructuredQuery — shared snapshot orchestration for CLI + TUI
     cache.ts                 # QueryCache — file-based with SHA-256 keys, TTL, cost ledger
     schemas.ts               # Grok JSON response shapes, computed snapshot interfaces, AgentBrief, match keys
     snapshots.ts             # SnapshotStore — timestamped JSON snapshots with auto-prune
     metrics.ts               # Pure compute functions — baseMetrics, sentiment, topAccounts, confidence, contradictions
-    validators.ts            # Zod v4 schemas for all 8 Grok response types + agent plan/replan
-    differ.ts                # Generic structured diff engine for snapshot comparison
+    validators.ts            # Zod v4 schemas for Grok response types + agent plan/replan
+    differ.ts                # Generic structured diff engine for snapshot comparison (supports compound match keys)
     types.ts                 # GrokResponse, QueryOptions, CorvusDeps, BuildResult
   mcp/
-    server.ts                # MCP server — 7 tools (scan/pulse/trace/gather/read/scope/agent) via McpServer
+    server.ts                # MCP server — 5 tools (scan/pulse/trace/profile/agent) via McpServer
   infra/
-    auth.ts                  # AuthManager — env vars take precedence over ~/.corvus/credentials.json
+    auth.ts                  # AuthManager — env vars take precedence over ~/.corvus/credentials.json. Stores grokKey, xBearerToken, xHandle.
     config.ts                # ConfigManager — manages ~/.corvus/ directory
   tui/
     app.tsx                  # TUI root — Ink/React full-screen interactive terminal
@@ -76,22 +77,23 @@ src/
     utils/
       relative-time.ts       # relativeTime() — "2h ago" formatting for recent activity
     router.ts                # parse user input to command + args
-  index.ts                   # public API surface — 27+ exports for library consumers
+  index.ts                   # public API surface for library consumers
 tests/                       # mirrors src/ structure 1:1
 ```
 
 ## Key Patterns
 
-- **Data-first pipeline** — 6 commands (scan, pulse, trace, gather, read, scope) use `runStructuredCommand()`: FETCH (X API or Grok live_search fallback) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command uses `runCommand()` for prose output.
+- **Data-first pipeline** — structured commands (scan, pulse, trace, profile) use `runStructuredCommand()`: FETCH (X API or Grok live_search fallback) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command uses `runCommand()` for prose output.
 - **Dual-path builders** — each builder in `src/core/builders/` has two paths: X API (rich engagement data) or Grok-only (live_search fallback when no X token). `CorvusDeps.x` being null triggers the fallback.
-- **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN (Grok JSON) → EXECUTE (chain buildSnapshot calls) → REPLAN (adaptive) → SYNTHESIZE (AgentBrief). Locally-computed confidence and contradiction detection.
-- **BuildResult<T>** — all 6 builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`. Agent executor calls these programmatically.
-- **MCP server** — 7 tools registered via `McpServer` from `@modelcontextprotocol/sdk`. Tested with SDK's `Client` + `InMemoryTransport`. Lazy-inits `CorvusDeps` on first tool call.
+- **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN (Grok JSON) → EXECUTE (chain buildSnapshot calls) → REPLAN (adaptive) → SYNTHESIZE (AgentBrief). Agent plans with scan/pulse/trace/profile commands only.
+- **BuildResult<T>** — all builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`. Agent executor calls these programmatically.
+- **MCP server** — 5 tools registered via `McpServer` from `@modelcontextprotocol/sdk`. Tested with SDK's `Client` + `InMemoryTransport`. Lazy-inits `CorvusDeps` on first tool call.
+- **Voice profile** — `VoiceProfileManager` in `src/core/voice.ts` extracts writing style from user's posts via Grok, stores at `~/.corvus/voice-profile.json`. Used by `profile` (self mode) with staleness guard (7-day TTL). Generated in parallel with main profile analysis via `Promise.all`.
 - **Library mode** — `src/index.ts` exports adapters, builders, metrics, schemas, types. `import { buildScanSnapshot } from 'corvus-x'`.
 - **Snapshots** — each structured command stores timestamped JSON snapshots in `~/.corvus/snapshots/`. On re-run, the differ compares current vs previous snapshot and shows changes.
 - **Theme** — semantic color palette via `t.*` from `theme.ts`. All chalk calls go through theme. `isTTY` for TTY detection.
 - **Cache** is wired into prose commands via `runCommand()`. Structured commands use snapshots instead.
-- **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`), falls back to `~/.corvus/credentials.json`.
+- **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`, `CORVUS_X_HANDLE`), falls back to `~/.corvus/credentials.json`.
 - **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.
 - **TUI** — `corvus` (no args) launches a full-screen Ink/React interactive terminal. Welcome screen shows crow art + logo, status panel, and quick start tips (or recent activity for returning users). First command transitions to chat view. Uses `useSession` reducer for state, `useCommand` hook for execution, `router.ts` for input parsing. Built on Ink 6 + React 19.
 - **Tests** mock `openai` and `fetch` globally. Never make real API calls. MCP tests use SDK's `Client` + `InMemoryTransport`.
