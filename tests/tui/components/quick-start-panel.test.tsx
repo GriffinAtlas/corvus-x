@@ -14,6 +14,7 @@ describe('QuickStartPanel', () => {
     expect(frame).toContain('draft')
     expect(frame).toContain('profile')
     expect(frame).toContain('review')
+    expect(frame).not.toContain('RogGriff')
   })
 
   it('shows slash commands at bottom', () => {

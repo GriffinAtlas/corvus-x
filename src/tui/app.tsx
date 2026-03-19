@@ -1,6 +1,7 @@
 import React, { useReducer, useRef, useState, useEffect } from 'react'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { WelcomeView } from './components/welcome-view.js'
+import { CompactHeader } from './components/compact-header.js'
 import { ChatViewport } from './components/chat-viewport.js'
 import { InputBar } from './components/input-bar.js'
 import { ShortcutBar } from './components/shortcut-bar.js'
@@ -132,16 +133,18 @@ export function App({ version, init }: Props) {
             />
           ) : (
             <>
+              <CompactHeader
+                version={version}
+                grokStatus={session.grokStatus}
+                xApiStatus={session.xApiStatus}
+                totalCost={session.totalCost}
+                queryCount={session.queryCount}
+              />
               <ChatViewport
                 entries={session.history}
                 scrollOffset={scrollOffset}
-                viewportHeight={terminalHeight - 5}
+                viewportHeight={terminalHeight - 6}
               />
-              <Box paddingLeft={3} marginBottom={0}>
-                <Text dimColor>
-                  {`$${session.totalCost.toFixed(3)} · ${session.queryCount} ${session.queryCount === 1 ? 'query' : 'queries'}`}
-                </Text>
-              </Box>
             </>
           )}
           <InputBar onSubmit={execute} isLoading={isLoading} phaseLabel={phaseLabel} />

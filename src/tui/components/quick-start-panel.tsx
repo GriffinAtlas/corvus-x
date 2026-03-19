@@ -12,7 +12,7 @@ const TIPS = [
   { cmd: 'trace "lab leak"', desc: 'narrative spread' },
   { cmd: 'hooks "typescript"', desc: 'find reply opportunities' },
   { cmd: 'draft "AI agents"', desc: 'draft a post in your voice' },
-  { cmd: 'profile @RogGriff', desc: 'content strategy analysis' },
+  { cmd: 'profile @username', desc: 'content strategy analysis' },
   { cmd: 'review', desc: 'what worked this week' },
 ]
 
