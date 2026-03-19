@@ -316,12 +316,15 @@ export function renderProfile(data: ProfileSnapshot): string {
     }
   }
 
-  parts.push('')
-  parts.push(`  ${t.heading('Voice')}`)
-  parts.push(`    Tone: ${data.voiceTraits.tone}`)
-  parts.push(`    Vocabulary: ${data.voiceTraits.vocabulary}`)
-  parts.push(`    Emoji: ${data.voiceTraits.emojiUsage}`)
-  parts.push(`    Avg length: ${data.voiceTraits.avgLength} chars`)
+  const { tone, vocabulary, emojiUsage, avgLength } = data.voiceTraits
+  if (tone || vocabulary || emojiUsage || avgLength) {
+    parts.push('')
+    parts.push(`  ${t.heading('Voice')}`)
+    if (tone) parts.push(`    Tone: ${tone}`)
+    if (vocabulary) parts.push(`    Vocabulary: ${vocabulary}`)
+    if (emojiUsage) parts.push(`    Emoji: ${emojiUsage}`)
+    if (avgLength) parts.push(`    Avg length: ${avgLength} chars`)
+  }
 
   parts.push('')
   parts.push(`  Sentiment: ${sentimentColor(data.sentiment)}`)

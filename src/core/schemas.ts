@@ -132,61 +132,6 @@ export interface ProfileSnapshot {
   fetchedAt: string
 }
 
-export interface DraftSnapshot {
-  topic: string
-  post: string
-  thread?: string[]
-  angles: string[]
-  hashtags: string[]
-  voiceProfileAge: number
-  contextUsed: boolean
-  replyTo?: string
-  fetchedAt: string
-}
-
-export interface HooksSnapshot {
-  topic: string
-  opportunities: Array<{
-    tweetUrl: string
-    author: string
-    authorFollowers: number
-    content: string
-    engagement: { likes: number; retweets: number; replies: number }
-    velocityScore: number
-    suggestedAngle: string
-    opportunityScore: number
-  }>
-  fetchedAt: string
-}
-
-export interface ReviewSnapshot {
-  handle: string
-  period: { from: string; to: string }
-  totalPosts: number
-  totalEngagement: number
-  avgEngagementPerPost: number
-  topPosts: Array<{ url: string; content: string; engagement: number; why: string }>
-  underperformers: Array<{ url: string; content: string; engagement: number; why: string }>
-  patterns: Array<{ pattern: string; impact: string; evidence: string }>
-  recommendations: string[]
-  comparedToLast?: {
-    engagementChange: number
-    postFrequencyChange: number
-    topTopicShift: string
-  }
-  fetchedAt: string
-}
-
-export interface TimingSnapshot {
-  handle?: string
-  topic?: string
-  heatmap: Array<{ day: string; hour: number; score: number }>
-  peakWindows: Array<{ day: string; startHour: number; endHour: number; score: number }>
-  recommendations: string[]
-  sampleSize: number
-  fetchedAt: string
-}
-
 export interface VoiceProfile {
   handle: string
   generatedAt: string
@@ -246,10 +191,6 @@ export type Snapshot =
   | PulseSnapshot
   | TraceSnapshot
   | ProfileSnapshot
-  | DraftSnapshot
-  | HooksSnapshot
-  | ReviewSnapshot
-  | TimingSnapshot
   | AgentBrief
 
 // ── Stored snapshot wrapper ──
@@ -268,7 +209,7 @@ export interface StoredSnapshot<T extends Snapshot = Snapshot> {
 
 // ── Diff match keys ──
 
-export type MatchKeys = Record<string, string | string[]>
+export type MatchKeys = Record<string, string>
 
 export const SCAN_MATCH_KEYS: MatchKeys = {
   topAccounts: 'handle',
@@ -291,18 +232,4 @@ export const AGENT_MATCH_KEYS: MatchKeys = {
 export const PROFILE_MATCH_KEYS: MatchKeys = {
   contentMix: 'category',
   topPerformers: 'url',
-}
-
-export const HOOKS_MATCH_KEYS: MatchKeys = {
-  opportunities: 'tweetUrl',
-}
-
-export const REVIEW_MATCH_KEYS: MatchKeys = {
-  topPosts: 'url',
-  underperformers: 'url',
-  patterns: 'pattern',
-}
-
-export const TIMING_MATCH_KEYS: MatchKeys = {
-  peakWindows: ['day', 'startHour'],
 }

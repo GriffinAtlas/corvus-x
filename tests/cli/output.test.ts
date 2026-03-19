@@ -486,6 +486,7 @@ describe('renderProfile', () => {
     expect(output).toContain('0 followers')
     expect(output).not.toContain('Content Mix')
     expect(output).not.toContain('Top Performers')
+    expect(output).not.toContain('Voice')
   })
 
   it('renders negative sentiment correctly', () => {

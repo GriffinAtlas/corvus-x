@@ -84,15 +84,10 @@ function diffRecords(
       }
 
       if (matchKey && typeof newVal[0] === 'object') {
-        const compoundKey = Array.isArray(matchKey) ? matchKey : [matchKey]
-        const itemKey = (item: Record<string, unknown>) =>
-          compoundKey.map((k) => String(item[k])).join('|')
-        const primaryMatchKey = compoundKey[0]
-
         const oldMap = new Map<string, Record<string, unknown>>()
-        for (const item of oldVal) oldMap.set(itemKey(item), item)
+        for (const item of oldVal) oldMap.set(String(item[matchKey]), item)
         const newMap = new Map<string, Record<string, unknown>>()
-        for (const item of newVal) newMap.set(itemKey(item), item)
+        for (const item of newVal) newMap.set(String(item[matchKey]), item)
 
         for (const [id, newItem] of newMap) {
           const oldItem = oldMap.get(id)
@@ -100,7 +95,7 @@ function diffRecords(
             lines.push({
               path: fullPath,
               type: 'added',
-              newValue: formatObjectBrief(newItem, primaryMatchKey),
+              newValue: formatObjectBrief(newItem, matchKey),
             })
           } else {
             const subDiffs = diffObjectFields(oldItem, newItem, fullPath, id)

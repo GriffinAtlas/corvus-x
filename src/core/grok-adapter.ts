@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { zodResponseFormat } from 'openai/helpers/zod'
+import type { ZodType } from 'zod/v4'
 import type { GrokResponse, GrokCitation, QueryOptions } from './types.js'
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -44,7 +45,7 @@ export class GrokParseError extends Error {
   }
 }
 
-export function parseGrokJson<T>(raw: string): T {
+export function parseGrokJson<T>(raw: string, schema?: ZodType): T {
   let cleaned = raw.trim()
 
   cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
@@ -69,11 +70,17 @@ export function parseGrokJson<T>(raw: string): T {
 
   cleaned = cleaned.slice(start, end + 1)
 
+  let parsed: unknown
   try {
-    return JSON.parse(cleaned) as T
+    parsed = JSON.parse(cleaned)
   } catch (err) {
     throw new GrokParseError(raw, cleaned, err as SyntaxError)
   }
+
+  if (schema) {
+    return schema.parse(parsed) as T
+  }
+  return parsed as T
 }
 
 function isTransientError(err: unknown): { retry: boolean; retryAfter?: number } {

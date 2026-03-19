@@ -1,7 +1,5 @@
 import { parseGrokJson } from '../grok-adapter.js'
 import { GrokProfileResponseSchema } from '../validators.js'
-import { VoiceProfileManager } from '../voice.js'
-import { ConfigManager } from '../../infra/config.js'
 import type { ProfileSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -108,30 +106,16 @@ async function buildProfileFromXApi(
     ? `\n\n${SELF_INSTRUCTION}`
     : `\n\n${OTHER_INSTRUCTION}`
 
-  const shouldGenerateVoice = isSelf && tweets.length > 0
-  let voicePromise: Promise<unknown> | null = null
+  const response = await deps.grok.query(
+    `Analyze the content strategy of @${handle}:\n\n${profileContext}${selfContext}`,
+    {
+      systemPrompt: SYSTEM_PROMPT,
+      maxTokens: 4096,
+      responseSchema: GrokProfileResponseSchema,
+    },
+  )
 
-  if (shouldGenerateVoice) {
-    const voiceManager = new VoiceProfileManager(ConfigManager.defaultDir())
-    const existing = voiceManager.load()
-    if (!existing || voiceManager.isStale(existing)) {
-      voicePromise = voiceManager.generate(deps.grok, handle, tweets)
-    }
-  }
-
-  const [response] = await Promise.all([
-    deps.grok.query(
-      `Analyze the content strategy of @${handle}:\n\n${profileContext}${selfContext}`,
-      {
-        systemPrompt: SYSTEM_PROMPT,
-        maxTokens: 4096,
-        responseSchema: GrokProfileResponseSchema,
-      },
-    ),
-    voicePromise ?? Promise.resolve(null),
-  ])
-
-  const grok = parseGrokJson<GrokProfileResponse>(response.text)
+  const grok = parseGrokJson<GrokProfileResponse>(response.text, GrokProfileResponseSchema)
 
   return {
     data: {
