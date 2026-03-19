@@ -8,6 +8,7 @@ export {
   buildPulseSnapshot,
   buildTraceSnapshot,
   buildProfileSnapshot,
+  buildDraftSnapshot,
   buildHooksSnapshot,
 } from './core/builders.js'
 
@@ -52,6 +53,7 @@ export type {
   PulseSnapshot,
   TraceSnapshot,
   ProfileSnapshot,
+  DraftSnapshot,
   HooksSnapshot,
   StoredSnapshot,
   MatchKeys,

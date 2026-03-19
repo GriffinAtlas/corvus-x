@@ -7,6 +7,7 @@ import type {
   PulseSnapshot,
   TraceSnapshot,
   ProfileSnapshot,
+  DraftSnapshot,
   HooksSnapshot,
   AgentBrief,
 } from '../core/schemas.js'
@@ -336,6 +337,42 @@ export function renderProfile(data: ProfileSnapshot): string {
     for (const r of data.recommendations) {
       parts.push(`    · ${r}`)
     }
+  }
+
+  return parts.join('\n')
+}
+
+export function renderDraft(data: DraftSnapshot): string {
+  const parts: string[] = []
+
+  parts.push(`  ${t.heading('Draft')} ${t.muted(`· ${data.topic}`)}`)
+  parts.push('')
+  parts.push(`  ${data.post}`)
+
+  if (data.thread && data.thread.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Thread')}`)
+    for (let i = 0; i < data.thread.length; i++) {
+      parts.push(`    ${i + 1}/${data.thread.length}  ${data.thread[i]}`)
+    }
+  }
+
+  if (data.angles.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Alternative Angles')}`)
+    for (const a of data.angles) {
+      parts.push(`    · ${a}`)
+    }
+  }
+
+  if (data.hashtags.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.muted(data.hashtags.join('  '))}`)
+  }
+
+  if (data.replyTo) {
+    parts.push('')
+    parts.push(`  ${t.muted(`replying to: ${data.replyTo}`)}`)
   }
 
   return parts.join('\n')

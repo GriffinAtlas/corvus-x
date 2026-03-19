@@ -130,6 +130,17 @@ export interface ProfileSnapshot {
   fetchedAt: string
 }
 
+export interface DraftSnapshot {
+  topic: string
+  post: string
+  thread?: string[]
+  angles: string[]
+  hashtags: string[]
+  contextUsed: boolean
+  replyTo?: string
+  fetchedAt: string
+}
+
 export interface HooksSnapshot {
   topic: string
   opportunities: Array<{
@@ -203,6 +214,7 @@ export type Snapshot =
   | PulseSnapshot
   | TraceSnapshot
   | ProfileSnapshot
+  | DraftSnapshot
   | HooksSnapshot
   | AgentBrief
 
