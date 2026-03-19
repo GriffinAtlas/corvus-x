@@ -160,10 +160,22 @@ const PULSE_COLORS = [
   chalk.hex('#5C29A8'),
 ]
 
+const CROW_GRADIENT = [
+  '#3A1078', '#4A1990', '#5522A8', '#602BBF',
+  '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
+  '#B48AFF', '#C9A5FF', '#D4B8FF',
+]
+
+export function gradientCrow(): string {
+  const allLines = [...CROW_SMALL_LINES, ...LOGO_LINES]
+  return allLines
+    .map((line, i) => chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])(line))
+    .join('\n')
+}
+
 export function revealCrow(): Promise<void> {
   if (!isTTY) {
-    console.log(CROW_SMALL)
-    console.log(LOGO)
+    console.log(gradientCrow())
     return Promise.resolve()
   }
 
@@ -172,13 +184,14 @@ export function revealCrow(): Promise<void> {
 
   return new Promise((resolve) => {
     const timer = setInterval(() => {
-      console.log(t.accent(allLines[i]))
+      const color = chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])
+      console.log(color(allLines[i]))
       i++
       if (i >= allLines.length) {
         clearInterval(timer)
         resolve()
       }
-    }, 60)
+    }, 55)
   })
 }
 
@@ -195,8 +208,8 @@ export class CrowPulse {
 
   start(): void {
     if (!isTTY) {
-      for (const line of this.lines) {
-        console.log(t.accent(line))
+      for (let i = 0; i < this.lines.length; i++) {
+        console.log(chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])(this.lines[i]))
       }
       return
     }
@@ -215,23 +228,25 @@ export class CrowPulse {
     }
     if (isTTY) {
       process.stdout.write(`\x1b[${this.lineCount}A`)
-      for (const line of this.lines) {
-        const stripped = strip(line)
+      for (let i = 0; i < this.lines.length; i++) {
+        const color = chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])
+        const stripped = strip(this.lines[i])
         const padding = Math.max(0, (process.stdout.columns ?? 80) - stripped.length)
-        process.stdout.write(t.accent(line) + ' '.repeat(padding) + '\n')
+        process.stdout.write(color(this.lines[i]) + ' '.repeat(padding) + '\n')
       }
     }
   }
 
   private render(): void {
-    const color = PULSE_COLORS[this.frame]
     if (this.frame > 0) {
       process.stdout.write(`\x1b[${this.lineCount}A`)
     }
-    for (const line of this.lines) {
-      const stripped = strip(line)
+    for (let i = 0; i < this.lines.length; i++) {
+      const shift = (this.frame + i) % PULSE_COLORS.length
+      const color = PULSE_COLORS[shift]
+      const stripped = strip(this.lines[i])
       const padding = Math.max(0, (process.stdout.columns ?? 80) - stripped.length)
-      process.stdout.write(color(line) + ' '.repeat(padding) + '\n')
+      process.stdout.write(color(this.lines[i]) + ' '.repeat(padding) + '\n')
     }
   }
 }

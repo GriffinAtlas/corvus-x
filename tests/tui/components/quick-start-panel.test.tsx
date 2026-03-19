@@ -10,10 +10,10 @@ describe('QuickStartPanel', () => {
     expect(frame).toContain('Quick start')
     expect(frame).toContain('scan')
     expect(frame).toContain('pulse')
-    expect(frame).toContain('trace')
-    expect(frame).toContain('gather')
-    expect(frame).toContain('scope')
-    expect(frame).toContain('ask')
+    expect(frame).toContain('hooks')
+    expect(frame).toContain('draft')
+    expect(frame).toContain('profile')
+    expect(frame).toContain('review')
   })
 
   it('shows slash commands at bottom', () => {

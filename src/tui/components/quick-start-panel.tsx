@@ -7,13 +7,13 @@ interface Props {
 }
 
 const TIPS = [
-  { cmd: 'scan "AI regulation"', desc: 'snapshot X discourse' },
-  { cmd: 'pulse Tesla', desc: 'sentiment analysis' },
+  { cmd: 'scan "AI agents"', desc: 'snapshot X discourse' },
+  { cmd: 'pulse bitcoin', desc: 'sentiment analysis' },
   { cmd: 'trace "lab leak"', desc: 'narrative spread' },
-  { cmd: 'gather OpenAI', desc: 'X + web intelligence' },
-  { cmd: 'read <tweet-url>', desc: 'analyze a single tweet' },
-  { cmd: 'scope @nytimes', desc: 'profile an account' },
-  { cmd: 'ask "anything"', desc: 'freeform question' },
+  { cmd: 'hooks "typescript"', desc: 'find reply opportunities' },
+  { cmd: 'draft "AI agents"', desc: 'draft a post in your voice' },
+  { cmd: 'profile @RogGriff', desc: 'content strategy analysis' },
+  { cmd: 'review', desc: 'what worked this week' },
 ]
 
 function truncate(text: string, maxLen: number): string {
