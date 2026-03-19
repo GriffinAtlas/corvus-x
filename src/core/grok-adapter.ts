@@ -135,29 +135,20 @@ export class GrokAdapter {
 
     if (!options.enableXSearch && !options.enableWebSearch) return []
 
-    const tools: Record<string, unknown>[] = []
+    const sources: { type: string }[] = []
+    if (options.enableXSearch) sources.push({ type: 'x' })
+    if (options.enableWebSearch) sources.push({ type: 'web' })
+    if (sources.length === 0) sources.push({ type: 'x' })
 
+    const tool: Record<string, unknown> = { type: 'live_search', sources }
     if (options.enableXSearch) {
-      const xTool: Record<string, unknown> = { type: 'x_search' }
-      if (options.xSearchFromDate) xTool.from_date = options.xSearchFromDate
-      if (options.xSearchToDate) xTool.to_date = options.xSearchToDate
-      if (options.xSearchHandles?.length) xTool.x_handles = options.xSearchHandles
-      if (options.xSearchExcludeHandles?.length) xTool.excluded_x_handles = options.xSearchExcludeHandles
-      tools.push(xTool)
+      if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
+      if (options.xSearchToDate) tool.to_date = options.xSearchToDate
+      if (options.xSearchHandles?.length) tool.x_handles = options.xSearchHandles
+      if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
     }
 
-    if (options.enableWebSearch) {
-      tools.push({ type: 'web_search' })
-    }
-
-    // If only enableXSearch was set, also add web_search for broader context
-    // If only enableWebSearch was set, tools already has web_search
-    // If neither individual flag but we got here, default to both
-    if (tools.length === 0) {
-      tools.push({ type: 'x_search' }, { type: 'web_search' })
-    }
-
-    return tools as unknown as OpenAI.Chat.Completions.ChatCompletionTool[]
+    return [tool] as unknown as OpenAI.Chat.Completions.ChatCompletionTool[]
   }
 
   private computeCost(model: string, inputTokens: number, outputTokens: number, toolCallCount: number): number {

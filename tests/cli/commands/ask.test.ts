@@ -129,7 +129,8 @@ describe('registerAskCommand', () => {
     await program.parseAsync(['node', 'corvus', 'ask', 'test'])
     const args = mockQuery.mock.calls[0][0]
     expect(args.tools).toBeDefined()
-    expect(args.tools[0].type).toBe('x_search')
+    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].sources).toEqual([{ type: 'x' }])
   })
 
   it('API error prints message and exits with code 1', async () => {

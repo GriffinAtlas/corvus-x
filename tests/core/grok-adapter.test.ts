@@ -66,14 +66,15 @@ describe('GrokAdapter', () => {
     expect(args.messages[0].role).toBe('user')
   })
 
-  it('passes x_search tool when enableXSearch is true', async () => {
+  it('passes live_search with x source when enableXSearch is true', async () => {
     await adapter.query('trending?', { enableXSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('x_search')
+    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].sources).toEqual([{ type: 'x' }])
   })
 
-  it('passes x_search with date and handle params', async () => {
+  it('passes live_search with date and handle params', async () => {
     await adapter.query('trending?', {
       enableXSearch: true,
       xSearchFromDate: '2026-01-01',
@@ -83,7 +84,8 @@ describe('GrokAdapter', () => {
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
     expect(args.tools[0]).toEqual({
-      type: 'x_search',
+      type: 'live_search',
+      sources: [{ type: 'x' }],
       from_date: '2026-01-01',
       to_date: '2026-03-01',
       x_handles: ['elonmusk', 'naval'],
@@ -94,24 +96,26 @@ describe('GrokAdapter', () => {
     await adapter.query('trending?', { enableXSearch: true, xSearchFromDate: '2026-01-01' })
     const args = mockCreate.mock.calls[0][0]
     const tool = args.tools[0]
-    expect(tool.type).toBe('x_search')
+    expect(tool.type).toBe('live_search')
     expect(tool.from_date).toBe('2026-01-01')
     expect(tool.to_date).toBeUndefined()
     expect(tool.x_handles).toBeUndefined()
   })
 
-  it('passes web_search tool when enableWebSearch is true', async () => {
+  it('passes live_search with web source when enableWebSearch is true', async () => {
     await adapter.query('news?', { enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('web_search')
+    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].sources).toEqual([{ type: 'web' }])
   })
 
-  it('sends both x_search and web_search when both options are true', async () => {
+  it('sends single live_search with both sources when both options are true', async () => {
     await adapter.query('search all', { enableXSearch: true, enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(2)
-    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
+    expect(args.tools).toHaveLength(1)
+    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].sources).toEqual([{ type: 'x' }, { type: 'web' }])
   })
 
   it('includes x_search params when both flags true', async () => {
@@ -122,10 +126,10 @@ describe('GrokAdapter', () => {
       xSearchHandles: ['user1'],
     })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(2)
-    const xTool = args.tools.find((t: { type: string }) => t.type === 'x_search')
-    expect(xTool).toEqual({
-      type: 'x_search',
+    expect(args.tools).toHaveLength(1)
+    expect(args.tools[0]).toEqual({
+      type: 'live_search',
+      sources: [{ type: 'x' }, { type: 'web' }],
       from_date: '2026-01-01',
       x_handles: ['user1'],
     })
@@ -140,7 +144,7 @@ describe('GrokAdapter', () => {
     })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({ type: 'web_search' })
+    expect(args.tools[0]).toEqual({ type: 'live_search', sources: [{ type: 'web' }] })
   })
 
   it('omits tools property entirely when no search options', async () => {
@@ -160,7 +164,7 @@ describe('GrokAdapter', () => {
       xSearchExcludeHandles: [],
     })
     const tool = mockCreate.mock.calls[0][0].tools[0]
-    expect(tool).toEqual({ type: 'x_search' })
+    expect(tool).toEqual({ type: 'live_search', sources: [{ type: 'x' }] })
   })
 
   it('uses grok-4-1-fast by default', async () => {
@@ -687,8 +691,9 @@ describe('structured output', () => {
     const args = mockCreate.mock.calls[0][0]
     expect(args.response_format).toBeDefined()
     expect(args.response_format.type).toBe('json_schema')
-    expect(args.tools).toHaveLength(2)
-    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
+    expect(args.tools).toHaveLength(1)
+    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].sources).toEqual([{ type: 'x' }, { type: 'web' }])
   })
 
   it('does not add response_format for non-grok-4 model', async () => {
@@ -730,7 +735,7 @@ describe('excluded_x_handles', () => {
       xSearchExcludeHandles: ['bot1', 'bot2'],
     })
     const args = mockCreate.mock.calls[0][0]
-    const xTool = args.tools.find((t: any) => t.type === 'x_search')
+    const xTool = args.tools[0]
     expect(xTool.excluded_x_handles).toEqual(['bot1', 'bot2'])
   })
 
@@ -756,7 +761,7 @@ describe('excluded_x_handles', () => {
   it('does not add excluded_x_handles when not provided', async () => {
     await adapter.query('test', { enableXSearch: true })
     const args = mockCreate.mock.calls[0][0]
-    const xTool = args.tools.find((t: any) => t.type === 'x_search')
+    const xTool = args.tools[0]
     expect(xTool.excluded_x_handles).toBeUndefined()
   })
 })
@@ -941,8 +946,9 @@ describe('queryStream', () => {
 
     await adapter.queryStream('test', { enableXSearch: true, enableWebSearch: true }, () => {})
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(2)
-    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
+    expect(args.tools).toHaveLength(1)
+    expect(args.tools[0].type).toBe('live_search')
+    expect(args.tools[0].sources).toEqual([{ type: 'x' }, { type: 'web' }])
   })
 
   it('counts multiple tool calls from stream deltas', async () => {
@@ -1033,7 +1039,7 @@ describe('queryStream', () => {
     await adapter.queryStream('test', { enableWebSearch: true }, () => {})
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({ type: 'web_search' })
+    expect(args.tools[0]).toEqual({ type: 'live_search', sources: [{ type: 'web' }] })
   })
 
   it('omits tools when no search flags set in stream', async () => {
