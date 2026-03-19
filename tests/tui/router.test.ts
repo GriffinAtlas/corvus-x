@@ -27,6 +27,14 @@ describe('parseInput', () => {
       })
     })
 
+    it('parses hooks with topic', () => {
+      expect(parseInput('hooks typescript CLI')).toEqual({
+        type: 'command',
+        command: 'hooks',
+        args: { topic: 'typescript CLI' },
+      })
+    })
+
     it('parses profile with @handle', () => {
       expect(parseInput('profile @elonmusk')).toEqual({
         type: 'command',

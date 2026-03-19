@@ -130,6 +130,20 @@ export interface ProfileSnapshot {
   fetchedAt: string
 }
 
+export interface HooksSnapshot {
+  topic: string
+  opportunities: Array<{
+    tweetUrl: string
+    author: string
+    authorFollowers: number
+    content: string
+    engagement: { likes: number; retweets: number; replies: number }
+    suggestedAngle: string
+    opportunityScore: number
+  }>
+  fetchedAt: string
+}
+
 export interface VoiceProfile {
   handle: string
   generatedAt: string
@@ -189,6 +203,7 @@ export type Snapshot =
   | PulseSnapshot
   | TraceSnapshot
   | ProfileSnapshot
+  | HooksSnapshot
   | AgentBrief
 
 // ── Stored snapshot wrapper ──
@@ -230,4 +245,8 @@ export const AGENT_MATCH_KEYS: MatchKeys = {
 export const PROFILE_MATCH_KEYS: MatchKeys = {
   contentMix: 'category',
   topPerformers: 'url',
+}
+
+export const HOOKS_MATCH_KEYS: MatchKeys = {
+  opportunities: 'tweetUrl',
 }

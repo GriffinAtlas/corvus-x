@@ -29,6 +29,7 @@ import { registerHistoryCommand } from '../src/cli/commands/history.js'
 import { registerAgentCommand } from '../src/cli/commands/agent.js'
 import { registerExportCommand } from '../src/cli/commands/export.js'
 import { registerProfileCommand } from '../src/cli/commands/profile.js'
+import { registerHooksCommand } from '../src/cli/commands/hooks.js'
 
 const program = new Command()
 
@@ -55,6 +56,7 @@ registerPulseCommand(program)
 
 // Growth
 registerProfileCommand(program)
+registerHooksCommand(program)
 
 // Monitoring
 registerWatchCommand(program)

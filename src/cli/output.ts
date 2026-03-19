@@ -7,6 +7,7 @@ import type {
   PulseSnapshot,
   TraceSnapshot,
   ProfileSnapshot,
+  HooksSnapshot,
   AgentBrief,
 } from '../core/schemas.js'
 
@@ -334,6 +335,33 @@ export function renderProfile(data: ProfileSnapshot): string {
     parts.push(`  ${t.heading('Recommendations')}`)
     for (const r of data.recommendations) {
       parts.push(`    · ${r}`)
+    }
+  }
+
+  return parts.join('\n')
+}
+
+export function renderHooks(data: HooksSnapshot): string {
+  const parts: string[] = []
+
+  parts.push(`  ${data.opportunities.length} opportunities for "${data.topic}"`)
+
+  if (data.opportunities.length === 0) {
+    parts.push('')
+    parts.push(`  ${t.muted('No reply opportunities found.')}`)
+    return parts.join('\n')
+  }
+
+  for (const opp of data.opportunities) {
+    parts.push('')
+    const score = (opp.opportunityScore * 100).toFixed(0)
+    parts.push(`  ${t.heading(`${score}%`)}  @${opp.author}  ${compactNum(opp.authorFollowers)} followers`)
+    const eng = opp.engagement
+    parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.retweets} RTs · ${eng.replies} replies`)}`)
+    parts.push(`    ${opp.content.length > 140 ? opp.content.slice(0, 140) + '...' : opp.content}`)
+    parts.push(`    ${t.positive('→')} ${opp.suggestedAngle}`)
+    if (opp.tweetUrl) {
+      parts.push(`    ${t.muted(opp.tweetUrl)}`)
     }
   }
 

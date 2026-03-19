@@ -7,8 +7,9 @@ import { buildScanSnapshot } from '../../core/builders/scan.js'
 import { buildPulseSnapshot } from '../../core/builders/pulse.js'
 import { buildTraceSnapshot } from '../../core/builders/trace.js'
 import { buildProfileSnapshot, resolveIsSelf } from '../../core/builders/profile.js'
-import { renderScan, renderPulse, renderTrace, renderProfile } from '../../cli/output.js'
-import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS } from '../../core/schemas.js'
+import { buildHooksSnapshot } from '../../core/builders/hooks.js'
+import { renderScan, renderPulse, renderTrace, renderProfile, renderHooks } from '../../cli/output.js'
+import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS, HOOKS_MATCH_KEYS } from '../../core/schemas.js'
 import type { CorvusDeps } from '../../core/types.js'
 import type { Snapshot, MatchKeys } from '../../core/schemas.js'
 import type { BuildResult } from '../../core/types.js'
@@ -19,6 +20,7 @@ const HELP_TEXT = `Commands:
   scan <topic>        Snapshot X discourse on a topic
   pulse <topic>       Sentiment pulse — bull/bear signals
   trace <topic>       Trace how a narrative spreads
+  hooks <topic>       Find conversations to reply to
   profile <@user>     Analyze content strategy
   ask <question>      Ask Grok anything
 
@@ -159,6 +161,10 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         setPhaseLabel(`tracing "${args.topic}"...`)
         await runStructured(dispatch, deps, 'trace', args.topic, TRACE_MATCH_KEYS,
           () => buildTraceSnapshot(deps, args.topic, 50), renderTrace, startTime, baseDir)
+      } else if (command === 'hooks') {
+        setPhaseLabel(`finding hooks for "${args.topic}"...`)
+        await runStructured(dispatch, deps, 'hooks', args.topic, HOOKS_MATCH_KEYS,
+          () => buildHooksSnapshot(deps, args.topic, 50), renderHooks, startTime, baseDir)
       } else if (command === 'profile') {
         const handle = args.username
         const isSelf = resolveIsSelf(handle, new AuthManager(baseDir).getXHandle())

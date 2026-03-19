@@ -8,6 +8,7 @@ export {
   buildPulseSnapshot,
   buildTraceSnapshot,
   buildProfileSnapshot,
+  buildHooksSnapshot,
 } from './core/builders.js'
 
 // Agent
@@ -51,6 +52,7 @@ export type {
   PulseSnapshot,
   TraceSnapshot,
   ProfileSnapshot,
+  HooksSnapshot,
   StoredSnapshot,
   MatchKeys,
   GrokTweetScore,

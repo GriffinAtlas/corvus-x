@@ -7,6 +7,7 @@ import {
   renderPulse,
   renderTrace,
   renderProfile,
+  renderHooks,
   renderAgentBrief,
   renderAgentBriefMd,
 } from '../../src/cli/output.js'
@@ -16,6 +17,7 @@ import type {
   PulseSnapshot,
   TraceSnapshot,
   ProfileSnapshot,
+  HooksSnapshot,
   AgentBrief,
 } from '../../src/core/schemas.js'
 
@@ -499,6 +501,89 @@ describe('renderProfile', () => {
     const noPeaks = { ...profile, postFrequency: { ...profile.postFrequency, peakHours: [] } }
     const output = renderProfile(noPeaks)
     expect(output).not.toContain('Peak hours')
+  })
+})
+
+describe('renderHooks', () => {
+  const hooks: HooksSnapshot = {
+    topic: 'TypeScript CLI',
+    opportunities: [
+      {
+        tweetUrl: 'https://x.com/alice/status/1',
+        author: 'alice',
+        authorFollowers: 5000,
+        content: 'Hot take on TypeScript tooling',
+        engagement: { likes: 50, retweets: 10, replies: 3 },
+        suggestedAngle: 'Share your CLI agent experience',
+        opportunityScore: 0.9,
+      },
+      {
+        tweetUrl: 'https://x.com/bob/status/2',
+        author: 'bob',
+        authorFollowers: 12000,
+        content: 'AI agents are changing everything',
+        engagement: { likes: 200, retweets: 40, replies: 15 },
+        suggestedAngle: 'Mention your agent pipeline',
+        opportunityScore: 0.75,
+      },
+    ],
+    fetchedAt: '2026-03-19T12:00:00Z',
+  }
+
+  it('renders opportunity count and topic', () => {
+    const output = renderHooks(hooks)
+    expect(output).toContain('2 opportunities')
+    expect(output).toContain('TypeScript CLI')
+  })
+
+  it('renders author and follower count', () => {
+    const output = renderHooks(hooks)
+    expect(output).toContain('@alice')
+    expect(output).toContain('5K followers')
+    expect(output).toContain('@bob')
+    expect(output).toContain('12K followers')
+  })
+
+  it('renders engagement metrics', () => {
+    const output = renderHooks(hooks)
+    expect(output).toContain('50 likes')
+    expect(output).toContain('200 likes')
+  })
+
+  it('renders suggested angle', () => {
+    const output = renderHooks(hooks)
+    expect(output).toContain('Share your CLI agent experience')
+    expect(output).toContain('Mention your agent pipeline')
+  })
+
+  it('renders opportunity score as percentage', () => {
+    const output = renderHooks(hooks)
+    expect(output).toContain('90%')
+    expect(output).toContain('75%')
+  })
+
+  it('renders tweet URLs', () => {
+    const output = renderHooks(hooks)
+    expect(output).toContain('https://x.com/alice/status/1')
+  })
+
+  it('truncates long content at 140 chars', () => {
+    const longHooks: HooksSnapshot = {
+      ...hooks,
+      opportunities: [{
+        ...hooks.opportunities[0],
+        content: 'A'.repeat(160),
+      }],
+    }
+    const output = renderHooks(longHooks)
+    expect(output).toContain('A'.repeat(140) + '...')
+  })
+
+  it('handles empty opportunities', () => {
+    const empty: HooksSnapshot = { topic: 'nothing', opportunities: [], fetchedAt: '2026-03-19T00:00:00Z' }
+    const output = renderHooks(empty)
+    expect(output).toContain('0 opportunities')
+    expect(output).toContain('No reply opportunities found')
   })
 })
 

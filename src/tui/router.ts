@@ -4,12 +4,13 @@ export type ParsedCommand =
   | { type: 'error'; message: string }
   | { type: 'empty' }
 
-const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace'])
+const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace', 'hooks'])
 const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'view'])
 
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
   'profile',
+  'hooks',
   'ask',
   'history',
   '/view',
