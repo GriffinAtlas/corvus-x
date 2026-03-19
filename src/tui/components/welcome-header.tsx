@@ -23,7 +23,7 @@ export function WelcomeHeader({ version }: Props) {
             <Text key={i} color="#7C3AED">{line}</Text>
           ))}
           <Text> </Text>
-          <Text dimColor>      X intelligence agent</Text>
+          <Text dimColor>      investigate X · grow your presence</Text>
           <Text dimColor>      v{version}</Text>
         </Box>
       </Box>

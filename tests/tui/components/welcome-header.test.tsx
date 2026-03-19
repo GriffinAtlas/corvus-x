@@ -18,7 +18,7 @@ describe('WelcomeHeader', () => {
 
   it('renders tagline', () => {
     const { lastFrame } = render(<WelcomeHeader version="0.2.0" />)
-    expect(lastFrame()!).toContain('X intelligence agent')
+    expect(lastFrame()!).toContain('investigate X')
   })
 
   it('renders version', () => {

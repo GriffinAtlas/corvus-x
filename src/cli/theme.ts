@@ -48,6 +48,34 @@ export function divider(width = 45): string {
   return t.muted('─'.repeat(width))
 }
 
+const GRADIENT = ['#4A1F8A', '#5C29A8', '#6E33C6', '#7C3AED', '#9F67FF', '#B48AFF']
+
+export function gradient(text: string): string {
+  if (!isTTY) return t.accent(text)
+  return text
+    .split('')
+    .map((ch, i) => chalk.hex(GRADIENT[i % GRADIENT.length])(ch))
+    .join('')
+}
+
+export function banner(command: string, topic: string): string {
+  const crow = '▸'
+  return `\n  ${t.accent(crow)} ${gradient('corvus')} ${t.accent(command)} ${t.muted('·')} ${topic}`
+}
+
+export function resultBox(lines: string[]): string {
+  const maxLen = lines.reduce((max, line) => Math.max(max, strip(line).length), 0)
+  const width = maxLen + 2
+  const top = t.muted('  ┌' + '─'.repeat(width) + '┐')
+  const bottom = t.muted('  └' + '─'.repeat(width) + '┘')
+  const middle = lines.map((line) => {
+    const stripped = strip(line)
+    const padding = width - stripped.length - 1
+    return t.muted('  │') + ' ' + line + ' '.repeat(Math.max(0, padding)) + t.muted('│')
+  })
+  return [top, ...middle, bottom].join('\n')
+}
+
 export function box(lines: string[]): string {
   const maxLen = lines.reduce((max, line) => Math.max(max, strip(line).length), 0)
   const padded = maxLen + 4
@@ -104,6 +132,20 @@ export const LOGO_LINES = [
   '  ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗',
   '  ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝',
 ]
+
+const SPARK_CHARS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
+
+export function sparkline(values: number[], maxVal?: number): string {
+  if (values.length === 0) return ''
+  const max = maxVal ?? Math.max(...values)
+  if (max === 0) return SPARK_CHARS[0].repeat(values.length)
+  return values
+    .map((v) => {
+      const idx = Math.min(Math.round((v / max) * (SPARK_CHARS.length - 1)), SPARK_CHARS.length - 1)
+      return SPARK_CHARS[idx]
+    })
+    .join('')
+}
 
 const PULSE_COLORS = [
   chalk.hex('#4A1F8A'),

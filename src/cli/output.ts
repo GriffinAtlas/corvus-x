@@ -1,4 +1,4 @@
-import { t, divider, sentimentBar, confidenceBar, box } from './theme.js'
+import { t, divider, sentimentBar, confidenceBar, box, banner } from './theme.js'
 import { formatDiffLines } from '../core/differ.js'
 import type { CommandResult, StructuredCommandResult, GrokCitation } from '../core/types.js'
 import type {
@@ -34,8 +34,7 @@ function formatTable(result: CommandResult): string {
   const cost = result.cached ? t.muted('(cached)') : t.muted(`cost: $${result.cost.toFixed(4)}`)
 
   return [
-    '',
-    `  ${t.heading(result.command)} ${t.muted('·')} ${result.query}`,
+    banner(result.command, result.query),
     `  ${divider()}`,
     '',
     `  ${result.response.split('\n').join('\n  ')}`,
@@ -108,8 +107,7 @@ export function formatStructuredOutput<T extends Snapshot>(
     case 'table':
     default: {
       const parts: string[] = [
-        '',
-        `  ${t.heading(result.command)} ${t.muted('·')} ${result.topic}`,
+        banner(result.command, result.topic),
         `  ${divider()}`,
         '',
         renderSnapshot(result.data),
