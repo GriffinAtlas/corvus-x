@@ -131,21 +131,21 @@ describe('XAdapter', () => {
 
   it('getUserTweets returns array of parsed tweets', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: [RAW_TWEET, RAW_TWEET] }))
-    const tweets = await adapter.getUserTweets('user_1')
+    const tweets = await adapter.getUserTweets('12345')
     expect(tweets).toHaveLength(2)
     expect(tweets[0].id).toBe('123')
   })
 
   it('getUserTweets caps maxResults at 100', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: [] }))
-    await adapter.getUserTweets('user_1', 999)
+    await adapter.getUserTweets('12345', 999)
     const url = mockFetch.mock.calls[0][0] as string
     expect(url).toContain('max_results=100')
   })
 
   it('getUserTweets returns empty array when no data', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: null }))
-    const tweets = await adapter.getUserTweets('user_1')
+    const tweets = await adapter.getUserTweets('12345')
     expect(tweets).toEqual([])
   })
 
@@ -273,11 +273,27 @@ describe('XAdapter', () => {
 
   it('getUserById fetches user by ID', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ data: RAW_USER }))
-    const user = await adapter.getUserById('user_1')
+    const user = await adapter.getUserById('12345')
     expect(user.username).toBe('corvus_dev')
     expect(user.followersCount).toBe(1200)
     const url = mockFetch.mock.calls[0][0] as string
-    expect(url).toContain('/users/user_1')
+    expect(url).toContain('/users/12345')
+  })
+
+  it('getTweet rejects non-numeric ID', async () => {
+    await expect(adapter.getTweet('abc')).rejects.toThrow('Invalid tweet ID')
+  })
+
+  it('getTweet rejects path traversal in ID', async () => {
+    await expect(adapter.getTweet('123/../tweets')).rejects.toThrow('Invalid tweet ID')
+  })
+
+  it('getUserById rejects non-numeric ID', async () => {
+    await expect(adapter.getUserById('abc')).rejects.toThrow('Invalid user ID')
+  })
+
+  it('getUserTweets rejects non-numeric ID', async () => {
+    await expect(adapter.getUserTweets('abc')).rejects.toThrow('Invalid user ID')
   })
 
   it('throws XRateLimitError on 429', async () => {

@@ -49,6 +49,7 @@ export class XApiError extends Error {
 }
 
 const X_USERNAME_RE = /^[A-Za-z0-9_]{1,15}$/
+const X_ID_RE = /^\d{1,20}$/
 
 export class XAdapter {
   private bearerToken: string
@@ -60,6 +61,7 @@ export class XAdapter {
   }
 
   async getTweet(id: string): Promise<Tweet> {
+    if (!X_ID_RE.test(id)) throw new XApiError(400, `Invalid tweet ID: ${id}`)
     const params = new URLSearchParams({
       'tweet.fields': 'created_at,public_metrics,author_id',
     })
@@ -68,6 +70,7 @@ export class XAdapter {
   }
 
   async getUserById(id: string): Promise<XUser> {
+    if (!X_ID_RE.test(id)) throw new XApiError(400, `Invalid user ID: ${id}`)
     const params = new URLSearchParams({
       'user.fields': 'description,public_metrics,verified',
     })
@@ -87,6 +90,7 @@ export class XAdapter {
   }
 
   async getUserTweets(userId: string, maxResults = 10): Promise<Tweet[]> {
+    if (!X_ID_RE.test(userId)) throw new XApiError(400, `Invalid user ID: ${userId}`)
     const params = new URLSearchParams({
       'tweet.fields': 'created_at,public_metrics,author_id',
       max_results: String(Math.min(maxResults, 100)),

@@ -60,9 +60,10 @@ export class AuthManager {
     mutate(creds)
     try {
       fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 })
+      try { fs.chmodSync(this.baseDir, 0o700) } catch { /* best-effort on Windows */ }
       fs.writeFileSync(this.credPath, JSON.stringify(creds, null, 2), { mode: 0o600 })
     } catch (err) {
-      throw new Error(`Failed to write credentials to ${this.credPath}`, { cause: err })
+      throw new Error('Failed to write credentials. Check permissions on ~/.corvus/', { cause: err })
     }
   }
 }

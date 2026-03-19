@@ -159,7 +159,7 @@ export class QueryCache {
       const ledger = this.getLedger()
       ledger.totalUsd += costUsd
       ledger.queryCount++
-      ledger.entries.push({ timestamp: Date.now(), costUsd, query })
+      ledger.entries.push({ timestamp: Date.now(), costUsd, query: query.slice(0, 100) })
       if (ledger.entries.length > MAX_LEDGER_ENTRIES) {
         ledger.entries = ledger.entries.slice(-MAX_LEDGER_ENTRIES)
       }

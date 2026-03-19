@@ -121,11 +121,14 @@ async function buildProfileFromXApi(
   }
 }
 
+const X_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/
+
 async function buildProfileFromGrok(
   deps: CorvusDeps,
   handle: string,
   isSelf: boolean,
 ): Promise<BuildResult<ProfileSnapshot>> {
+  if (!X_HANDLE_RE.test(handle)) throw new Error(`Invalid X username: ${handle}`)
   const selfNote = isSelf ? ' This is the user\'s OWN account. Include recommendations.' : ''
 
   const response = await deps.grok.query(
