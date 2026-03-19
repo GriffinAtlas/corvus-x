@@ -9,8 +9,10 @@ import { buildTraceSnapshot } from '../../core/builders/trace.js'
 import { buildProfileSnapshot, resolveIsSelf } from '../../core/builders/profile.js'
 import { buildHooksSnapshot } from '../../core/builders/hooks.js'
 import { buildDraftSnapshot } from '../../core/builders/draft.js'
-import { renderScan, renderPulse, renderTrace, renderProfile, renderDraft, renderHooks } from '../../cli/output.js'
-import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS, HOOKS_MATCH_KEYS } from '../../core/schemas.js'
+import { buildReviewSnapshot } from '../../core/builders/review.js'
+import { buildTimingSnapshot } from '../../core/builders/timing.js'
+import { renderScan, renderPulse, renderTrace, renderProfile, renderDraft, renderHooks, renderReview, renderTiming } from '../../cli/output.js'
+import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS, HOOKS_MATCH_KEYS, REVIEW_MATCH_KEYS, TIMING_MATCH_KEYS } from '../../core/schemas.js'
 import type { CorvusDeps } from '../../core/types.js'
 import type { Snapshot, MatchKeys } from '../../core/schemas.js'
 import type { BuildResult } from '../../core/types.js'
@@ -24,6 +26,8 @@ const HELP_TEXT = `Commands:
   draft <topic>       Draft a post in your voice
   hooks <topic>       Find conversations to reply to
   profile <@user>     Analyze content strategy
+  review              Review your recent posting
+  timing [topic]      Best times to post
   ask <question>      Ask Grok anything
 
   /help               Show this help
@@ -177,6 +181,28 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         setPhaseLabel(`profiling @${handle}${isSelf ? ' (self)' : ''}...`)
         await runStructured(dispatch, deps, 'profile', `@${handle}`, PROFILE_MATCH_KEYS,
           () => buildProfileSnapshot(deps, handle, 50, isSelf), renderProfile, startTime, baseDir)
+      } else if (command === 'review') {
+        const auth = new AuthManager(baseDir)
+        const handle = auth.getXHandle()
+        if (!handle) {
+          dispatch({ type: 'add-error', message: 'No X handle configured. Run: corvus auth setup' })
+          return
+        }
+        setPhaseLabel(`reviewing @${handle}...`)
+        await runStructured(dispatch, deps, 'review', `@${handle}`, REVIEW_MATCH_KEYS,
+          () => buildReviewSnapshot(deps, handle, 7), renderReview, startTime, baseDir)
+      } else if (command === 'timing') {
+        const auth = new AuthManager(baseDir)
+        const handle = auth.getXHandle()
+        const topic = args.topic
+        if (!topic && !handle) {
+          dispatch({ type: 'add-error', message: 'No X handle configured. Provide a topic or run: corvus auth setup' })
+          return
+        }
+        const label = topic ?? `@${handle}`
+        setPhaseLabel(`analyzing timing for ${label}...`)
+        await runStructured(dispatch, deps, 'timing', label, TIMING_MATCH_KEYS,
+          () => buildTimingSnapshot(deps, { handle: topic ? undefined : handle!, topic }), renderTiming, startTime, baseDir)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

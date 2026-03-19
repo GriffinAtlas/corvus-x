@@ -155,6 +155,28 @@ export interface HooksSnapshot {
   fetchedAt: string
 }
 
+export interface ReviewSnapshot {
+  handle: string
+  period: { from: string; to: string }
+  totalPosts: number
+  totalEngagement: number
+  avgEngagementPerPost: number
+  topPosts: Array<{ content: string; engagement: number; why: string }>
+  underperformers: Array<{ content: string; engagement: number; why: string }>
+  patterns: Array<{ pattern: string; impact: string }>
+  recommendations: string[]
+  fetchedAt: string
+}
+
+export interface TimingSnapshot {
+  handle?: string
+  topic?: string
+  peakWindows: Array<{ day: string; hour: number; score: number }>
+  recommendations: string[]
+  sampleSize: number
+  fetchedAt: string
+}
+
 export interface VoiceProfile {
   handle: string
   generatedAt: string
@@ -216,6 +238,8 @@ export type Snapshot =
   | ProfileSnapshot
   | DraftSnapshot
   | HooksSnapshot
+  | ReviewSnapshot
+  | TimingSnapshot
   | AgentBrief
 
 // ── Stored snapshot wrapper ──
@@ -262,3 +286,9 @@ export const PROFILE_MATCH_KEYS: MatchKeys = {
 export const HOOKS_MATCH_KEYS: MatchKeys = {
   opportunities: 'tweetUrl',
 }
+
+export const REVIEW_MATCH_KEYS: MatchKeys = {
+  patterns: 'pattern',
+}
+
+export const TIMING_MATCH_KEYS: MatchKeys = {}

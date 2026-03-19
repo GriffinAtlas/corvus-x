@@ -31,6 +31,8 @@ import { registerExportCommand } from '../src/cli/commands/export.js'
 import { registerProfileCommand } from '../src/cli/commands/profile.js'
 import { registerHooksCommand } from '../src/cli/commands/hooks.js'
 import { registerDraftCommand } from '../src/cli/commands/draft.js'
+import { registerReviewCommand } from '../src/cli/commands/review.js'
+import { registerTimingCommand } from '../src/cli/commands/timing.js'
 
 const program = new Command()
 
@@ -59,6 +61,8 @@ registerPulseCommand(program)
 registerProfileCommand(program)
 registerHooksCommand(program)
 registerDraftCommand(program)
+registerReviewCommand(program)
+registerTimingCommand(program)
 
 // Monitoring
 registerWatchCommand(program)

@@ -9,6 +9,8 @@ import type {
   ProfileSnapshot,
   DraftSnapshot,
   HooksSnapshot,
+  ReviewSnapshot,
+  TimingSnapshot,
   AgentBrief,
 } from '../core/schemas.js'
 
@@ -399,6 +401,80 @@ export function renderHooks(data: HooksSnapshot): string {
     parts.push(`    ${t.positive('→')} ${opp.suggestedAngle}`)
     if (opp.tweetUrl) {
       parts.push(`    ${t.muted(opp.tweetUrl)}`)
+    }
+  }
+
+  return parts.join('\n')
+}
+
+export function renderReview(data: ReviewSnapshot): string {
+  const parts: string[] = []
+
+  parts.push(`  @${data.handle}  ${data.period.from.slice(0, 10)} → ${data.period.to.slice(0, 10)}`)
+  parts.push(`  ${data.totalPosts} posts  ${compactNum(data.totalEngagement)} total engagement  ${compactNum(data.avgEngagementPerPost)} avg/post`)
+
+  if (data.topPosts.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Top Performers')}`)
+    for (const p of data.topPosts.slice(0, 5)) {
+      parts.push(`    ${t.positive(compactNum(p.engagement) + ' eng')}  ${t.muted(p.why)}`)
+      parts.push(`      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`)
+    }
+  }
+
+  if (data.underperformers.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Underperformers')}`)
+    for (const p of data.underperformers.slice(0, 3)) {
+      parts.push(`    ${t.negative(compactNum(p.engagement) + ' eng')}  ${t.muted(p.why)}`)
+      parts.push(`      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`)
+    }
+  }
+
+  if (data.patterns.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Patterns')}`)
+    for (const p of data.patterns) {
+      parts.push(`    · ${p.pattern}  ${t.muted(p.impact)}`)
+    }
+  }
+
+  if (data.recommendations.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Recommendations')}`)
+    for (const r of data.recommendations) {
+      parts.push(`    · ${r}`)
+    }
+  }
+
+  return parts.join('\n')
+}
+
+export function renderTiming(data: TimingSnapshot): string {
+  const parts: string[] = []
+
+  const label = data.handle ? `@${data.handle}` : data.topic ?? 'unknown'
+  parts.push(`  ${t.heading('Timing')} ${t.muted(`· ${label}`)}`)
+
+  if (data.sampleSize > 0) {
+    parts.push(`  ${t.muted(`Based on ${data.sampleSize} posts`)}`)
+  }
+
+  if (data.peakWindows.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Peak Windows')}`)
+    for (const w of data.peakWindows.slice(0, 10)) {
+      const bar = '█'.repeat(Math.round(w.score * 10))
+      const score = (w.score * 100).toFixed(0)
+      parts.push(`    ${w.day.padEnd(10)} ${String(w.hour).padStart(2)}:00 UTC  ${t.positive(bar)} ${score}%`)
+    }
+  }
+
+  if (data.recommendations.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Recommendations')}`)
+    for (const r of data.recommendations) {
+      parts.push(`    · ${r}`)
     }
   }
 

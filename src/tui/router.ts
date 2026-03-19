@@ -12,6 +12,8 @@ export const COMMAND_KEYWORDS = [
   'profile',
   'hooks',
   'draft',
+  'review',
+  'timing',
   'ask',
   'history',
   '/view',
@@ -45,6 +47,15 @@ export function parseInput(raw: string): ParsedCommand {
   if (TOPIC_COMMANDS.has(keyword)) {
     if (!rest) return { type: 'error', message: `Usage: ${keyword} <topic>` }
     return { type: 'command', command: keyword, args: { topic: rest } }
+  }
+
+  if (keyword === 'review') {
+    return { type: 'command', command: 'review', args: {} }
+  }
+
+  if (keyword === 'timing') {
+    if (!rest) return { type: 'command', command: 'timing', args: {} }
+    return { type: 'command', command: 'timing', args: { topic: rest } }
   }
 
   if (keyword === 'profile') {
