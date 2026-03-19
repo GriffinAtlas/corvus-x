@@ -15,26 +15,20 @@ export function ResultCard({ command, topic, rendered, cost, elapsed, truncated,
   const elapsedStr = `${(elapsed / 1000).toFixed(1)}s`
 
   return (
-    <Box
-      flexDirection="column"
-      marginLeft={2}
-      marginBottom={1}
-      borderStyle="round"
-      borderColor="#4A1F8A"
-      paddingX={1}
-    >
+    <Box flexDirection="column" marginLeft={1} marginBottom={1}>
       <Box>
+        <Text color="#7C3AED" bold>{'▸ '}</Text>
         <Text bold color="#B48AFF">{command}</Text>
         <Text dimColor>{` · ${topic}`}</Text>
         <Text dimColor>{'  '}</Text>
         <Text dimColor>{`${elapsedStr} · $${cost.toFixed(3)}`}</Text>
       </Box>
-      <Box marginTop={0}>
+      <Box marginTop={0} marginLeft={2}>
         <Text>{rendered}</Text>
       </Box>
       {(truncated ?? 0) > 0 && (
-        <Box>
-          <Text dimColor>{`  ... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
+        <Box marginLeft={2}>
+          <Text dimColor>{`... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
         </Box>
       )}
     </Box>

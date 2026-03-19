@@ -17,7 +17,7 @@ function renderEntry(entry: ChatEntry, index: number) {
   switch (entry.type) {
     case 'user':
       return (
-        <Box key={index} paddingLeft={2}>
+        <Box key={index} paddingLeft={1} marginTop={1}>
           <Text color="#B48AFF" bold>{'❯ '}</Text>
           <Text bold>{entry.text}</Text>
         </Box>

@@ -10,21 +10,16 @@ interface Props {
 
 export function ProseResult({ text, cost, truncated, index }: Props) {
   return (
-    <Box
-      flexDirection="column"
-      marginLeft={2}
-      marginBottom={1}
-      borderStyle="round"
-      borderColor="#4A1F8A"
-      paddingX={1}
-    >
-      <Text>{text}</Text>
+    <Box flexDirection="column" marginLeft={1} marginBottom={1}>
+      <Box marginLeft={2}>
+        <Text>{text}</Text>
+      </Box>
       {(truncated ?? 0) > 0 && (
-        <Box>
-          <Text dimColor>{`  ... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
+        <Box marginLeft={2}>
+          <Text dimColor>{`... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
         </Box>
       )}
-      <Box marginTop={0}>
+      <Box marginLeft={2} marginTop={0}>
         <Text dimColor>{`$${cost.toFixed(4)}`}</Text>
       </Box>
     </Box>

@@ -17,12 +17,12 @@ function estimateEntryHeight(entry: ChatEntry): number {
     case 'result': {
       const lines = entry.rendered.split('\n').length
       const cap = entry.expanded ? lines : Math.min(lines, RESULT_MAX_LINES)
-      return cap + 3 // header + border + footer
+      return cap + 2 // header + margin
     }
     case 'prose': {
       const lines = entry.text.split('\n').length
       const cap = entry.expanded ? lines : Math.min(lines, PROSE_MAX_LINES)
-      return cap + 3 // border-top + border-bottom + cost footer
+      return cap + 2 // cost footer + margin
     }
     case 'error':
       return 1
