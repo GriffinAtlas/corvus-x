@@ -7,7 +7,7 @@ import type { WatchSummary } from '../../../src/cli/commands/watch.js'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -25,8 +25,10 @@ describe('Watcher', () => {
   it('runs first check immediately on start', async () => {
     const updates: CommandResult[] = []
     mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'initial state' } }],
-      usage: { prompt_tokens: 100, completion_tokens: 200 },
+      output_text: 'initial state',
+      output: [],
+      usage: { input_tokens: 100, output_tokens: 200 },
+      citations: [],
     })
 
     const watcher = new Watcher('AI agents', {
@@ -47,12 +49,16 @@ describe('Watcher', () => {
   it('includes previous snapshot in subsequent checks', async () => {
     mockQuery
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'snapshot 1' } }],
-        usage: { prompt_tokens: 100, completion_tokens: 200 },
+        output_text: 'snapshot 1',
+        output: [],
+        usage: { input_tokens: 100, output_tokens: 200 },
+        citations: [],
       })
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'snapshot 2 — new developments' } }],
-        usage: { prompt_tokens: 200, completion_tokens: 300 },
+        output_text: 'snapshot 2 — new developments',
+        output: [],
+        usage: { input_tokens: 200, output_tokens: 300 },
+        citations: [],
       })
 
     const updates: CommandResult[] = []
@@ -70,7 +76,7 @@ describe('Watcher', () => {
 
     expect(updates).toHaveLength(2)
     // Second call should include previous snapshot
-    const secondPrompt = mockQuery.mock.calls[1][0].messages.find(
+    const secondPrompt = mockQuery.mock.calls[1][0].input.find(
       (m: { role: string }) => m.role === 'user',
     ).content
     expect(secondPrompt).toContain('snapshot 1')
@@ -81,12 +87,16 @@ describe('Watcher', () => {
   it('stops after maxCycles', async () => {
     mockQuery
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'check 1' } }],
-        usage: { prompt_tokens: 10, completion_tokens: 10 },
+        output_text: 'check 1',
+        output: [],
+        usage: { input_tokens: 10, output_tokens: 10 },
+        citations: [],
       })
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'check 2' } }],
-        usage: { prompt_tokens: 10, completion_tokens: 10 },
+        output_text: 'check 2',
+        output: [],
+        usage: { input_tokens: 10, output_tokens: 10 },
+        citations: [],
       })
 
     let summary: WatchSummary | null = null
@@ -111,12 +121,16 @@ describe('Watcher', () => {
   it('tracks total cost across cycles', async () => {
     mockQuery
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'r1' } }],
-        usage: { prompt_tokens: 500, completion_tokens: 1000 },
+        output_text: 'r1',
+        output: [],
+        usage: { input_tokens: 500, output_tokens: 1000 },
+        citations: [],
       })
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'r2' } }],
-        usage: { prompt_tokens: 500, completion_tokens: 1000 },
+        output_text: 'r2',
+        output: [],
+        usage: { input_tokens: 500, output_tokens: 1000 },
+        citations: [],
       })
 
     let summary: WatchSummary | null = null
@@ -190,8 +204,10 @@ describe('Watcher', () => {
       .mockRejectedValueOnce(new Error('err1'))
       .mockRejectedValueOnce(new Error('err2'))
       .mockResolvedValueOnce({
-        choices: [{ message: { content: 'ok' } }],
-        usage: { prompt_tokens: 10, completion_tokens: 10 },
+        output_text: 'ok',
+        output: [],
+        usage: { input_tokens: 10, output_tokens: 10 },
+        citations: [],
       })
       .mockRejectedValueOnce(new Error('err3'))
       .mockRejectedValueOnce(new Error('err4'))
@@ -218,8 +234,10 @@ describe('Watcher', () => {
 
   it('stop() clears interval and marks not running', async () => {
     mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'response' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 10 },
+      output_text: 'response',
+      output: [],
+      usage: { input_tokens: 10, output_tokens: 10 },
+      citations: [],
     })
 
     const watcher = new Watcher('test', {

@@ -6,7 +6,7 @@ import type { AgentPlan } from '../../../src/core/agent.js'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -124,8 +124,10 @@ function xSearchResponse(tweetCount = 2) {
 
 function grokApiResponse(content: string) {
   return {
-    choices: [{ message: { content } }],
-    usage: { prompt_tokens: 500, completion_tokens: 300 },
+    output_text: content,
+    output: [],
+    usage: { input_tokens: 500, output_tokens: 300 },
+    citations: [],
   }
 }
 

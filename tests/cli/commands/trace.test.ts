@@ -5,7 +5,7 @@ import { registerTraceCommand } from '../../../src/cli/commands/trace.js'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -78,8 +78,10 @@ function grokTraceResponse() {
     mutations: [{ original: 'original', variant: 'variant' }],
   })
   return {
-    choices: [{ message: { content: json } }],
-    usage: { prompt_tokens: 200, completion_tokens: 300 },
+    output_text: json,
+    output: [],
+    usage: { input_tokens: 200, output_tokens: 300 },
+    citations: [],
   }
 }
 
@@ -94,8 +96,10 @@ function grokOnlyTraceResponse() {
     mutations: [{ original: 'original', variant: 'evolved' }],
   })
   return {
-    choices: [{ message: { content: json } }],
-    usage: { prompt_tokens: 200, completion_tokens: 300 },
+    output_text: json,
+    output: [],
+    usage: { input_tokens: 200, output_tokens: 300 },
+    citations: [],
   }
 }
 

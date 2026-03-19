@@ -121,34 +121,38 @@ export class GrokAdapter {
     })
   }
 
-  private buildMessages(prompt: string, options: QueryOptions): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
-    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
-    if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
-    messages.push({ role: 'user', content: prompt })
-    return messages
+  private buildInput(prompt: string, options: QueryOptions): { role: string; content: string }[] {
+    const input: { role: string; content: string }[] = []
+    if (options.systemPrompt) input.push({ role: 'system', content: options.systemPrompt })
+    input.push({ role: 'user', content: prompt })
+    return input
   }
 
-  private buildTools(options: QueryOptions): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  private buildTools(options: QueryOptions): Record<string, unknown>[] {
     if (options.xSearchHandles?.length && options.xSearchExcludeHandles?.length) {
       throw new Error('Cannot use both xSearchHandles and xSearchExcludeHandles — they are mutually exclusive')
     }
 
     if (!options.enableXSearch && !options.enableWebSearch) return []
 
-    const sources: { type: string }[] = []
-    if (options.enableXSearch) sources.push({ type: 'x' })
-    if (options.enableWebSearch) sources.push({ type: 'web' })
-    if (sources.length === 0) sources.push({ type: 'x' })
+    const tools: Record<string, unknown>[] = []
 
-    const tool: Record<string, unknown> = { type: 'live_search', sources }
     if (options.enableXSearch) {
-      if (options.xSearchFromDate) tool.from_date = options.xSearchFromDate
-      if (options.xSearchToDate) tool.to_date = options.xSearchToDate
-      if (options.xSearchHandles?.length) tool.x_handles = options.xSearchHandles
-      if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
+      const xTool: Record<string, unknown> = { type: 'x_search' }
+      if (options.xSearchFromDate) xTool.from_date = options.xSearchFromDate
+      if (options.xSearchToDate) xTool.to_date = options.xSearchToDate
+      if (options.xSearchHandles?.length) xTool.x_handles = options.xSearchHandles
+      if (options.xSearchExcludeHandles?.length) xTool.excluded_x_handles = options.xSearchExcludeHandles
+      tools.push(xTool)
     }
 
-    return [tool] as unknown as OpenAI.Chat.Completions.ChatCompletionTool[]
+    if (options.enableWebSearch) {
+      tools.push({ type: 'web_search' })
+    }
+
+    if (tools.length === 0) tools.push({ type: 'x_search' })
+
+    return tools
   }
 
   private computeCost(model: string, inputTokens: number, outputTokens: number, toolCallCount: number): number {
@@ -159,16 +163,16 @@ export class GrokAdapter {
 
   async query(prompt: string, options: QueryOptions = {}): Promise<GrokResponse> {
     const model = options.model ?? DEFAULT_MODEL
-    const messages = this.buildMessages(prompt, options)
+    const input = this.buildInput(prompt, options)
     const tools = this.buildTools(options)
 
-    const createParams = {
+    const createParams: Record<string, unknown> = {
       model,
-      messages,
-      max_tokens: options.maxTokens ?? 2048,
+      input,
+      max_output_tokens: options.maxTokens ?? 2048,
       ...(tools.length > 0 ? { tools } : {}),
       ...(options.responseSchema && isGrok4Family(model)
-        ? { response_format: zodResponseFormat(options.responseSchema, 'response') }
+        ? { text: { format: zodResponseFormat(options.responseSchema, 'response') } }
         : {}),
     }
 
@@ -179,27 +183,26 @@ export class GrokAdapter {
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
       try {
-        const response = await this.client.chat.completions.create(createParams, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response: any = await (this.client as any).responses.create(createParams, {
           signal: controller.signal,
         })
 
         clearTimeout(timer)
 
-        const text = response.choices[0]?.message?.content ?? ''
-        const inputTokens = response.usage?.prompt_tokens ?? 0
-        const outputTokens = response.usage?.completion_tokens ?? 0
-        const toolCallCount = response.choices[0]?.message?.tool_calls?.length ?? 0
+        const text = response.output_text ?? ''
+        const inputTokens = response.usage?.input_tokens ?? 0
+        const outputTokens = response.usage?.output_tokens ?? 0
+        const toolCallCount = response.output?.filter((o: { type: string }) => o.type === 'tool_call')?.length ?? 0
         const costUsd = this.computeCost(model, inputTokens, outputTokens, toolCallCount)
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const annotations: any[] = (response.choices[0]?.message as any)?.annotations ?? []
         const seenUrls = new Set<string>()
         const citations: GrokCitation[] = []
-        for (const a of annotations) {
-          const url = a.url_citation?.url
-          if (url && !seenUrls.has(url)) {
+        for (const c of response.citations ?? []) {
+          const url = c.url ?? c
+          if (typeof url === 'string' && !seenUrls.has(url)) {
             seenUrls.add(url)
-            citations.push({ type: a.type, url, title: a.url_citation?.title })
+            citations.push({ type: 'citation', url, title: c.title })
           }
         }
 
@@ -229,40 +232,34 @@ export class GrokAdapter {
     onChunk: (text: string) => void,
   ): Promise<GrokResponse> {
     const model = options.model ?? DEFAULT_MODEL
-    const messages = this.buildMessages(prompt, options)
+    const input = this.buildInput(prompt, options)
     const tools = this.buildTools(options)
 
-    const createParams = {
+    const createParams: Record<string, unknown> = {
       model,
-      messages,
-      max_tokens: options.maxTokens ?? 2048,
-      stream: true as const,
-      stream_options: { include_usage: true },
+      input,
+      max_output_tokens: options.maxTokens ?? 2048,
+      stream: true,
       ...(tools.length > 0 ? { tools } : {}),
     }
 
-    const stream = await this.client.chat.completions.create(createParams)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stream: any = await (this.client as any).responses.create(createParams)
 
     let text = ''
     let inputTokens = 0
     let outputTokens = 0
-    const toolCallIndices = new Set<number>()
+    let toolCallCount = 0
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for await (const chunk of stream as any) {
-      const delta = chunk.choices?.[0]?.delta
-      if (delta?.content) {
-        text += delta.content
-        onChunk(delta.content)
+    for await (const event of stream) {
+      if (event.type === 'response.output_text.delta' && event.delta) {
+        text += event.delta
+        onChunk(event.delta)
       }
-      if (Array.isArray(delta?.tool_calls)) {
-        for (const tc of delta.tool_calls) {
-          if (typeof tc.index === 'number') toolCallIndices.add(tc.index)
-        }
-      }
-      if (chunk.usage) {
-        inputTokens = chunk.usage.prompt_tokens ?? 0
-        outputTokens = chunk.usage.completion_tokens ?? 0
+      if (event.type === 'response.completed' && event.response) {
+        inputTokens = event.response.usage?.input_tokens ?? 0
+        outputTokens = event.response.usage?.output_tokens ?? 0
+        toolCallCount = event.response.output?.filter((o: { type: string }) => o.type === 'tool_call')?.length ?? 0
       }
     }
 
@@ -270,7 +267,6 @@ export class GrokAdapter {
       outputTokens = Math.ceil(text.length / 4)
     }
 
-    const toolCallCount = toolCallIndices.size
     const costUsd = this.computeCost(model, inputTokens, outputTokens, toolCallCount)
 
     return {

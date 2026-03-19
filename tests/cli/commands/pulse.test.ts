@@ -5,7 +5,7 @@ import { registerPulseCommand } from '../../../src/cli/commands/pulse.js'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -77,8 +77,10 @@ function grokPulseResponse() {
     bearSignals: ['bear 1'],
   })
   return {
-    choices: [{ message: { content: json } }],
-    usage: { prompt_tokens: 200, completion_tokens: 300 },
+    output_text: json,
+    output: [],
+    usage: { input_tokens: 200, output_tokens: 300 },
+    citations: [],
   }
 }
 
@@ -93,8 +95,10 @@ function grokOnlyPulseResponse() {
     keyVoices: [{ handle: 'user1', sentiment: 0.5, reach: 1000 }],
   })
   return {
-    choices: [{ message: { content: json } }],
-    usage: { prompt_tokens: 200, completion_tokens: 300 },
+    output_text: json,
+    output: [],
+    usage: { input_tokens: 200, output_tokens: 300 },
+    citations: [],
   }
 }
 

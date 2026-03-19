@@ -5,7 +5,7 @@ import { registerAskCommand } from '../../../src/cli/commands/ask.js'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -19,19 +19,21 @@ vi.mock('../../../src/core/cache.js', () => ({
   },
 }))
 
-function streamResult(content = 'response', prompt = 10, completion = 10) {
+function streamResult(content = 'response', input = 10, output = 10) {
   return {
     [Symbol.asyncIterator]: async function* () {
-      yield { choices: [{ delta: { content } }] }
-      yield { usage: { prompt_tokens: prompt, completion_tokens: completion } }
+      yield { type: 'response.output_text.delta', delta: content }
+      yield { type: 'response.completed', response: { usage: { input_tokens: input, output_tokens: output }, output: [] } }
     },
   }
 }
 
-function plainResult(content = 'response', prompt = 10, completion = 10) {
+function plainResult(content = 'response', input = 10, output = 10) {
   return {
-    choices: [{ message: { content } }],
-    usage: { prompt_tokens: prompt, completion_tokens: completion },
+    output_text: content,
+    output: [],
+    usage: { input_tokens: input, output_tokens: output },
+    citations: [],
   }
 }
 
@@ -118,7 +120,7 @@ describe('registerAskCommand', () => {
   it('joins multi-word question parts', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     await program.parseAsync(['node', 'corvus', 'ask', 'what', 'is', 'trending'])
-    const userMsg = mockQuery.mock.calls[0][0].messages.find(
+    const userMsg = mockQuery.mock.calls[0][0].input.find(
       (m: { role: string }) => m.role === 'user',
     )
     expect(userMsg.content).toBe('what is trending')
@@ -129,8 +131,7 @@ describe('registerAskCommand', () => {
     await program.parseAsync(['node', 'corvus', 'ask', 'test'])
     const args = mockQuery.mock.calls[0][0]
     expect(args.tools).toBeDefined()
-    expect(args.tools[0].type).toBe('live_search')
-    expect(args.tools[0].sources).toEqual([{ type: 'x' }])
+    expect(args.tools[0].type).toBe('x_search')
   })
 
   it('API error prints message and exits with code 1', async () => {

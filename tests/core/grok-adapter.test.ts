@@ -6,15 +6,17 @@ const mockCreate = vi.fn()
 
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockCreate } }
+    responses = { create: mockCreate }
     constructor() {}
   },
 }))
 
 function mockResponse(overrides: Record<string, unknown> = {}) {
   return {
-    choices: [{ message: { content: 'Test response' } }],
-    usage: { prompt_tokens: 100, completion_tokens: 50 },
+    output_text: 'Test response',
+    output: [],
+    usage: { input_tokens: 100, output_tokens: 50 },
+    citations: [],
     ...overrides,
   }
 }
@@ -39,7 +41,7 @@ describe('GrokAdapter', () => {
   it('sends user message in the request', async () => {
     await adapter.query('my question')
     const args = mockCreate.mock.calls[0][0]
-    const userMsg = args.messages.find((m: { role: string }) => m.role === 'user')
+    const userMsg = args.input.find((m: { role: string }) => m.role === 'user')
     expect(userMsg).toBeDefined()
     expect(userMsg.content).toBe('my question')
   })
@@ -47,7 +49,7 @@ describe('GrokAdapter', () => {
   it('includes system message when systemPrompt is provided', async () => {
     await adapter.query('test', { systemPrompt: 'You are Corvus.' })
     const args = mockCreate.mock.calls[0][0]
-    const sysMsg = args.messages.find((m: { role: string }) => m.role === 'system')
+    const sysMsg = args.input.find((m: { role: string }) => m.role === 'system')
     expect(sysMsg).toBeDefined()
     expect(sysMsg.content).toBe('You are Corvus.')
   })
@@ -55,23 +57,22 @@ describe('GrokAdapter', () => {
   it('system message comes before user message', async () => {
     await adapter.query('test', { systemPrompt: 'system text' })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.messages[0].role).toBe('system')
-    expect(args.messages[1].role).toBe('user')
+    expect(args.input[0].role).toBe('system')
+    expect(args.input[1].role).toBe('user')
   })
 
   it('omits system message when no systemPrompt', async () => {
     await adapter.query('test')
     const args = mockCreate.mock.calls[0][0]
-    expect(args.messages).toHaveLength(1)
-    expect(args.messages[0].role).toBe('user')
+    expect(args.input).toHaveLength(1)
+    expect(args.input[0].role).toBe('user')
   })
 
   it('passes live_search with x source when enableXSearch is true', async () => {
     await adapter.query('trending?', { enableXSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
-    expect(args.tools[0].sources).toEqual([{ type: 'x' }])
+    expect(args.tools[0].type).toBe('x_search')
   })
 
   it('passes live_search with date and handle params', async () => {
@@ -84,8 +85,7 @@ describe('GrokAdapter', () => {
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
     expect(args.tools[0]).toEqual({
-      type: 'live_search',
-      sources: [{ type: 'x' }],
+      type: 'x_search',
       from_date: '2026-01-01',
       to_date: '2026-03-01',
       x_handles: ['elonmusk', 'naval'],
@@ -96,7 +96,7 @@ describe('GrokAdapter', () => {
     await adapter.query('trending?', { enableXSearch: true, xSearchFromDate: '2026-01-01' })
     const args = mockCreate.mock.calls[0][0]
     const tool = args.tools[0]
-    expect(tool.type).toBe('live_search')
+    expect(tool.type).toBe('x_search')
     expect(tool.from_date).toBe('2026-01-01')
     expect(tool.to_date).toBeUndefined()
     expect(tool.x_handles).toBeUndefined()
@@ -106,16 +106,14 @@ describe('GrokAdapter', () => {
     await adapter.query('news?', { enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
-    expect(args.tools[0].sources).toEqual([{ type: 'web' }])
+    expect(args.tools[0].type).toBe('web_search')
   })
 
-  it('sends single live_search with both sources when both options are true', async () => {
+  it('sends separate x_search and web_search tools when both options are true', async () => {
     await adapter.query('search all', { enableXSearch: true, enableWebSearch: true })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
-    expect(args.tools[0].sources).toEqual([{ type: 'x' }, { type: 'web' }])
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
   })
 
   it('includes x_search params when both flags true', async () => {
@@ -126,13 +124,13 @@ describe('GrokAdapter', () => {
       xSearchHandles: ['user1'],
     })
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
+    expect(args.tools).toHaveLength(2)
     expect(args.tools[0]).toEqual({
-      type: 'live_search',
-      sources: [{ type: 'x' }, { type: 'web' }],
+      type: 'x_search',
       from_date: '2026-01-01',
       x_handles: ['user1'],
     })
+    expect(args.tools[1]).toEqual({ type: 'web_search' })
   })
 
   it('does not attach x_search params when only enableWebSearch is true', async () => {
@@ -144,7 +142,7 @@ describe('GrokAdapter', () => {
     })
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({ type: 'live_search', sources: [{ type: 'web' }] })
+    expect(args.tools[0]).toEqual({ type: 'web_search' })
   })
 
   it('omits tools property entirely when no search options', async () => {
@@ -164,7 +162,7 @@ describe('GrokAdapter', () => {
       xSearchExcludeHandles: [],
     })
     const tool = mockCreate.mock.calls[0][0].tools[0]
-    expect(tool).toEqual({ type: 'live_search', sources: [{ type: 'x' }] })
+    expect(tool).toEqual({ type: 'x_search' })
   })
 
   it('uses grok-4-1-fast by default', async () => {
@@ -198,15 +196,9 @@ describe('GrokAdapter', () => {
   it('includes tool call cost in total', async () => {
     mockCreate.mockResolvedValueOnce(
       mockResponse({
-        choices: [
-          {
-            message: {
-              content: 'response with tools',
-              tool_calls: [
-                { id: '1', type: 'function', function: { name: 'x_search', arguments: '{}' } },
-              ],
-            },
-          },
+        output: [
+          { type: 'tool_call', id: '1', name: 'x_search' },
+          { type: 'message', content: [{ type: 'output_text', text: 'response with tools' }] },
         ],
       }),
     )
@@ -219,17 +211,11 @@ describe('GrokAdapter', () => {
   it('calculates cost for multiple tool calls', async () => {
     mockCreate.mockResolvedValueOnce(
       mockResponse({
-        choices: [
-          {
-            message: {
-              content: 'multi-tool response',
-              tool_calls: [
-                { id: '1', type: 'function', function: { name: 'live_search', arguments: '{}' } },
-                { id: '2', type: 'function', function: { name: 'live_search', arguments: '{}' } },
-                { id: '3', type: 'function', function: { name: 'live_search', arguments: '{}' } },
-              ],
-            },
-          },
+        output: [
+          { type: 'tool_call', id: '1', name: 'x_search' },
+          { type: 'tool_call', id: '2', name: 'x_search' },
+          { type: 'tool_call', id: '3', name: 'x_search' },
+          { type: 'message', content: [{ type: 'output_text', text: 'multi-tool response' }] },
         ],
       }),
     )
@@ -247,7 +233,7 @@ describe('GrokAdapter', () => {
   it('returns zero cost when usage has zero tokens', async () => {
     mockCreate.mockResolvedValueOnce(
       mockResponse({
-        usage: { prompt_tokens: 0, completion_tokens: 0 },
+        usage: { input_tokens: 0, output_tokens: 0 },
       }),
     )
     const result = await adapter.query('test')
@@ -258,25 +244,23 @@ describe('GrokAdapter', () => {
 
   it('passes default maxTokens of 2048', async () => {
     await adapter.query('test')
-    expect(mockCreate.mock.calls[0][0].max_tokens).toBe(2048)
+    expect(mockCreate.mock.calls[0][0].max_output_tokens).toBe(2048)
   })
 
   it('passes custom maxTokens when specified', async () => {
     await adapter.query('test', { maxTokens: 500 })
-    expect(mockCreate.mock.calls[0][0].max_tokens).toBe(500)
+    expect(mockCreate.mock.calls[0][0].max_output_tokens).toBe(500)
   })
 
-  it('returns empty string when content is null', async () => {
+  it('returns empty string when output_text is null', async () => {
     mockCreate.mockResolvedValueOnce(
-      mockResponse({
-        choices: [{ message: { content: null } }],
-      }),
+      mockResponse({ output_text: null }),
     )
     expect((await adapter.query('test')).text).toBe('')
   })
 
-  it('returns empty string when choices array is empty', async () => {
-    mockCreate.mockResolvedValueOnce(mockResponse({ choices: [] }))
+  it('returns empty string when output_text is missing', async () => {
+    mockCreate.mockResolvedValueOnce(mockResponse({ output_text: undefined }))
     expect((await adapter.query('test')).text).toBe('')
   })
 
@@ -656,11 +640,11 @@ describe('structured output', () => {
     adapter = new GrokAdapter('xai-test-key')
   })
 
-  it('adds response_format when responseSchema provided and model is grok-4 family', async () => {
+  it('adds text.format when responseSchema provided and model is grok-4 family', async () => {
     const schema = z.object({ signals: z.array(z.string()) })
     mockCreate.mockResolvedValue(
       mockResponse({
-        choices: [{ message: { content: '{"signals":["test"]}' } }],
+        output_text: '{"signals":["test"]}',
       }),
     )
 
@@ -669,16 +653,16 @@ describe('structured output', () => {
     })
 
     const args = mockCreate.mock.calls[0][0]
-    expect(args.response_format).toBeDefined()
-    expect(args.response_format.type).toBe('json_schema')
+    expect(args.text).toBeDefined()
+    expect(args.text.format).toBeDefined()
     expect(result.text).toBe('{"signals":["test"]}')
   })
 
-  it('includes both response_format and tools when both provided', async () => {
+  it('includes both text.format and tools when both provided', async () => {
     const schema = z.object({ signals: z.array(z.string()) })
     mockCreate.mockResolvedValue(
       mockResponse({
-        choices: [{ message: { content: '{"signals":["test"]}' } }],
+        output_text: '{"signals":["test"]}',
       }),
     )
 
@@ -689,18 +673,17 @@ describe('structured output', () => {
     })
 
     const args = mockCreate.mock.calls[0][0]
-    expect(args.response_format).toBeDefined()
-    expect(args.response_format.type).toBe('json_schema')
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
-    expect(args.tools[0].sources).toEqual([{ type: 'x' }, { type: 'web' }])
+    expect(args.text).toBeDefined()
+    expect(args.text.format).toBeDefined()
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
   })
 
-  it('does not add response_format for non-grok-4 model', async () => {
+  it('does not add text.format for non-grok-4 model', async () => {
     const schema = z.object({ signals: z.array(z.string()) })
     mockCreate.mockResolvedValue(
       mockResponse({
-        choices: [{ message: { content: '{"signals":["test"]}' } }],
+        output_text: '{"signals":["test"]}',
       }),
     )
 
@@ -710,13 +693,13 @@ describe('structured output', () => {
     })
 
     const args = mockCreate.mock.calls[0][0]
-    expect(args.response_format).toBeUndefined()
+    expect(args.text).toBeUndefined()
   })
 
-  it('does not add response_format when no schema provided', async () => {
+  it('does not add text.format when no schema provided', async () => {
     await adapter.query('test')
     const args = mockCreate.mock.calls[0][0]
-    expect(args.response_format).toBeUndefined()
+    expect(args.text).toBeUndefined()
   })
 })
 
@@ -775,64 +758,40 @@ describe('citations', () => {
     adapter = new GrokAdapter('xai-test-key')
   })
 
-  it('extracts citations from response annotations', async () => {
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: 'Test response',
-            annotations: [
-              {
-                type: 'url_citation',
-                url_citation: {
-                  url: 'https://x.com/user/status/123',
-                  title: 'A tweet',
-                },
-              },
-              {
-                type: 'url_citation',
-                url_citation: {
-                  url: 'https://example.com/article',
-                  title: 'An article',
-                },
-              },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 100, completion_tokens: 50 },
-    })
+  it('extracts citations from response', async () => {
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        citations: [
+          { url: 'https://x.com/user/status/123', title: 'A tweet' },
+          { url: 'https://example.com/article', title: 'An article' },
+        ],
+      }),
+    )
 
     const result = await adapter.query('test', { enableXSearch: true })
     expect(result.citations).toHaveLength(2)
     expect(result.citations[0]).toEqual({
-      type: 'url_citation',
+      type: 'citation',
       url: 'https://x.com/user/status/123',
       title: 'A tweet',
     })
   })
 
   it('deduplicates citations by URL', async () => {
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: 'Test',
-            annotations: [
-              { type: 'url_citation', url_citation: { url: 'https://x.com/same', title: 'A' } },
-              { type: 'url_citation', url_citation: { url: 'https://x.com/same', title: 'B' } },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 100, completion_tokens: 50 },
-    })
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        citations: [
+          { url: 'https://x.com/same', title: 'A' },
+          { url: 'https://x.com/same', title: 'B' },
+        ],
+      }),
+    )
 
     const result = await adapter.query('test')
     expect(result.citations).toHaveLength(1)
   })
 
-  it('returns empty citations when no annotations', async () => {
+  it('returns empty citations when none present', async () => {
     const result = await adapter.query('test')
     expect(result.citations).toEqual([])
   })
@@ -848,14 +807,14 @@ describe('queryStream', () => {
   })
 
   it('calls onChunk for each delta', async () => {
-    const chunks = [
-      { choices: [{ delta: { content: 'Hello' } }] },
-      { choices: [{ delta: { content: ' world' } }] },
-      { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } },
+    const events = [
+      { type: 'response.output_text.delta', delta: 'Hello' },
+      { type: 'response.output_text.delta', delta: ' world' },
+      { type: 'response.completed', response: { usage: { input_tokens: 10, output_tokens: 5 }, output: [] } },
     ]
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        for (const chunk of chunks) yield chunk
+        for (const event of events) yield event
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -872,7 +831,7 @@ describe('queryStream', () => {
   it('passes stream: true to create()', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 10, output_tokens: 5 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -880,14 +839,13 @@ describe('queryStream', () => {
     await adapter.queryStream('test', {}, () => {})
     const args = mockCreate.mock.calls[0][0]
     expect(args.stream).toBe(true)
-    expect(args.stream_options).toEqual({ include_usage: true })
   })
 
-  it('counts tool calls from stream deltas', async () => {
+  it('counts tool calls from response.completed output', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hi', tool_calls: [{ index: 0, id: 'call_1' }] } }] }
-        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+        yield { type: 'response.output_text.delta', delta: 'hi' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 10, output_tokens: 5 }, output: [{ type: 'tool_call', id: 'call_1', name: 'x_search' }] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -900,7 +858,7 @@ describe('queryStream', () => {
   it('estimates tokens from text length when usage not provided', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hello world' } }] }
+        yield { type: 'response.output_text.delta', delta: 'hello world' }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -913,7 +871,8 @@ describe('queryStream', () => {
   it('returns empty citations', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+        yield { type: 'response.output_text.delta', delta: 'hi' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 5, output_tokens: 2 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -939,24 +898,23 @@ describe('queryStream', () => {
   it('passes x_search and web_search tools when both search options set', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hi' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+        yield { type: 'response.output_text.delta', delta: 'hi' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 5, output_tokens: 2 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
 
     await adapter.queryStream('test', { enableXSearch: true, enableWebSearch: true }, () => {})
     const args = mockCreate.mock.calls[0][0]
-    expect(args.tools).toHaveLength(1)
-    expect(args.tools[0].type).toBe('live_search')
-    expect(args.tools[0].sources).toEqual([{ type: 'x' }, { type: 'web' }])
+    expect(args.tools).toHaveLength(2)
+    expect(args.tools.map((t: { type: string }) => t.type).sort()).toEqual(['web_search', 'x_search'])
   })
 
-  it('counts multiple tool calls from stream deltas', async () => {
+  it('counts multiple tool calls from response.completed output', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'hi', tool_calls: [{ index: 0, id: 'call_1' }] } }] }
-        yield { choices: [{ delta: { tool_calls: [{ index: 1, id: 'call_2' }] } }] }
-        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 100, completion_tokens: 50 } }
+        yield { type: 'response.output_text.delta', delta: 'hi' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 100, output_tokens: 50 }, output: [{ type: 'tool_call', id: 'call_1', name: 'x_search' }, { type: 'tool_call', id: 'call_2', name: 'x_search' }] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -970,7 +928,7 @@ describe('queryStream', () => {
   it('passes system prompt and custom model to create()', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 5, output_tokens: 2 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -978,16 +936,15 @@ describe('queryStream', () => {
     await adapter.queryStream('prompt', { systemPrompt: 'You are Corvus.', model: 'grok-3', maxTokens: 512 }, () => {})
     const args = mockCreate.mock.calls[0][0]
     expect(args.model).toBe('grok-3')
-    expect(args.max_tokens).toBe(512)
-    expect(args.messages[0]).toEqual({ role: 'system', content: 'You are Corvus.' })
-    expect(args.messages[1]).toEqual({ role: 'user', content: 'prompt' })
+    expect(args.max_output_tokens).toBe(512)
+    expect(args.input[0]).toEqual({ role: 'system', content: 'You are Corvus.' })
+    expect(args.input[1]).toEqual({ role: 'user', content: 'prompt' })
   })
 
   it('handles stream with no content deltas', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: {} }] }
-        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 0 } }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 10, output_tokens: 0 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -999,13 +956,10 @@ describe('queryStream', () => {
     expect(result.usage.outputTokens).toBe(0)
   })
 
-  it('deduplicates tool_call indices across chunks', async () => {
+  it('counts tool_call items in response.completed output', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_1' }] } }] }
-        yield { choices: [{ delta: { tool_calls: [{ index: 0 }] } }] } // same index, continuation
-        yield { choices: [{ delta: { tool_calls: [{ index: 1, id: 'call_2' }] } }] }
-        yield { choices: [{ delta: {} }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 10, output_tokens: 5 }, output: [{ type: 'tool_call', id: 'call_1', name: 'x_search' }, { type: 'tool_call', id: 'call_2', name: 'x_search' }] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -1014,11 +968,12 @@ describe('queryStream', () => {
     expect(result.usage.toolCalls).toBe(2)
   })
 
-  it('uses last usage chunk when multiple usage chunks arrive', async () => {
+  it('uses last response.completed event for usage', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'a' } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
-        yield { choices: [{ delta: { content: 'b' } }], usage: { prompt_tokens: 200, completion_tokens: 100 } }
+        yield { type: 'response.output_text.delta', delta: 'a' }
+        yield { type: 'response.output_text.delta', delta: 'b' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 200, output_tokens: 100 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -1031,7 +986,8 @@ describe('queryStream', () => {
   it('passes web_search tool with enableWebSearch only', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'ok' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+        yield { type: 'response.output_text.delta', delta: 'ok' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 5, output_tokens: 2 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -1039,13 +995,14 @@ describe('queryStream', () => {
     await adapter.queryStream('test', { enableWebSearch: true }, () => {})
     const args = mockCreate.mock.calls[0][0]
     expect(args.tools).toHaveLength(1)
-    expect(args.tools[0]).toEqual({ type: 'live_search', sources: [{ type: 'web' }] })
+    expect(args.tools[0]).toEqual({ type: 'web_search' })
   })
 
   it('omits tools when no search flags set in stream', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [{ delta: { content: 'ok' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+        yield { type: 'response.output_text.delta', delta: 'ok' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 5, output_tokens: 2 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -1054,11 +1011,12 @@ describe('queryStream', () => {
     expect(mockCreate.mock.calls[0][0].tools).toBeUndefined()
   })
 
-  it('handles chunk with missing choices gracefully', async () => {
+  it('handles event with unknown type gracefully', async () => {
     const asyncIterator = {
       [Symbol.asyncIterator]: async function* () {
-        yield { choices: [] }
-        yield { choices: [{ delta: { content: 'ok' } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }
+        yield { type: 'response.unknown_event' }
+        yield { type: 'response.output_text.delta', delta: 'ok' }
+        yield { type: 'response.completed', response: { usage: { input_tokens: 5, output_tokens: 2 }, output: [] } }
       },
     }
     mockCreate.mockResolvedValue(asyncIterator)
@@ -1076,41 +1034,29 @@ describe('citations edge cases', () => {
     adapter = new GrokAdapter('xai-test-key')
   })
 
-  it('skips annotations without url_citation.url', async () => {
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: 'Test',
-            annotations: [
-              { type: 'url_citation', url_citation: {} },
-              { type: 'url_citation', url_citation: { url: null } },
-              { type: 'url_citation' },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 10, completion_tokens: 5 },
-    })
+  it('skips citations without valid url', async () => {
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        citations: [
+          {},
+          { url: null },
+          42,
+        ],
+      }),
+    )
 
     const result = await adapter.query('test')
     expect(result.citations).toEqual([])
   })
 
   it('preserves title as undefined when missing', async () => {
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: 'Test',
-            annotations: [
-              { type: 'url_citation', url_citation: { url: 'https://x.com/foo' } },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 10, completion_tokens: 5 },
-    })
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        citations: [
+          { url: 'https://x.com/foo' },
+        ],
+      }),
+    )
 
     const result = await adapter.query('test')
     expect(result.citations).toHaveLength(1)
@@ -1118,23 +1064,17 @@ describe('citations edge cases', () => {
   })
 
   it('handles single citation', async () => {
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: 'Test',
-            annotations: [
-              { type: 'url_citation', url_citation: { url: 'https://x.com/only', title: 'Only' } },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 10, completion_tokens: 5 },
-    })
+    mockCreate.mockResolvedValue(
+      mockResponse({
+        citations: [
+          { url: 'https://x.com/only', title: 'Only' },
+        ],
+      }),
+    )
 
     const result = await adapter.query('test')
     expect(result.citations).toEqual([
-      { type: 'url_citation', url: 'https://x.com/only', title: 'Only' },
+      { type: 'citation', url: 'https://x.com/only', title: 'Only' },
     ])
   })
 })

@@ -4,7 +4,7 @@ import { EventEmitter } from 'events'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -207,8 +207,10 @@ describe('REPL', () => {
   it('sends query to Grok and displays result', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'AI agents are trending heavily' } }],
-      usage: { prompt_tokens: 100, completion_tokens: 200 },
+      output_text: 'AI agents are trending heavily',
+      output: [],
+      usage: { input_tokens: 100, output_tokens: 200 },
+      citations: [],
     })
 
     const { startRepl } = await import('../../src/cli/repl.js')
@@ -245,8 +247,10 @@ describe('REPL', () => {
   it('shows session summary on close', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     mockQuery.mockResolvedValueOnce({
-      choices: [{ message: { content: 'response' } }],
-      usage: { prompt_tokens: 100, completion_tokens: 200 },
+      output_text: 'response',
+      output: [],
+      usage: { input_tokens: 100, output_tokens: 200 },
+      citations: [],
     })
 
     const { startRepl } = await import('../../src/cli/repl.js')

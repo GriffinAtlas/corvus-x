@@ -5,7 +5,7 @@ import { registerScanCommand } from '../../../src/cli/commands/scan.js'
 const mockQuery = vi.fn()
 vi.mock('openai', () => ({
   default: class MockOpenAI {
-    chat = { completions: { create: mockQuery } }
+    responses = { create: mockQuery }
     constructor() {}
   },
 }))
@@ -77,8 +77,10 @@ function grokScanResponse() {
     signals: ['signal 1'],
   })
   return {
-    choices: [{ message: { content: json } }],
-    usage: { prompt_tokens: 200, completion_tokens: 300 },
+    output_text: json,
+    output: [],
+    usage: { input_tokens: 200, output_tokens: 300 },
+    citations: [],
   }
 }
 
@@ -93,8 +95,10 @@ function grokOnlyScanResponse() {
     signals: ['grok-only signal'],
   })
   return {
-    choices: [{ message: { content: json } }],
-    usage: { prompt_tokens: 200, completion_tokens: 300 },
+    output_text: json,
+    output: [],
+    usage: { input_tokens: 200, output_tokens: 300 },
+    citations: [],
   }
 }
 
