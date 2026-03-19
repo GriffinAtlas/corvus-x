@@ -2,10 +2,10 @@
   <img src="assets/corvus-logo.png" alt="Corvus" width="200">
 </p>
 
-<h3 align="center">Autonomous X intelligence agent</h3>
+<h3 align="center">AI agent toolkit for X</h3>
 
 <p align="center">
-  One question in, full investigation out.
+  Investigate discourse. Grow your presence. All from the terminal.
 </p>
 
 <p align="center">
@@ -16,31 +16,19 @@
 
 ---
 
-Corvus is an open-source CLI agent that investigates X (Twitter) discourse autonomously. Give it a question — it plans its own research, executes across multiple data sources, flags contradictions, and delivers a structured intelligence brief. Built on Grok's native `live_search` via the xAI API.
+Corvus is an open-source CLI that does two things: **investigate** what's happening on X, and **help you grow** on X. It uses Grok's native `live_search` via the xAI API to plan research, chain commands, detect contradictions, and draft posts grounded in real discourse.
 
 ```bash
 corvus agent "Who's driving the AI regulation debate in the EU?"
 ```
 
 ```
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄⣀⣀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⡿⠋⠉
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⡇
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⡿⠁
-⠀⠀⠀⠀⠀⠀⢀⣠⣾⣿⣿⣿⣿⣿⣿⠟
-⠀⠀⠀⠀⢀⣴⣿⣿⣿⠿⠿⣿⣿⠋
-⠀⠀⠀⡪⠕⠋⠉⠉⠀⠀⠀⠫⡻
-⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠷⠤
-  ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═╗
-  ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗
-  ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝
-
 agent · investigating...
 
 [1/5] scanning "AI regulation EU"          ✓ 3.2s
 [2/5] pulsing "AI regulation EU"           ✓ 2.8s
 [3/5] tracing "EU AI Act enforcement"      ✓ 4.1s
-[4/5] scoping @vestaborgs (lead)           ✓ 2.9s
+[4/5] profiling @vestaborgs (lead)         ✓ 2.9s
 [5/5] synthesizing brief                   ✓ 2.1s
 
 ┌──────────────────────────────────────────────────────┐
@@ -54,11 +42,11 @@ agent · investigating...
 
 ## What Makes This Different
 
-**It investigates, not just searches.** Most Twitter tools show you tweets. Corvus plans multi-step research, chains commands, detects when sources contradict each other, and computes confidence in its conclusions.
+**It investigates, not just searches.** Corvus plans multi-step research, chains commands, detects contradictions, and computes confidence. Give it a question and it figures out the rest.
 
-**It tracks narrative evolution.** The `trace` command maps how a claim mutates as it spreads — origin tweet, amplification phases, how the framing changed. Nobody else does this in a CLI.
+**It helps you post, not just consume.** The `draft` command writes posts in your voice. `hooks` finds conversations worth replying to. `review` tells you what worked. `timing` tells you when to post. These aren't analytics dashboards — they're CLI tools that fit into a terminal workflow.
 
-**It shows you what changed.** Every command stores a snapshot. Run it again and Corvus diffs the results — which accounts entered/left, which narratives grew/shrank, how sentiment shifted. Temporal intelligence, not just current state.
+**It shows you what changed.** Every command stores a snapshot. Run it again and Corvus diffs the results — which accounts entered/left, which narratives grew/shrank, how sentiment shifted.
 
 **It costs almost nothing.** A full agent investigation runs ~$0.01-0.02 via Grok. Individual commands are $0.003-0.005. No monthly subscription.
 
@@ -66,6 +54,128 @@ agent · investigating...
 
 ```bash
 npm install -g corvus-x
+```
+
+## Setup
+
+```bash
+corvus auth setup
+```
+
+You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's `live_search`. You'll also be asked for your **X handle** (used by growth commands to identify your account).
+
+```bash
+export CORVUS_GROK_KEY=xai-...
+export CORVUS_X_BEARER_TOKEN=AAA...   # optional
+export CORVUS_X_HANDLE=RogGriff       # optional
+```
+
+## Commands
+
+### Intel — Investigate X discourse
+
+| Command | Description |
+|---|---|
+| `agent <question>` | Autonomous multi-step investigation with brief |
+| `scan <topic>` | Snapshot — narratives, top voices, engagement |
+| `pulse <topic>` | Sentiment pulse — bull/bear signals, momentum |
+| `trace <narrative>` | Map narrative spread — origin, amplifiers, mutations |
+| `watch <topic>` | Live-monitor with periodic updates |
+
+### Growth — Grow your X presence
+
+| Command | Description |
+|---|---|
+| `profile <@handle>` | Content strategy analysis — yours or anyone's |
+| `hooks <topic>` | Find conversations to reply to right now |
+| `draft <topic>` | Draft a post or thread in your voice |
+| `review` | What worked, what didn't, patterns, recommendations |
+| `timing [topic]` | Best times to post based on your audience |
+
+### Utility
+
+| Command | Description |
+|---|---|
+| `ask <question>` | Quick prose answer via Grok |
+| `export [cmd] [topic]` | Export snapshots as JSON/CSV/JSONL |
+| `history` | Browse stored snapshots |
+| `auth setup` | Configure API keys and handle |
+
+## Intel Commands
+
+### `agent` — The flagship
+
+Chains multiple commands, follows leads, cross-references results, and produces a BLUF intelligence brief with confidence scoring and contradiction detection.
+
+```bash
+corvus agent "what's happening with bitcoin sentiment?"
+corvus agent -i "who are the key players in the AI agent space?"
+corvus agent -n 12 --budget 0.25 "trace the OpenAI drama timeline"
+```
+
+### `trace` — Narrative evolution
+
+Maps how a narrative spreads and mutates across X.
+
+```bash
+corvus trace "AI will replace software engineers"
+```
+
+### `scan` / `pulse` — Topic intelligence
+
+```bash
+corvus scan "quantum computing"        # narratives, voices, engagement
+corvus pulse "bitcoin"                 # sentiment, bull/bear signals
+```
+
+Run the same command again later and Corvus shows the **diff** — what changed since your last check.
+
+## Growth Commands
+
+### `profile` — Content strategy analysis
+
+Analyze any account's content patterns, posting cadence, engagement distribution, and voice traits. Run on yourself for actionable recommendations.
+
+```bash
+corvus profile @RogGriff               # self — includes recommendations
+corvus profile @swyx                   # study someone's strategy
+```
+
+### `hooks` — Find reply opportunities
+
+Finds trending conversations with high engagement potential. Scores each by reply opportunity and suggests an angle.
+
+```bash
+corvus hooks "typescript CLI tools"
+corvus hooks "AI agents"
+```
+
+### `draft` — Voice-matched post generation
+
+Drafts posts grounded in current X discourse. Loads your voice profile if available, otherwise uses a default developer voice.
+
+```bash
+corvus draft "building AI agents in TypeScript"
+corvus draft --thread "why I built Corvus"
+corvus draft --reply-to https://x.com/user/status/123
+```
+
+### `review` — Post performance analysis
+
+Analyzes your recent posts — top/bottom performers, engagement patterns, actionable recommendations. Requires X API token.
+
+```bash
+corvus review                          # last 7 days
+corvus review --days 30                # last month
+```
+
+### `timing` — Optimal posting windows
+
+When to post for maximum reach. Self mode analyzes your engagement patterns. Topic mode analyzes when conversations peak.
+
+```bash
+corvus timing                          # your best posting times
+corvus timing "AI agents"             # when this topic peaks
 ```
 
 ## Interactive Mode
@@ -76,138 +186,39 @@ Run `corvus` with no arguments to launch the interactive TUI:
 corvus
 ```
 
-You'll see a branded welcome screen with connection status, example commands (or your recent investigation history), and an input prompt. Start typing any command — the welcome screen transitions to a chat view after your first query.
-
-To make `corvus` available globally from any directory:
-
-```bash
-npm link          # after cloning and building
-# or
-npm install -g corvus-x
-```
-
-## Setup
-
-```bash
-corvus auth setup
-```
-
-You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's `live_search`.
-
-```bash
-export CORVUS_GROK_KEY=xai-...
-export CORVUS_X_BEARER_TOKEN=AAA...   # optional
-```
-
-## Commands
-
-### Investigation
-
-| Command | Description |
-|---|---|
-| `agent <question>` | Autonomous multi-step investigation with brief |
-| `trace <narrative>` | Map narrative spread — origin, amplifiers, mutations |
-| `gather <topic>` | Deep intelligence — X + web context + outlook |
-
-### Intelligence
-
-| Command | Description |
-|---|---|
-| `scan <topic>` | Snapshot — narratives, top voices, engagement |
-| `pulse <topic>` | Sentiment pulse — bull/bear signals, momentum |
-| `scope <@handle>` | Profile — influence, patterns, signal value |
-| `read <tweet>` | Analyze a single tweet |
-
-### Monitoring & Data
-
-| Command | Description |
-|---|---|
-| `watch <topic>` | Live-monitor with periodic updates |
-| `export [cmd] [topic]` | Export snapshots as JSON/CSV/JSONL |
-| `history` | Browse stored snapshots |
-
-### `agent` — The flagship
-
-Chains multiple commands, follows leads, cross-references results, and produces a BLUF intelligence brief with confidence scoring and contradiction detection.
-
-```bash
-corvus agent "what's happening with bitcoin sentiment?"
-corvus agent -i "who are the key players in the AI agent space?"   # interactive mode
-corvus agent -n 12 --budget 0.25 "trace the OpenAI drama timeline" # custom limits
-```
-
-The agent:
-1. **Plans** — Grok selects which commands to run and in what order
-2. **Executes** — Runs each step, extracts leads, adds follow-up steps
-3. **Replans** — Adapts mid-investigation if data is thin or contradictory
-4. **Synthesizes** — Produces a brief with signal line, key findings, top voices, contradictions, and confidence score
-
-### `trace` — Narrative evolution
-
-Maps how a narrative spreads and mutates across X. Shows the origin, amplification phases, key amplifiers, and how the framing changed over time.
-
-```bash
-corvus trace "AI will replace software engineers"
-corvus trace "bitcoin ETF institutional exit"
-```
-
-### `scan` / `pulse` — Topic intelligence
-
-```bash
-corvus scan "quantum computing"        # narratives, voices, engagement
-corvus pulse "bitcoin"                 # sentiment, bull/bear signals, momentum
-```
-
-Run the same command again later and Corvus shows you the **diff** — what changed since your last check.
-
-### `scope` / `read` — Account & tweet analysis
-
-```bash
-corvus scope @elonmusk                 # influence, content patterns, signal value
-corvus read https://x.com/user/status/123456789   # significance, context, signals
-```
-
-### `gather` — Deep intelligence
-
-Combines X discourse analysis with web search for a complete picture.
-
-```bash
-corvus gather "OpenAI leadership changes"
-```
-
-### `watch` — Live monitoring
-
-```bash
-corvus watch "breaking news" -i 30     # check every 30 seconds
-corvus watch "earnings season" -n 10   # stop after 10 cycles
-```
+Full-screen terminal UI with connection status, command autocomplete, and session history.
 
 ## Snapshot Diffing
 
-Every structured command stores timestamped snapshots. When you re-run a command, Corvus compares the current snapshot against the previous one and shows exactly what changed:
+Every structured command stores timestamped snapshots. Re-run a command and Corvus diffs the results:
 
 ```
 Δ vs 2h ago:  sentiment -0.18 → -0.38  ·  +2 bearish accounts  ·  new narrative: "ETF outflows"
 ```
 
-Use `corvus export` to dump snapshots as JSON, CSV, or JSONL for downstream processing.
-
 ## Library Mode
 
-Corvus exports its builder functions for use in your own applications:
-
 ```typescript
-import { buildScanSnapshot, buildAgentBrief } from 'corvus-x'
-import { GrokAdapter, XAdapter } from 'corvus-x'
+import { buildScanSnapshot, buildHooksSnapshot, GrokAdapter } from 'corvus-x'
 
 const deps = {
-  grok: new GrokAdapter(process.env.GROK_KEY),
-  x: new XAdapter(process.env.X_TOKEN),  // or null
+  grok: new GrokAdapter(process.env.GROK_KEY!),
+  x: null,
 }
 
 const scan = await buildScanSnapshot(deps, 'bitcoin', 50)
 console.log(scan.data.sentiment, scan.data.narratives)
 ```
+
+## MCP Server
+
+Corvus exposes 5 tools via the Model Context Protocol for use by AI agents:
+
+```bash
+corvus mcp    # starts stdio MCP server
+```
+
+Tools: `corvus_scan`, `corvus_pulse`, `corvus_trace`, `corvus_profile`, `corvus_agent`
 
 ## Output Formats
 
@@ -222,15 +233,16 @@ All commands support `-f` / `--format`:
 
 ## Cost
 
-Every command tracks API spend. Use `--cost` on any command to preview pricing before executing.
+Every command tracks API spend. Use `--cost` on any command to preview pricing.
 
 | Operation | Typical Cost |
 |---|---|
 | Single command (scan, pulse, etc.) | $0.003 - 0.005 |
 | Full agent investigation | $0.010 - 0.025 |
+| Draft / hooks / review | $0.003 - 0.008 |
 | Watch (per cycle) | $0.002 - 0.004 |
 
-Costs are logged to `~/.corvus/cost-ledger.json`.
+Costs logged to `~/.corvus/cost-ledger.json`.
 
 ## Tech Stack
 
@@ -239,10 +251,10 @@ Costs are logged to `~/.corvus/cost-ledger.json`.
 | Language | TypeScript (ES2022, strict mode) |
 | Runtime | Node.js >= 18 |
 | AI | Grok API via OpenAI SDK (`grok-4-1-fast`) |
-| Data | X API v2 (optional — tweets, users, metrics) |
+| Data | X API v2 (optional) |
 | CLI | Commander |
-| Interactive TUI | Ink 6 + React 19 |
-| Testing | Vitest (889 tests) |
+| TUI | Ink 6 + React 19 |
+| Testing | Vitest (912 tests) |
 
 ## License
 
