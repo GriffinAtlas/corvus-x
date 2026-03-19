@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) �
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (837 tests)
+npm test                     # vitest run (912 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -33,49 +33,35 @@ bin/corvus.ts                # entrypoint — registers all commands, calls prog
 bin/corvus-mcp.ts            # standalone MCP server entrypoint (stdio)
 src/
   cli/
-    commands/                # agent, ask, scan, trace, pulse, profile, watch, auth, history, export
+    commands/                # agent, ask, scan, trace, pulse, profile, hooks, draft, review, timing, watch, auth, history, export
     run-command.ts           # shared runner — runCommand() for prose, runStructuredCommand() for data-first
-    output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers, renderAgentBrief()
+    output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers
     progress.ts              # StepProgress — multi-line in-place step tracker for agent runs
-    theme.ts                 # Color palette (t.*), TTY detection, visual primitives, CROW_SMALL_LINES, LOGO_LINES
+    theme.ts                 # Color palette (t.*), TTY detection, visual primitives
     repl.ts                  # interactive session with readline (deprecated — use TUI)
   core/
     agent.ts                 # AgentPlanner, AgentExecutor, AgentSynthesizer — autonomous investigation pipeline
     grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai, parseGrokJson, retry/timeout
     x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis, pagination)
-    builders/                # 4 build functions (scan, pulse, trace, profile) + grok-only.ts helper + barrel
+    builders/                # 8 builders (scan, pulse, trace, profile, hooks, draft, review, timing) + grok-only.ts helper
     voice.ts                 # VoiceProfileManager — extract/store writing style from user's posts
     orchestrator.ts          # executeStructuredQuery — shared snapshot orchestration for CLI + TUI
     cache.ts                 # QueryCache — file-based with SHA-256 keys, TTL, cost ledger
-    schemas.ts               # Grok JSON response shapes, computed snapshot interfaces, AgentBrief, match keys
+    schemas.ts               # Snapshot interfaces, match keys, Grok response shapes
     snapshots.ts             # SnapshotStore — timestamped JSON snapshots with auto-prune
     metrics.ts               # Pure compute functions — baseMetrics, sentiment, topAccounts, confidence, contradictions
     validators.ts            # Zod v4 schemas for Grok response types + agent plan/replan
-    differ.ts                # Generic structured diff engine for snapshot comparison (supports compound match keys)
+    differ.ts                # Generic structured diff engine for snapshot comparison
     types.ts                 # GrokResponse, QueryOptions, CorvusDeps, BuildResult
   mcp/
     server.ts                # MCP server — 5 tools (scan/pulse/trace/profile/agent) via McpServer
   infra/
-    auth.ts                  # AuthManager — env vars take precedence over ~/.corvus/credentials.json. Stores grokKey, xBearerToken, xHandle.
+    auth.ts                  # AuthManager — stores grokKey, xBearerToken, xHandle. Env vars take precedence.
     config.ts                # ConfigManager — manages ~/.corvus/ directory
   tui/
     app.tsx                  # TUI root — Ink/React full-screen interactive terminal
-    components/
-      welcome-view.tsx       # Welcome screen orchestrator — composes header + panels, responsive layout
-      welcome-header.tsx     # Crow braille art + CORVUS block-letter logo + tagline + version
-      status-panel.tsx       # API connection status dots (Grok, X API) + cost/query display
-      quick-start-panel.tsx  # Example commands (new users) or recent activity (returning users)
-      setup-notice.tsx       # API key setup instructions (shown when no Grok key configured)
-      input-bar.tsx          # Command input with Tab autocomplete + loading spinner
-      chat-log.tsx           # Renders session history entries after first command
-      result-card.tsx        # Bordered card for structured command output
-      prose-result.tsx       # Streaming prose output for ask/freeform
-      status-line.tsx        # Inline cost + timing display
-      system-notice.tsx      # System messages (errors, notices)
-      shortcut-bar.tsx       # Keyboard shortcut hints bar
+    components/              # welcome-view, welcome-header, status-panel, input-bar, chat-log, etc.
     hooks/                   # useCommand (execute + dispatch), useSession (state + reducer)
-    utils/
-      relative-time.ts       # relativeTime() — "2h ago" formatting for recent activity
     router.ts                # parse user input to command + args
   index.ts                   # public API surface for library consumers
 tests/                       # mirrors src/ structure 1:1
@@ -83,30 +69,26 @@ tests/                       # mirrors src/ structure 1:1
 
 ## Key Patterns
 
-- **Data-first pipeline** — structured commands (scan, pulse, trace, profile) use `runStructuredCommand()`: FETCH (X API or Grok live_search fallback) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command uses `runCommand()` for prose output.
-- **Dual-path builders** — each builder in `src/core/builders/` has two paths: X API (rich engagement data) or Grok-only (live_search fallback when no X token). `CorvusDeps.x` being null triggers the fallback.
-- **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN (Grok JSON) → EXECUTE (chain buildSnapshot calls) → REPLAN (adaptive) → SYNTHESIZE (AgentBrief). Agent plans with scan/pulse/trace/profile commands only.
-- **BuildResult<T>** — all builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`. Agent executor calls these programmatically.
-- **MCP server** — 5 tools registered via `McpServer` from `@modelcontextprotocol/sdk`. Tested with SDK's `Client` + `InMemoryTransport`. Lazy-inits `CorvusDeps` on first tool call.
-- **Voice profile** — `VoiceProfileManager` in `src/core/voice.ts` extracts writing style from user's posts via Grok, stores at `~/.corvus/voice-profile.json`. Used by `profile` (self mode) with staleness guard (7-day TTL). Generated in parallel with main profile analysis via `Promise.all`.
-- **Library mode** — `src/index.ts` exports adapters, builders, metrics, schemas, types. `import { buildScanSnapshot } from 'corvus-x'`.
-- **Snapshots** — each structured command stores timestamped JSON snapshots in `~/.corvus/snapshots/`. On re-run, the differ compares current vs previous snapshot and shows changes.
-- **Theme** — semantic color palette via `t.*` from `theme.ts`. All chalk calls go through theme. `isTTY` for TTY detection.
-- **Cache** is wired into prose commands via `runCommand()`. Structured commands use snapshots instead.
-- **Auth** checks env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`, `CORVUS_X_HANDLE`), falls back to `~/.corvus/credentials.json`.
-- **watch** uses `setTimeout` chaining (not `setInterval`) to prevent async pile-up.
-- **TUI** — `corvus` (no args) launches a full-screen Ink/React interactive terminal. Welcome screen shows crow art + logo, status panel, and quick start tips (or recent activity for returning users). First command transitions to chat view. Uses `useSession` reducer for state, `useCommand` hook for execution, `router.ts` for input parsing. Built on Ink 6 + React 19.
-- **Tests** mock `openai` and `fetch` globally. Never make real API calls. MCP tests use SDK's `Client` + `InMemoryTransport`.
+- **Dual-mode CLI** — Intel commands (agent, scan, pulse, trace) for investigating X discourse. Growth commands (profile, hooks, draft, review, timing) for growing your X presence.
+- **Data-first pipeline** — structured commands use `runStructuredCommand()`: FETCH → ANALYZE → COMPUTE → SNAPSHOT → DIFF. The `ask` command uses `runCommand()` for prose.
+- **Dual-path builders** — each builder has X API path (rich engagement data) or Grok-only path (live_search fallback). `CorvusDeps.x` being null triggers fallback.
+- **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN → EXECUTE → REPLAN → SYNTHESIZE. Plans with scan/pulse/trace/profile only.
+- **BuildResult<T>** — all builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`.
+- **MCP server** — 5 tools via `McpServer`. Lazy-inits deps on first call.
+- **Voice profile** — `VoiceProfileManager` extracts writing style, stores at `~/.corvus/voice-profile.json`. Used by `draft` command.
+- **Auth** — env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`, `CORVUS_X_HANDLE`), falls back to `~/.corvus/credentials.json`.
+- **TUI** — `corvus` (no args) launches full-screen Ink/React terminal. Ink 6 + React 19.
+- **Tests** mock `openai` and `fetch` globally. Never make real API calls.
 
 ## Known Limitations
 
-- **File permissions (0o600) are Unix-only** — no effect on Windows. Credentials at `~/.corvus/credentials.json` are not protected by filesystem permissions on Windows.
-- **Grok API pricing is hardcoded** in `MODEL_PRICING` (`grok-adapter.ts`). Must be updated manually when pricing changes.
-- **No `corvus cost` command** — cost ledger exists on disk (`~/.corvus/cost-ledger.json`) but no CLI command reads cumulative spend.
-- **Cache has no max-size limit** — files accumulate indefinitely until manual `corvus cache clear` or `evictExpired()`.
-- **eslint-plugin-react-hooks blocked** — peer dep requires ESLint <=9, we're on ESLint 10. TUI React hooks unlinted until upstream fix.
-- **X username validation assumes 15-char max** — `X_USERNAME_RE` in `x-adapter.ts` enforces `[A-Za-z0-9_]{1,15}`. If X/Twitter increases the limit, this regex must be updated.
-- **Always smoke-test after build** — `npm run build && node dist/bin/corvus.js --version`. Tests run against source (tsx), not compiled output.
+- **File permissions (0o600) are Unix-only** — no effect on Windows.
+- **Grok API pricing is hardcoded** in `MODEL_PRICING`. Must update manually.
+- **No `corvus cost` command** — cost ledger exists but no CLI reader.
+- **Cache has no max-size limit** — files accumulate until manual clear.
+- **eslint-plugin-react-hooks blocked** — peer dep requires ESLint <=9, we're on 10.
+- **X username validation assumes 15-char max** — `X_USERNAME_RE` in `x-adapter.ts`.
+- **Always smoke-test after build** — `npm run build && node dist/bin/corvus.js --version`.
 
 ## Commit Style
 

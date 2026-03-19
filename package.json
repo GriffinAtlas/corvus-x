@@ -1,7 +1,7 @@
 {
   "name": "corvus-x",
   "version": "0.2.0",
-  "description": "X intelligence agent — investigate, trace, and monitor narratives from your terminal",
+  "description": "AI agent toolkit for X — investigate discourse, grow your presence, all from the terminal",
   "type": "module",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
