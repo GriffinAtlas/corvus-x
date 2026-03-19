@@ -172,7 +172,10 @@ export class GrokAdapter {
       max_output_tokens: options.maxTokens ?? 2048,
       ...(tools.length > 0 ? { tools } : {}),
       ...(options.responseSchema && isGrok4Family(model)
-        ? { text: { format: zodResponseFormat(options.responseSchema, 'response') } }
+        ? (() => {
+            const fmt = zodResponseFormat(options.responseSchema, 'response')
+            return { text: { format: { type: 'json_schema', name: fmt.json_schema.name, schema: fmt.json_schema.schema, strict: true } } }
+          })()
         : {}),
     }
 
