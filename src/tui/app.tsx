@@ -122,6 +122,13 @@ export function App({ version, init }: Props) {
     <SessionContext value={session}>
       <DispatchContext value={dispatch}>
         <Box flexDirection="column">
+          <CompactHeader
+            version={version}
+            grokStatus={session.grokStatus}
+            xApiStatus={session.xApiStatus}
+            totalCost={session.totalCost}
+            queryCount={session.queryCount}
+          />
           {session.history.length === 0 ? (
             <WelcomeView
               version={version}
@@ -132,20 +139,11 @@ export function App({ version, init }: Props) {
               recentTopics={recentTopics}
             />
           ) : (
-            <>
-              <CompactHeader
-                version={version}
-                grokStatus={session.grokStatus}
-                xApiStatus={session.xApiStatus}
-                totalCost={session.totalCost}
-                queryCount={session.queryCount}
-              />
-              <ChatViewport
-                entries={session.history}
-                scrollOffset={scrollOffset}
-                viewportHeight={terminalHeight - 6}
-              />
-            </>
+            <ChatViewport
+              entries={session.history}
+              scrollOffset={scrollOffset}
+              viewportHeight={terminalHeight - 6}
+            />
           )}
           <InputBar onSubmit={execute} isLoading={isLoading} phaseLabel={phaseLabel} />
           <ShortcutBar />
