@@ -4,13 +4,12 @@ export type ParsedCommand =
   | { type: 'error'; message: string }
   | { type: 'empty' }
 
-const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace', 'gather'])
+const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace'])
 const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'view'])
 
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
-  'read',
-  'scope',
+  'profile',
   'ask',
   'history',
   '/view',
@@ -46,14 +45,9 @@ export function parseInput(raw: string): ParsedCommand {
     return { type: 'command', command: keyword, args: { topic: rest } }
   }
 
-  if (keyword === 'read') {
-    if (!rest) return { type: 'error', message: 'Usage: read <tweet-id-or-url>' }
-    return { type: 'command', command: 'read', args: { tweetIdOrUrl: rest } }
-  }
-
-  if (keyword === 'scope') {
-    if (!rest) return { type: 'error', message: 'Usage: scope <@username>' }
-    return { type: 'command', command: 'scope', args: { username: rest.replace(/^@/, '') } }
+  if (keyword === 'profile') {
+    if (!rest) return { type: 'error', message: 'Usage: profile <@username>' }
+    return { type: 'command', command: 'profile', args: { username: rest.replace(/^@/, '') } }
   }
 
   if (keyword === 'ask') {

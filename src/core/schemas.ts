@@ -39,28 +39,6 @@ export interface GrokTraceResponse {
   }[]
 }
 
-export interface GrokGatherResponse {
-  tweetAnalysis: GrokTweetScore[]
-  narratives: GrokNarrative[]
-  signals: string[]
-  webContext: string[]
-  outlook: string
-}
-
-export interface GrokReadResponse {
-  analysis: string
-  significance: 'high' | 'medium' | 'low'
-  signals: string[]
-}
-
-export interface GrokScopeResponse {
-  contentPatterns: string[]
-  recentFocus: string[]
-  networkPosition: string
-  influence: 'high' | 'medium' | 'low'
-  signalValue: 'high' | 'medium' | 'low'
-}
-
 // ── Computed snapshot shapes ──
 
 export interface AccountEntry {
@@ -138,50 +116,94 @@ export interface TraceSnapshot {
   }
 }
 
-export interface GatherSnapshot {
-  metrics: BaseMetrics
-  sentiment: SentimentBreakdown
-  topPosts: {
-    id: string
-    author: string
-    text: string
-    engagement: number
-  }[]
-  narratives: NarrativeEntry[]
-  webContext: string[]
-  outlook: string
+// ── Growth command snapshot shapes ──
+
+export interface ProfileSnapshot {
+  handle: string
+  displayName: string
+  followers: number
+  following: number
+  postFrequency: { postsPerWeek: number; activeDays: string[]; peakHours: number[] }
+  contentMix: Array<{ category: string; percentage: number; avgEngagement: number }>
+  topPerformers: Array<{ url: string; content: string; engagement: number; why: string }>
+  voiceTraits: { tone: string; vocabulary: string; emojiUsage: string; avgLength: number }
+  recommendations?: string[]
+  sentiment: number
+  fetchedAt: string
 }
 
-export interface ReadSnapshot {
-  tweet: {
-    id: string
-    author: string
-    text: string
-    engagement: { likes: number; retweets: number; replies: number; impressions: number }
-    postedAt: string
-  }
-  analysis: string
-  significance: 'high' | 'medium' | 'low'
-  signals: string[]
+export interface DraftSnapshot {
+  topic: string
+  post: string
+  thread?: string[]
+  angles: string[]
+  hashtags: string[]
+  voiceProfileAge: number
+  contextUsed: boolean
+  replyTo?: string
+  fetchedAt: string
 }
 
-export interface ScopeSnapshot {
-  account: {
-    handle: string
-    followers: number
-    following: number
-    tweetCount: number
+export interface HooksSnapshot {
+  topic: string
+  opportunities: Array<{
+    tweetUrl: string
+    author: string
+    authorFollowers: number
+    content: string
+    engagement: { likes: number; retweets: number; replies: number }
+    velocityScore: number
+    suggestedAngle: string
+    opportunityScore: number
+  }>
+  fetchedAt: string
+}
+
+export interface ReviewSnapshot {
+  handle: string
+  period: { from: string; to: string }
+  totalPosts: number
+  totalEngagement: number
+  avgEngagementPerPost: number
+  topPosts: Array<{ url: string; content: string; engagement: number; why: string }>
+  underperformers: Array<{ url: string; content: string; engagement: number; why: string }>
+  patterns: Array<{ pattern: string; impact: string; evidence: string }>
+  recommendations: string[]
+  comparedToLast?: {
+    engagementChange: number
+    postFrequencyChange: number
+    topTopicShift: string
   }
-  recentActivity: {
-    avgEngagement: number
-    postsAnalyzed: number
-    topTweet: { id: string; text: string; engagement: number } | null
+  fetchedAt: string
+}
+
+export interface TimingSnapshot {
+  handle?: string
+  topic?: string
+  heatmap: Array<{ day: string; hour: number; score: number }>
+  peakWindows: Array<{ day: string; startHour: number; endHour: number; score: number }>
+  recommendations: string[]
+  sampleSize: number
+  fetchedAt: string
+}
+
+export interface VoiceProfile {
+  handle: string
+  generatedAt: string
+  postCount: number
+  traits: {
+    tone: string
+    vocabulary: string
+    sentenceStyle: string
+    emojiUsage: string
+    hashtagUsage: string
+    humor: string
+    catchphrases: string[]
+    avgPostLength: number
+    threadStyle: string
   }
-  contentPatterns: string[]
-  recentFocus: string[]
-  networkPosition: string
-  influence: 'high' | 'medium' | 'low'
-  signalValue: 'high' | 'medium' | 'low'
+  topicPreferences: Array<{ topic: string; frequency: number }>
+  examplePosts: string[]
 }
 
 // ── Agent output shapes ──
@@ -223,9 +245,11 @@ export type Snapshot =
   | ScanSnapshot
   | PulseSnapshot
   | TraceSnapshot
-  | GatherSnapshot
-  | ReadSnapshot
-  | ScopeSnapshot
+  | ProfileSnapshot
+  | DraftSnapshot
+  | HooksSnapshot
+  | ReviewSnapshot
+  | TimingSnapshot
   | AgentBrief
 
 // ── Stored snapshot wrapper ──
@@ -244,7 +268,7 @@ export interface StoredSnapshot<T extends Snapshot = Snapshot> {
 
 // ── Diff match keys ──
 
-export type MatchKeys = Record<string, string>
+export type MatchKeys = Record<string, string | string[]>
 
 export const SCAN_MATCH_KEYS: MatchKeys = {
   topAccounts: 'handle',
@@ -259,12 +283,26 @@ export const TRACE_MATCH_KEYS: MatchKeys = {
   timeline: 'phase',
 }
 
-export const GATHER_MATCH_KEYS: MatchKeys = {
-  topPosts: 'id',
-  narratives: 'theme',
-}
-
 export const AGENT_MATCH_KEYS: MatchKeys = {
   keyAccounts: 'handle',
   evidence: 'source',
+}
+
+export const PROFILE_MATCH_KEYS: MatchKeys = {
+  contentMix: 'category',
+  topPerformers: 'url',
+}
+
+export const HOOKS_MATCH_KEYS: MatchKeys = {
+  opportunities: 'tweetUrl',
+}
+
+export const REVIEW_MATCH_KEYS: MatchKeys = {
+  topPosts: 'url',
+  underperformers: 'url',
+  patterns: 'pattern',
+}
+
+export const TIMING_MATCH_KEYS: MatchKeys = {
+  peakWindows: ['day', 'startHour'],
 }

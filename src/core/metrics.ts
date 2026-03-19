@@ -9,7 +9,6 @@ import type {
   ConfidenceScore,
   ScanSnapshot,
   PulseSnapshot,
-  GatherSnapshot,
   Snapshot,
 } from './schemas.js'
 
@@ -279,7 +278,7 @@ interface StepForContradictions {
   scores: GrokTweetScore[]
 }
 
-function hasSentiment(snap: Snapshot): snap is ScanSnapshot | PulseSnapshot | GatherSnapshot {
+function hasSentiment(snap: Snapshot): snap is ScanSnapshot | PulseSnapshot {
   return (
     'sentiment' in snap &&
     typeof (snap as { sentiment?: { avg?: number } }).sentiment?.avg === 'number'
@@ -294,8 +293,8 @@ export function detectContradictions(results: StepForContradictions[]): string[]
     for (let j = i + 1; j < sentimentSteps.length; j++) {
       const a = sentimentSteps[i]
       const b = sentimentSteps[j]
-      const aAvg = (a.snapshot as ScanSnapshot | PulseSnapshot | GatherSnapshot).sentiment.avg
-      const bAvg = (b.snapshot as ScanSnapshot | PulseSnapshot | GatherSnapshot).sentiment.avg
+      const aAvg = (a.snapshot as ScanSnapshot | PulseSnapshot).sentiment.avg
+      const bAvg = (b.snapshot as ScanSnapshot | PulseSnapshot).sentiment.avg
       if (Math.abs(aAvg - bAvg) > 0.3) {
         const fmt = (v: number) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))
         contradictions.push(
@@ -309,7 +308,7 @@ export function detectContradictions(results: StepForContradictions[]): string[]
     if (r.tweets.length === 0 || r.scores.length === 0) continue
     if (!hasSentiment(r.snapshot)) continue
 
-    const crowdAvg = (r.snapshot as ScanSnapshot | PulseSnapshot | GatherSnapshot).sentiment.avg
+    const crowdAvg = (r.snapshot as ScanSnapshot | PulseSnapshot).sentiment.avg
 
     const authorReach = new Map<string, { sentimentSum: number; count: number; reach: number }>()
     for (let i = 0; i < r.tweets.length; i++) {
@@ -358,7 +357,7 @@ export function detectContradictions(results: StepForContradictions[]): string[]
   for (const r of results) {
     if (!('narratives' in r.snapshot)) continue
     if (!hasSentiment(r.snapshot)) continue
-    const snap = r.snapshot as ScanSnapshot | GatherSnapshot
+    const snap = r.snapshot as ScanSnapshot
     if (snap.narratives.length === 0) continue
 
     const dominant = snap.narratives[0] // already sorted by tweetCount descending

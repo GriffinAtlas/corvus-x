@@ -84,16 +84,19 @@ vi.mock('../../src/core/builders/pulse.js', () => ({
   })),
 }))
 
-vi.mock('../../src/core/builders/scope.js', () => ({
-  buildScopeSnapshot: vi.fn(async (_deps: CorvusDeps, handle: string) => ({
+vi.mock('../../src/core/builders/profile.js', () => ({
+  buildProfileSnapshot: vi.fn(async (_deps: CorvusDeps, handle: string) => ({
     data: {
-      account: { handle, followers: 5000, following: 200, tweetCount: 1000 },
-      recentActivity: { avgEngagement: 100, postsAnalyzed: 20, topTweet: null },
-      contentPatterns: ['crypto'],
-      recentFocus: ['bitcoin'],
-      networkPosition: 'mid-tier',
-      influence: 'medium' as const,
-      signalValue: 'medium' as const,
+      handle,
+      displayName: handle,
+      followers: 5000,
+      following: 200,
+      postFrequency: { postsPerWeek: 5, activeDays: ['Monday'], peakHours: [9] },
+      contentMix: [{ category: 'crypto', percentage: 60, avgEngagement: 100 }],
+      topPerformers: [],
+      voiceTraits: { tone: 'casual', vocabulary: 'technical', emojiUsage: 'none', avgLength: 150 },
+      sentiment: 0.2,
+      fetchedAt: new Date().toISOString(),
     },
     raw: '{}',
     cost: 0.001,
@@ -308,17 +311,17 @@ describe('AgentExecutor', () => {
     expect(context.results[0].cost).toBeGreaterThan(0)
   })
 
-  it('handles scope steps with username arg', async () => {
+  it('handles profile steps with username arg', async () => {
     const plan: AgentPlan = {
       goal: 'Test',
-      steps: [{ command: 'scope', args: { username: 'satoshi' }, reasoning: 'Profile check' }],
+      steps: [{ command: 'profile', args: { username: 'satoshi' }, reasoning: 'Profile check' }],
     }
 
     const executor = new AgentExecutor(mockDeps, 'test', plan, defaultOptions)
     const context = await executor.execute(0)
 
     expect(context.results).toHaveLength(1)
-    expect(context.results[0].command).toBe('scope')
+    expect(context.results[0].command).toBe('profile')
   })
 })
 
@@ -353,7 +356,7 @@ describe('AgentExecutor with replanning', () => {
   it('applies revised steps from replan', async () => {
     const replanResponse = JSON.stringify({
       action: 'revise',
-      steps: [{ command: 'scope', args: { username: 'satoshi' }, reasoning: 'New lead' }],
+      steps: [{ command: 'profile', args: { username: 'satoshi' }, reasoning: 'New lead' }],
     })
     const mockGrok = makeMockGrok([replanResponse])
     const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
@@ -376,8 +379,8 @@ describe('AgentExecutor with replanning', () => {
     const context = await executor.execute(0)
 
     expect(onReplan).toHaveBeenCalled()
-    // Should have scan + scope (replaced pulse with scope)
-    expect(context.results.some((r) => r.command === 'scope')).toBe(true)
+    // Should have scan + profile (replaced pulse with profile)
+    expect(context.results.some((r) => r.command === 'profile')).toBe(true)
   })
 })
 
@@ -1004,7 +1007,7 @@ describe('AgentExecutor — error and edge cases', () => {
     const replanResponse = JSON.stringify({
       action: 'revise',
       steps: [
-        { command: 'scope', args: { username: 'alice' }, reasoning: 'Valid lead' },
+        { command: 'profile', args: { username: 'alice' }, reasoning: 'Valid lead' },
         { command: 'eval', args: { topic: 'exploit' }, reasoning: 'Invalid command' },
         { command: 'shell', args: { topic: 'inject' }, reasoning: 'Also invalid' },
         { command: 'scan', args: { topic: 'followup' }, reasoning: 'Valid scan' },
@@ -1032,7 +1035,7 @@ describe('AgentExecutor — error and edge cases', () => {
     expect(onReplan).toHaveBeenCalled()
     const revisedSteps = onReplan.mock.calls[0][0]
     expect(revisedSteps.every((s: { command: string }) =>
-      ['scan', 'pulse', 'trace', 'gather', 'read', 'scope'].includes(s.command),
+      ['scan', 'pulse', 'trace', 'profile'].includes(s.command),
     )).toBe(true)
     expect(revisedSteps.some((s: { command: string }) => s.command === 'eval')).toBe(false)
     expect(revisedSteps.some((s: { command: string }) => s.command === 'shell')).toBe(false)

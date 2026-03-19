@@ -19,11 +19,10 @@ export interface AgentPlan {
 }
 
 export interface AgentStep {
-  command: 'scan' | 'pulse' | 'trace' | 'gather' | 'read' | 'scope'
+  command: 'scan' | 'pulse' | 'trace' | 'profile'
   args: {
     topic?: string
     username?: string
-    tweetId?: string
     count?: number
   }
   reasoning: string
@@ -69,17 +68,15 @@ produce a JSON execution plan using only these commands:
 - scan <topic> — discourse landscape, narratives, sentiment (default 50 tweets)
 - pulse <topic> — sentiment momentum, bull/bear signals, key voices
 - trace <narrative> — track how a narrative spread, origin, mutations
-- gather <topic> — deep analysis combining X data and web context
-- read <tweet-id> — analyze a specific tweet
-- scope <username> — profile analysis of an X account
+- profile <username> — content strategy analysis of an X account
 
 Rules:
-- Return ONLY valid JSON matching this schema: { "goal": "string", "steps": [{ "command": "scan|pulse|trace|gather|read|scope", "args": { "topic?": "string", "username?": "string", "tweetId?": "string", "count?": number }, "reasoning": "string" }] }
+- Return ONLY valid JSON matching this schema: { "goal": "string", "steps": [{ "command": "scan|pulse|trace|profile", "args": { "topic?": "string", "username?": "string", "count?": number }, "reasoning": "string" }] }
 - Maximum 8 steps.
-- Start broad (scan or pulse), then narrow (scope, read, trace).
+- Start broad (scan or pulse), then narrow (profile, trace).
 - Include reasoning for each step — one sentence explaining why.
 - Do not include steps that duplicate information.
-- If the question names specific accounts, include scope steps for them.
+- If the question names specific accounts, include profile steps for them.
 - If the question is about a narrative or claim, include a trace step.`
 
 const REPLAN_SYSTEM_PROMPT = `You are adjusting an investigation plan. Review what has been found so far and decide whether the remaining plan should change.
@@ -90,7 +87,7 @@ Return JSON:
 
 Rules:
 - Maximum 3 additional steps beyond the original plan.
-- Only add scope/read steps for discovered leads — do not repeat scan/pulse.
+- Only add profile steps for discovered leads — do not repeat scan/pulse.
 - If the data is sufficient, you may remove remaining steps.
 - Return ONLY valid JSON.`
 
@@ -129,7 +126,7 @@ export class AgentPlanner {
       throw new Error('Planner returned an empty or invalid plan')
     }
 
-    const validCommands = new Set(['scan', 'pulse', 'trace', 'gather', 'read', 'scope'])
+    const validCommands = new Set(['scan', 'pulse', 'trace', 'profile'])
 
     return {
       plan: {
@@ -164,17 +161,9 @@ async function resolveBuildFn(command: string): Promise<BuildFn> {
       const { buildTraceSnapshot } = await import('./builders/trace.js')
       return buildTraceSnapshot as unknown as BuildFn
     }
-    case 'gather': {
-      const { buildGatherSnapshot } = await import('./builders/gather.js')
-      return buildGatherSnapshot as unknown as BuildFn
-    }
-    case 'read': {
-      const { buildReadSnapshot } = await import('./builders/read.js')
-      return buildReadSnapshot as unknown as BuildFn
-    }
-    case 'scope': {
-      const { buildScopeSnapshot } = await import('./builders/scope.js')
-      return buildScopeSnapshot as unknown as BuildFn
+    case 'profile': {
+      const { buildProfileSnapshot } = await import('./builders/profile.js')
+      return buildProfileSnapshot as unknown as BuildFn
     }
     default:
       throw new Error(`Unknown command: ${command}`)
@@ -186,12 +175,9 @@ function buildArgs(step: AgentStep): unknown[] {
     case 'scan':
     case 'pulse':
     case 'trace':
-    case 'gather':
       return [step.args.topic ?? '', step.args.count ?? 50, 2]
-    case 'read':
-      return [step.args.tweetId ?? '']
-    case 'scope':
-      return [step.args.username ?? '', 20]
+    case 'profile':
+      return [step.args.username ?? '', 20, false]
     default:
       return []
   }
@@ -313,7 +299,7 @@ export class AgentExecutor {
         const result = await buildFn(this.deps, ...args)
 
         const durationMs = Date.now() - startTime
-        const topic = step.args.topic ?? step.args.username ?? step.args.tweetId ?? 'unknown'
+        const topic = step.args.topic ?? step.args.username ?? 'unknown'
 
         this.store.save(step.command, topic, result.data, result.raw, result.cost)
 
@@ -336,7 +322,7 @@ export class AgentExecutor {
         const newLeads = extractLeads(result.data, leadSet, plannedTargets)
         for (const lead of newLeads) {
           this.context.leads.push(lead)
-          this.options.onLeadFound?.(`scope · @${lead}`, 'lead')
+          this.options.onLeadFound?.(`profile · @${lead}`, 'lead')
         }
 
         this.options.onStepComplete?.(i, step, durationMs)
@@ -376,7 +362,7 @@ export class AgentExecutor {
     const summaryLines = this.context.results.map(summarizeResult)
     const remainingLines = remaining.map(
       (s) =>
-        `${s.command} ${s.args.topic ?? s.args.username ?? s.args.tweetId ?? ''}: ${s.reasoning}`,
+        `${s.command} ${s.args.topic ?? s.args.username ?? ''}: ${s.reasoning}`,
     )
     const leadLines = this.context.leads.filter(
       (l) => !remaining.some((s) => s.args.username === l || s.args.topic === l),
@@ -395,7 +381,7 @@ export class AgentExecutor {
     const decision = parseGrokJson<ReplanDecision>(response.text)
 
     if (decision.action === 'revise' && 'steps' in decision && Array.isArray(decision.steps)) {
-      const validCommands = new Set(['scan', 'pulse', 'trace', 'gather', 'read', 'scope'])
+      const validCommands = new Set(['scan', 'pulse', 'trace', 'profile'])
       const maxAdditional = remaining.length + 3
       return decision.steps
         .filter((s) => validCommands.has(s.command))

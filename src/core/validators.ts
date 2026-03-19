@@ -41,34 +41,62 @@ export const GrokTraceResponseSchema = z.object({
   ),
 })
 
-export const GrokGatherResponseSchema = z.object({
-  tweetAnalysis: z.array(GrokTweetScoreSchema),
-  narratives: z.array(GrokNarrativeSchema),
-  signals: z.array(z.string()),
-  webContext: z.array(z.string()),
-  outlook: z.string(),
+export const GrokProfileResponseSchema = z.object({
+  postFrequency: z.object({
+    postsPerWeek: z.number(),
+    activeDays: z.array(z.string()),
+    peakHours: z.array(z.number()),
+  }),
+  contentMix: z.array(
+    z.object({
+      category: z.string(),
+      percentage: z.number(),
+      avgEngagement: z.number(),
+    }),
+  ),
+  topPerformers: z.array(
+    z.object({
+      url: z.string(),
+      content: z.string(),
+      engagement: z.number(),
+      why: z.string(),
+    }),
+  ),
+  voiceTraits: z.object({
+    tone: z.string(),
+    vocabulary: z.string(),
+    emojiUsage: z.string(),
+    avgLength: z.number(),
+  }),
+  recommendations: z.array(z.string()).optional(),
+  sentiment: z.number(),
 })
 
-export const GrokReadResponseSchema = z.object({
-  analysis: z.string(),
-  significance: z.enum(['high', 'medium', 'low']),
-  signals: z.array(z.string()),
-})
-
-export const GrokScopeResponseSchema = z.object({
-  contentPatterns: z.array(z.string()),
-  recentFocus: z.array(z.string()),
-  networkPosition: z.string(),
-  influence: z.enum(['high', 'medium', 'low']),
-  signalValue: z.enum(['high', 'medium', 'low']),
+export const GrokVoiceProfileResponseSchema = z.object({
+  traits: z.object({
+    tone: z.string(),
+    vocabulary: z.string(),
+    sentenceStyle: z.string(),
+    emojiUsage: z.string(),
+    hashtagUsage: z.string(),
+    humor: z.string(),
+    catchphrases: z.array(z.string()),
+    avgPostLength: z.number(),
+    threadStyle: z.string(),
+  }),
+  topicPreferences: z.array(
+    z.object({
+      topic: z.string(),
+      frequency: z.number(),
+    }),
+  ),
 })
 
 const AgentStepSchema = z.object({
-  command: z.enum(['scan', 'pulse', 'trace', 'gather', 'read', 'scope']),
+  command: z.enum(['scan', 'pulse', 'trace', 'profile']),
   args: z.object({
     topic: z.string().optional(),
     username: z.string().optional(),
-    tweetId: z.string().optional(),
     count: z.number().optional(),
   }),
   reasoning: z.string(),

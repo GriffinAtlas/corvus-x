@@ -3,9 +3,6 @@ import {
   GrokScanResponseSchema,
   GrokPulseResponseSchema,
   GrokTraceResponseSchema,
-  GrokGatherResponseSchema,
-  GrokReadResponseSchema,
-  GrokScopeResponseSchema,
   AgentPlanSchema,
   ReplanDecisionSchema,
 } from '../../src/core/validators.js'
@@ -71,52 +68,6 @@ describe('GrokTraceResponseSchema', () => {
   })
 })
 
-describe('GrokGatherResponseSchema', () => {
-  it('accepts valid gather response', () => {
-    const valid = {
-      tweetAnalysis: [{ index: 0, sentiment: 0.7, narrative: 'bullish' }],
-      narratives: [{ theme: 'AI', description: 'AI related' }],
-      signals: ['s1'],
-      webContext: ['news article'],
-      outlook: 'positive outlook',
-    }
-    expect(() => GrokGatherResponseSchema.parse(valid)).not.toThrow()
-  })
-})
-
-describe('GrokReadResponseSchema', () => {
-  it('accepts valid read response', () => {
-    const valid = {
-      analysis: 'This tweet is significant.',
-      significance: 'high',
-      signals: ['notable'],
-    }
-    expect(() => GrokReadResponseSchema.parse(valid)).not.toThrow()
-  })
-
-  it('rejects invalid significance', () => {
-    const invalid = {
-      analysis: 'text',
-      significance: 'extreme',
-      signals: [],
-    }
-    expect(() => GrokReadResponseSchema.parse(invalid)).toThrow()
-  })
-})
-
-describe('GrokScopeResponseSchema', () => {
-  it('accepts valid scope response', () => {
-    const valid = {
-      contentPatterns: ['pattern'],
-      recentFocus: ['focus'],
-      networkPosition: 'central',
-      influence: 'high',
-      signalValue: 'medium',
-    }
-    expect(() => GrokScopeResponseSchema.parse(valid)).not.toThrow()
-  })
-})
-
 describe('AgentPlanSchema', () => {
   it('accepts valid plan', () => {
     const valid = {
@@ -144,7 +95,7 @@ describe('ReplanDecisionSchema', () => {
       action: 'revise',
       steps: [
         {
-          command: 'scope',
+          command: 'profile',
           args: { username: 'alice' },
           reasoning: 'follow lead',
         },
@@ -235,71 +186,6 @@ describe('GrokTraceResponseSchema rejection', () => {
   })
 })
 
-describe('GrokGatherResponseSchema rejection', () => {
-  it('rejects missing webContext', () => {
-    const invalid = { tweetAnalysis: [], narratives: [], signals: [], outlook: 'ok' }
-    expect(() => GrokGatherResponseSchema.parse(invalid)).toThrow()
-  })
-
-  it('rejects missing outlook', () => {
-    const invalid = { tweetAnalysis: [], narratives: [], signals: [], webContext: [] }
-    expect(() => GrokGatherResponseSchema.parse(invalid)).toThrow()
-  })
-})
-
-describe('GrokReadResponseSchema rejection', () => {
-  it('rejects missing analysis', () => {
-    const invalid = { significance: 'high', signals: [] }
-    expect(() => GrokReadResponseSchema.parse(invalid)).toThrow()
-  })
-
-  it('accepts all three significance levels', () => {
-    for (const sig of ['high', 'medium', 'low']) {
-      const valid = { analysis: 'text', significance: sig, signals: [] }
-      expect(() => GrokReadResponseSchema.parse(valid)).not.toThrow()
-    }
-  })
-})
-
-describe('GrokScopeResponseSchema rejection', () => {
-  it('rejects invalid influence value', () => {
-    const invalid = {
-      contentPatterns: [],
-      recentFocus: [],
-      networkPosition: 'central',
-      influence: 'massive',
-      signalValue: 'high',
-    }
-    expect(() => GrokScopeResponseSchema.parse(invalid)).toThrow()
-  })
-
-  it('rejects invalid signalValue', () => {
-    const invalid = {
-      contentPatterns: [],
-      recentFocus: [],
-      networkPosition: 'central',
-      influence: 'high',
-      signalValue: 'extreme',
-    }
-    expect(() => GrokScopeResponseSchema.parse(invalid)).toThrow()
-  })
-
-  it('accepts all influence and signalValue combos', () => {
-    for (const influence of ['high', 'medium', 'low']) {
-      for (const signalValue of ['high', 'medium', 'low']) {
-        const valid = {
-          contentPatterns: [],
-          recentFocus: [],
-          networkPosition: 'test',
-          influence,
-          signalValue,
-        }
-        expect(() => GrokScopeResponseSchema.parse(valid)).not.toThrow()
-      }
-    }
-  })
-})
-
 describe('AgentPlanSchema rejection', () => {
   it('rejects missing goal', () => {
     const invalid = {
@@ -316,8 +202,8 @@ describe('AgentPlanSchema rejection', () => {
     expect(() => AgentPlanSchema.parse(invalid)).toThrow()
   })
 
-  it('accepts all 6 valid commands', () => {
-    for (const cmd of ['scan', 'pulse', 'trace', 'gather', 'read', 'scope']) {
+  it('accepts all 4 valid commands', () => {
+    for (const cmd of ['scan', 'pulse', 'trace', 'profile']) {
       const valid = {
         goal: 'test',
         steps: [{ command: cmd, args: {}, reasoning: 'ok' }],

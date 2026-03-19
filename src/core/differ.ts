@@ -43,26 +43,22 @@ function diffRecords(
     if (oldVal === newVal) continue
 
     if (typeof newVal === 'number' && typeof oldVal === 'number') {
-      if (oldVal !== newVal) {
-        lines.push({
-          path: fullPath,
-          type: 'changed',
-          oldValue: formatNum(oldVal),
-          newValue: formatNum(newVal),
-        })
-      }
+      lines.push({
+        path: fullPath,
+        type: 'changed',
+        oldValue: formatNum(oldVal),
+        newValue: formatNum(newVal),
+      })
       continue
     }
 
     if (typeof newVal === 'string' && typeof oldVal === 'string') {
-      if (oldVal !== newVal) {
-        lines.push({
-          path: fullPath,
-          type: 'changed',
-          oldValue: oldVal,
-          newValue: newVal,
-        })
-      }
+      lines.push({
+        path: fullPath,
+        type: 'changed',
+        oldValue: oldVal,
+        newValue: newVal,
+      })
       continue
     }
 
@@ -88,10 +84,15 @@ function diffRecords(
       }
 
       if (matchKey && typeof newVal[0] === 'object') {
+        const compoundKey = Array.isArray(matchKey) ? matchKey : [matchKey]
+        const itemKey = (item: Record<string, unknown>) =>
+          compoundKey.map((k) => String(item[k])).join('|')
+        const primaryMatchKey = compoundKey[0]
+
         const oldMap = new Map<string, Record<string, unknown>>()
-        for (const item of oldVal) oldMap.set(String(item[matchKey]), item)
+        for (const item of oldVal) oldMap.set(itemKey(item), item)
         const newMap = new Map<string, Record<string, unknown>>()
-        for (const item of newVal) newMap.set(String(item[matchKey]), item)
+        for (const item of newVal) newMap.set(itemKey(item), item)
 
         for (const [id, newItem] of newMap) {
           const oldItem = oldMap.get(id)
@@ -99,7 +100,7 @@ function diffRecords(
             lines.push({
               path: fullPath,
               type: 'added',
-              newValue: formatObjectBrief(newItem, matchKey),
+              newValue: formatObjectBrief(newItem, primaryMatchKey),
             })
           } else {
             const subDiffs = diffObjectFields(oldItem, newItem, fullPath, id)

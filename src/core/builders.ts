@@ -1,6 +1,4 @@
 export { buildScanSnapshot } from './builders/scan.js'
 export { buildPulseSnapshot } from './builders/pulse.js'
 export { buildTraceSnapshot } from './builders/trace.js'
-export { buildGatherSnapshot } from './builders/gather.js'
-export { buildReadSnapshot, extractTweetId } from './builders/read.js'
-export { buildScopeSnapshot } from './builders/scope.js'
+export { buildProfileSnapshot } from './builders/profile.js'

@@ -27,42 +27,18 @@ describe('parseInput', () => {
       })
     })
 
-    it('parses gather with topic', () => {
-      expect(parseInput('gather DeFi regulation')).toEqual({
+    it('parses profile with @handle', () => {
+      expect(parseInput('profile @elonmusk')).toEqual({
         type: 'command',
-        command: 'gather',
-        args: { topic: 'DeFi regulation' },
-      })
-    })
-
-    it('parses read with tweet ID', () => {
-      expect(parseInput('read 1234567890')).toEqual({
-        type: 'command',
-        command: 'read',
-        args: { tweetIdOrUrl: '1234567890' },
-      })
-    })
-
-    it('parses read with URL', () => {
-      expect(parseInput('read https://x.com/user/status/123')).toEqual({
-        type: 'command',
-        command: 'read',
-        args: { tweetIdOrUrl: 'https://x.com/user/status/123' },
-      })
-    })
-
-    it('parses scope with @handle', () => {
-      expect(parseInput('scope @elonmusk')).toEqual({
-        type: 'command',
-        command: 'scope',
+        command: 'profile',
         args: { username: 'elonmusk' },
       })
     })
 
-    it('parses scope without @ prefix', () => {
-      expect(parseInput('scope elonmusk')).toEqual({
+    it('parses profile without @ prefix', () => {
+      expect(parseInput('profile elonmusk')).toEqual({
         type: 'command',
-        command: 'scope',
+        command: 'profile',
         args: { username: 'elonmusk' },
       })
     })
@@ -189,10 +165,22 @@ describe('parseInput', () => {
       })
     })
 
-    it('returns error for gather without topic', () => {
-      expect(parseInput('gather')).toEqual({
-        type: 'error',
-        message: 'Usage: gather <topic>',
+    it('removed commands fall through to natural language', () => {
+      // gather, read, scope are no longer recognized — they become ask queries
+      expect(parseInput('gather DeFi')).toEqual({
+        type: 'command',
+        command: 'ask',
+        args: { question: 'gather DeFi' },
+      })
+      expect(parseInput('read 1234')).toEqual({
+        type: 'command',
+        command: 'ask',
+        args: { question: 'read 1234' },
+      })
+      expect(parseInput('scope elonmusk')).toEqual({
+        type: 'command',
+        command: 'ask',
+        args: { question: 'scope elonmusk' },
       })
     })
 
@@ -233,17 +221,10 @@ describe('parseInput', () => {
       })
     })
 
-    it('returns error for read without argument', () => {
-      expect(parseInput('read')).toEqual({
+    it('returns error for profile without username', () => {
+      expect(parseInput('profile')).toEqual({
         type: 'error',
-        message: 'Usage: read <tweet-id-or-url>',
-      })
-    })
-
-    it('returns error for scope without username', () => {
-      expect(parseInput('scope')).toEqual({
-        type: 'error',
-        message: 'Usage: scope <@username>',
+        message: 'Usage: profile <@username>',
       })
     })
 

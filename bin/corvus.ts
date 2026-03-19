@@ -22,21 +22,19 @@ function readVersion(): string {
 }
 const VERSION = readVersion()
 import { registerScanCommand } from '../src/cli/commands/scan.js'
-import { registerReadCommand } from '../src/cli/commands/read.js'
-import { registerScopeCommand } from '../src/cli/commands/scope.js'
 import { registerTraceCommand } from '../src/cli/commands/trace.js'
 import { registerPulseCommand } from '../src/cli/commands/pulse.js'
-import { registerGatherCommand } from '../src/cli/commands/gather.js'
 import { registerWatchCommand } from '../src/cli/commands/watch.js'
 import { registerHistoryCommand } from '../src/cli/commands/history.js'
 import { registerAgentCommand } from '../src/cli/commands/agent.js'
 import { registerExportCommand } from '../src/cli/commands/export.js'
+import { registerProfileCommand } from '../src/cli/commands/profile.js'
 
 const program = new Command()
 
 program
   .name('corvus')
-  .description('X intelligence agent')
+  .description('AI agent toolkit for X — investigate discourse, grow your presence')
   .usage('[options] [command]')
   .version(VERSION)
   .option('--no-color', 'disable color output')
@@ -50,13 +48,13 @@ program
 // Investigation
 registerAgentCommand(program)
 registerTraceCommand(program)
-registerGatherCommand(program)
 
 // Intelligence
 registerScanCommand(program)
 registerPulseCommand(program)
-registerScopeCommand(program)
-registerReadCommand(program)
+
+// Growth
+registerProfileCommand(program)
 
 // Monitoring
 registerWatchCommand(program)

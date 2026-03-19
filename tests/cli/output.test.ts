@@ -6,8 +6,6 @@ import {
   renderScan,
   renderPulse,
   renderTrace,
-  renderRead,
-  renderScope,
   renderAgentBrief,
   renderAgentBriefMd,
 } from '../../src/cli/output.js'
@@ -16,8 +14,6 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
   TraceSnapshot,
-  ReadSnapshot,
-  ScopeSnapshot,
   AgentBrief,
 } from '../../src/core/schemas.js'
 
@@ -366,97 +362,6 @@ describe('renderTrace', () => {
     const output = renderTrace(empty)
     expect(output).not.toContain('Timeline')
     expect(output).not.toContain('Mutations')
-  })
-})
-
-describe('renderRead', () => {
-  const read: ReadSnapshot = {
-    tweet: {
-      id: '12345',
-      author: 'testuser',
-      text: 'Important tweet content',
-      engagement: { likes: 100, retweets: 20, replies: 5, impressions: 5000 },
-      postedAt: '2026-03-10T12:00:00Z',
-    },
-    analysis: 'This tweet signals market shift',
-    significance: 'high',
-    signals: ['Potential reversal'],
-  }
-
-  it('includes tweet author and text', () => {
-    const output = renderRead(read)
-    expect(output).toContain('@testuser')
-    expect(output).toContain('Important tweet content')
-  })
-
-  it('includes engagement metrics', () => {
-    const output = renderRead(read)
-    expect(output).toContain('100 likes')
-    expect(output).toContain('20 RTs')
-  })
-
-  it('includes analysis and significance', () => {
-    const output = renderRead(read)
-    expect(output).toContain('This tweet signals market shift')
-    expect(output).toContain('high')
-  })
-
-  it('includes signals', () => {
-    const output = renderRead(read)
-    expect(output).toContain('Potential reversal')
-  })
-})
-
-describe('renderScope', () => {
-  const scope: ScopeSnapshot = {
-    account: { handle: 'testuser', followers: 50000, following: 500, tweetCount: 3000 },
-    recentActivity: {
-      avgEngagement: 150,
-      postsAnalyzed: 20,
-      topTweet: { id: '555', text: 'Best tweet ever', engagement: 500 },
-    },
-    contentPatterns: ['AI', 'crypto'],
-    recentFocus: ['LLMs', 'DeFi'],
-    networkPosition: 'Tech influencer',
-    influence: 'high',
-    signalValue: 'medium',
-  }
-
-  it('includes account info', () => {
-    const output = renderScope(scope)
-    expect(output).toContain('@testuser')
-    expect(output).toContain('50K followers')
-  })
-
-  it('includes recent activity', () => {
-    const output = renderScope(scope)
-    expect(output).toContain('20 posts analyzed')
-    expect(output).toContain('Best tweet ever')
-  })
-
-  it('includes content patterns and focus', () => {
-    const output = renderScope(scope)
-    expect(output).toContain('AI')
-    expect(output).toContain('LLMs')
-  })
-
-  it('handles null topTweet', () => {
-    const noTop: ScopeSnapshot = {
-      ...scope,
-      recentActivity: { ...scope.recentActivity, topTweet: null },
-    }
-    expect(() => renderScope(noTop)).not.toThrow()
-  })
-
-  it('handles empty content patterns and focus', () => {
-    const empty: ScopeSnapshot = {
-      ...scope,
-      contentPatterns: [],
-      recentFocus: [],
-    }
-    const output = renderScope(empty)
-    expect(output).not.toContain('Content Patterns')
-    expect(output).not.toContain('Recent Focus')
   })
 })
 

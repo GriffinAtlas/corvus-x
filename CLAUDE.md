@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthesizing intelligence from X (Twitter). It uses Grok's native `x_search`/`web_search` tools via the OpenAI SDK and X API v2 for direct data access.
+Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthesizing intelligence from X (Twitter). It uses Grok's native `live_search` tool via the OpenAI SDK and X API v2 for direct data access.
 
 **Author:** Roger Griffin (roger@griffinatlas.us)
 **Repo:** github.com/GriffinAtlas/corvus-x
@@ -21,7 +21,7 @@ Corvus (`corvus-x` on npm) is an open-source CLI agent for gathering and synthes
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (889 tests)
+npm test                     # vitest run (901 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -82,8 +82,8 @@ tests/                       # mirrors src/ structure 1:1
 
 ## Key Patterns
 
-- **Data-first pipeline** — 6 commands (scan, pulse, trace, gather, read, scope) use `runStructuredCommand()`: FETCH (X API or Grok x_search fallback) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command uses `runCommand()` for prose output.
-- **Dual-path builders** — each builder in `src/core/builders/` has two paths: X API (rich engagement data) or Grok-only (x_search fallback when no X token). `CorvusDeps.x` being null triggers the fallback.
+- **Data-first pipeline** — 6 commands (scan, pulse, trace, gather, read, scope) use `runStructuredCommand()`: FETCH (X API or Grok live_search fallback) → ANALYZE (Grok JSON) → COMPUTE (metrics) → SNAPSHOT (store) → DIFF (compare). The `ask` command uses `runCommand()` for prose output.
+- **Dual-path builders** — each builder in `src/core/builders/` has two paths: X API (rich engagement data) or Grok-only (live_search fallback when no X token). `CorvusDeps.x` being null triggers the fallback.
 - **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN (Grok JSON) → EXECUTE (chain buildSnapshot calls) → REPLAN (adaptive) → SYNTHESIZE (AgentBrief). Locally-computed confidence and contradiction detection.
 - **BuildResult<T>** — all 6 builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`. Agent executor calls these programmatically.
 - **MCP server** — 7 tools registered via `McpServer` from `@modelcontextprotocol/sdk`. Tested with SDK's `Client` + `InMemoryTransport`. Lazy-inits `CorvusDeps` on first tool call.

@@ -73,6 +73,12 @@ async function runSetup(): Promise<void> {
     }
   }
 
+  const handle = await prompt('  Your X handle (e.g. @RogGriff): ')
+  if (handle) {
+    auth.setXHandle(handle)
+    console.log(`  ✓ Handle saved: @${handle.replace(/^@/, '')}\n`)
+  }
+
   console.log('  ✓ Ready. Try: corvus ask "what\'s trending in AI?"\n')
 }
 
@@ -83,6 +89,8 @@ function runStatus(): void {
   console.log('  ──────────────────')
   console.log(`  Grok API:  ${auth.getGrokKey() ? '✓ configured' : '✗ not set'}`)
   console.log(`  X API:     ${auth.getXToken() ? '✓ configured' : '✗ not set (optional)'}`)
+  const handle = auth.getXHandle()
+  console.log(`  X Handle:  ${handle ? `✓ @${handle}` : '✗ not set (run corvus auth setup)'}`)
   console.log()
 }
 

@@ -142,7 +142,7 @@ export class GrokAdapter {
       if (options.xSearchHandles?.length) tool.allowed_x_handles = options.xSearchHandles
       if (options.xSearchExcludeHandles?.length) tool.excluded_x_handles = options.xSearchExcludeHandles
     }
-    return [tool] as OpenAI.Chat.Completions.ChatCompletionTool[]
+    return [tool] as unknown as OpenAI.Chat.Completions.ChatCompletionTool[]
   }
 
   private computeCost(model: string, inputTokens: number, outputTokens: number, toolCallCount: number): number {

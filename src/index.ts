@@ -7,14 +7,14 @@ export {
   buildScanSnapshot,
   buildPulseSnapshot,
   buildTraceSnapshot,
-  buildGatherSnapshot,
-  buildReadSnapshot,
-  buildScopeSnapshot,
-  extractTweetId,
+  buildProfileSnapshot,
 } from './core/builders.js'
 
 // Agent
 export { AgentPlanner, AgentExecutor, AgentSynthesizer } from './core/agent.js'
+
+// Voice
+export { VoiceProfileManager } from './core/voice.js'
 
 // Compute
 export {
@@ -53,9 +53,12 @@ export type {
   ScanSnapshot,
   PulseSnapshot,
   TraceSnapshot,
-  GatherSnapshot,
-  ReadSnapshot,
-  ScopeSnapshot,
+  ProfileSnapshot,
+  DraftSnapshot,
+  HooksSnapshot,
+  ReviewSnapshot,
+  TimingSnapshot,
+  VoiceProfile,
   StoredSnapshot,
   MatchKeys,
   GrokTweetScore,
@@ -67,9 +70,8 @@ export {
   GrokScanResponseSchema,
   GrokPulseResponseSchema,
   GrokTraceResponseSchema,
-  GrokGatherResponseSchema,
-  GrokReadResponseSchema,
-  GrokScopeResponseSchema,
+  GrokProfileResponseSchema,
+  GrokVoiceProfileResponseSchema,
   AgentPlanSchema,
   ReplanDecisionSchema,
 } from './core/validators.js'

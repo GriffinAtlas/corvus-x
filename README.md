@@ -16,7 +16,7 @@
 
 ---
 
-Corvus is an open-source CLI agent that investigates X (Twitter) discourse autonomously. Give it a question — it plans its own research, executes across multiple data sources, flags contradictions, and delivers a structured intelligence brief. Built on Grok's native `x_search` via the xAI API.
+Corvus is an open-source CLI agent that investigates X (Twitter) discourse autonomously. Give it a question — it plans its own research, executes across multiple data sources, flags contradictions, and delivers a structured intelligence brief. Built on Grok's native `live_search` via the xAI API.
 
 ```bash
 corvus agent "Who's driving the AI regulation debate in the EU?"
@@ -92,7 +92,7 @@ npm install -g corvus-x
 corvus auth setup
 ```
 
-You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's `x_search`.
+You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's `live_search`.
 
 ```bash
 export CORVUS_GROK_KEY=xai-...

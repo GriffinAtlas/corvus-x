@@ -35,49 +35,6 @@ export interface GrokOnlyTraceResponse {
   mutations: { original: string; variant: string }[]
 }
 
-export interface GrokOnlyGatherResponse {
-  tweetCount: number
-  uniqueAuthors: number
-  estimatedEngagement: number
-  tweetAnalysis: { index: number; sentiment: number; narrative: string }[]
-  narratives: { theme: string; description: string }[]
-  topPosts: { id: string; author: string; text: string; engagement: number }[]
-  signals: string[]
-  webContext: string[]
-  outlook: string
-}
-
-export interface GrokOnlyReadResponse {
-  tweet: {
-    id: string
-    author: string
-    text: string
-    engagement: { likes: number; retweets: number; replies: number; impressions: number }
-    postedAt: string
-  }
-  analysis: string
-  significance: 'high' | 'medium' | 'low'
-  signals: string[]
-}
-
-export interface GrokOnlyScopeResponse {
-  account: {
-    handle: string
-    followers: number
-    following: number
-    tweetCount: number
-  }
-  recentActivity: {
-    avgEngagement: number
-    postsAnalyzed: number
-    topTweet: { id: string; text: string; engagement: number } | null
-  }
-  contentPatterns: string[]
-  recentFocus: string[]
-  networkPosition: string
-  influence: 'high' | 'medium' | 'low'
-  signalValue: 'high' | 'medium' | 'low'
-}
 
 export function computeGrokOnlyMetrics(
   tweetCount: number,

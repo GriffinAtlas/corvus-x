@@ -17,7 +17,7 @@ import type { OutputFormat } from '../output.js'
 import type { CorvusDeps } from '../../core/types.js'
 
 function stepLabel(step: AgentStep): string {
-  const target = step.args.topic ?? step.args.username ?? step.args.tweetId ?? ''
+  const target = step.args.topic ?? step.args.username ?? ''
   return `${step.command} · ${target}`
 }
 
@@ -68,13 +68,12 @@ async function editPlan(plan: AgentPlan): Promise<AgentPlan> {
       continue
     }
 
-    const addMatch = input.match(/^add\s+(scan|pulse|trace|gather|read|scope)\s+(.+)$/)
+    const addMatch = input.match(/^add\s+(scan|pulse|trace|profile)\s+(.+)$/)
     if (addMatch) {
       const command = addMatch[1] as AgentStep['command']
       const target = addMatch[2]
       const args: AgentStep['args'] = {}
-      if (command === 'read') args.tweetId = target
-      else if (command === 'scope') args.username = target.replace(/^@/, '')
+      if (command === 'profile') args.username = target.replace(/^@/, '')
       else args.topic = target
       steps.push({ command, args, reasoning: 'user-added' })
       console.log(t.muted(`  added ${command} · ${target}`))

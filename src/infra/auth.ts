@@ -4,6 +4,7 @@ import path from 'path'
 interface Credentials {
   grokKey?: string
   xBearerToken?: string
+  xHandle?: string
 }
 
 export class AuthManager {
@@ -27,6 +28,17 @@ export class AuthManager {
 
   setXToken(token: string): void {
     this.updateCreds((c) => (c.xBearerToken = token))
+  }
+
+  getXHandle(): string | null {
+    const env = process.env.CORVUS_X_HANDLE
+    if (env) return env.replace(/^@/, '')
+    const stored = this.readCreds().xHandle
+    return stored ? stored.replace(/^@/, '') : null
+  }
+
+  setXHandle(handle: string): void {
+    this.updateCreds((c) => (c.xHandle = handle.replace(/^@/, '')))
   }
 
   private readCreds(): Credentials {

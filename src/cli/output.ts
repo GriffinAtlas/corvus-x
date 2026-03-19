@@ -6,9 +6,7 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
   TraceSnapshot,
-  GatherSnapshot,
-  ReadSnapshot,
-  ScopeSnapshot,
+  ProfileSnapshot,
   AgentBrief,
 } from '../core/schemas.js'
 
@@ -276,135 +274,65 @@ export function renderTrace(data: TraceSnapshot): string {
   return parts.join('\n')
 }
 
-export function renderGather(data: GatherSnapshot): string {
-  const { metrics, sentiment, topPosts, narratives, webContext, outlook } = data
+export function renderProfile(data: ProfileSnapshot): string {
   const parts: string[] = []
 
   parts.push(
-    `  Tweets: ${metrics.tweetCount.toLocaleString()}  Engagement: ${metrics.totalEngagement.toLocaleString()}  Authors: ${metrics.uniqueAuthors}`,
+    `  @${data.handle}  ${compactNum(data.followers)} followers  ${compactNum(data.following)} following`,
   )
+  if (data.displayName && data.displayName !== data.handle) {
+    parts.push(`  ${t.muted(data.displayName)}`)
+  }
+
   parts.push('')
+  parts.push(`  ${t.heading('Posting Cadence')}`)
   parts.push(
-    `  Sentiment: ${sentiment.avg} avg  (${t.positive(`+${sentiment.positive}`)} / ${t.muted(String(sentiment.neutral))} / ${t.negative(`-${sentiment.negative}`)})`,
+    `    ${data.postFrequency.postsPerWeek} posts/week  Active: ${data.postFrequency.activeDays.join(', ') || 'n/a'}`,
   )
-
-  if (topPosts.length > 0) {
-    parts.push('')
-    parts.push(`  ${t.heading('Top Posts')}`)
-    for (const p of topPosts.slice(0, 3)) {
-      parts.push(`    @${p.author}  ${compactNum(p.engagement)} engagement`)
-      parts.push(`      ${t.muted(p.text.length > 120 ? p.text.slice(0, 120) + '...' : p.text)}`)
-    }
-  }
-
-  if (narratives.length > 0) {
-    parts.push('')
-    parts.push(`  ${t.heading('Narratives')}`)
-    for (const n of narratives.slice(0, 5)) {
-      parts.push(`    ${n.theme}  ${n.tweetCount} tweets  ${sentimentColor(n.avgSentiment)}`)
-    }
-  }
-
-  if (webContext.length > 0) {
-    parts.push('')
-    parts.push(`  ${t.heading('Web Context')}`)
-    for (const c of webContext.slice(0, 3)) {
-      parts.push(`    · ${c}`)
-    }
-  }
-
-  if (outlook) {
-    parts.push('')
-    parts.push(`  ${t.heading('Outlook')}`)
-    parts.push(`    ${outlook}`)
-  }
-
-  return parts.join('\n')
-}
-
-export function renderRead(data: ReadSnapshot): string {
-  const { tweet, analysis, significance, signals } = data
-  const parts: string[] = []
-
-  const eng = tweet.engagement
-  parts.push(`  @${tweet.author}  ${t.muted(tweet.postedAt)}`)
-  parts.push(
-    `  ${t.muted(`${eng.likes} likes · ${eng.retweets} RTs · ${eng.replies} replies · ${compactNum(eng.impressions)} views`)}`,
-  )
-  parts.push('')
-  parts.push(`  ${tweet.text}`)
-  parts.push('')
-
-  const sigColor =
-    significance === 'high' ? t.negative : significance === 'medium' ? t.warning : t.muted
-  parts.push(`  Significance: ${sigColor(significance)}`)
-
-  parts.push('')
-  parts.push(`  ${t.heading('Analysis')}`)
-  parts.push(`    ${analysis}`)
-
-  if (signals.length > 0) {
-    parts.push('')
-    parts.push(`  ${t.heading('Signals')}`)
-    for (const s of signals) {
-      parts.push(`    · ${s}`)
-    }
-  }
-
-  return parts.join('\n')
-}
-
-export function renderScope(data: ScopeSnapshot): string {
-  const {
-    account,
-    recentActivity,
-    contentPatterns,
-    recentFocus,
-    networkPosition,
-    influence,
-    signalValue,
-  } = data
-  const parts: string[] = []
-
-  parts.push(
-    `  @${account.handle}  ${compactNum(account.followers)} followers  ${compactNum(account.following)} following  ${compactNum(account.tweetCount)} tweets`,
-  )
-
-  parts.push('')
-  parts.push(`  ${t.heading('Recent Activity')}`)
-  parts.push(
-    `    ${recentActivity.postsAnalyzed} posts analyzed  ${compactNum(recentActivity.avgEngagement)} avg engagement`,
-  )
-  if (recentActivity.topTweet) {
-    const tt = recentActivity.topTweet
+  if (data.postFrequency.peakHours.length > 0) {
     parts.push(
-      `    Top: ${t.muted(tt.text.length > 100 ? tt.text.slice(0, 100) + '...' : tt.text)}  ${compactNum(tt.engagement)} eng`,
+      `    Peak hours (UTC): ${data.postFrequency.peakHours.map((h) => `${h}:00`).join(', ')}`,
     )
   }
 
-  if (contentPatterns.length > 0) {
+  if (data.contentMix.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Content Patterns')}`)
-    for (const p of contentPatterns) {
-      parts.push(`    · ${p}`)
+    parts.push(`  ${t.heading('Content Mix')}`)
+    for (const c of data.contentMix.slice(0, 7)) {
+      parts.push(
+        `    ${c.category}  ${c.percentage}%  ${compactNum(c.avgEngagement)} avg engagement`,
+      )
     }
   }
 
-  if (recentFocus.length > 0) {
+  if (data.topPerformers.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Recent Focus')}`)
-    for (const f of recentFocus) {
-      parts.push(`    · ${f}`)
+    parts.push(`  ${t.heading('Top Performers')}`)
+    for (const p of data.topPerformers.slice(0, 5)) {
+      parts.push(`    ${compactNum(p.engagement)} eng  ${t.muted(p.why)}`)
+      parts.push(
+        `      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`,
+      )
     }
   }
 
   parts.push('')
-  parts.push(`  Network: ${networkPosition}`)
-  const influenceColor =
-    influence === 'high' ? t.positive : influence === 'medium' ? t.warning : t.muted
-  const signalColor =
-    signalValue === 'high' ? t.positive : signalValue === 'medium' ? t.warning : t.muted
-  parts.push(`  Influence: ${influenceColor(influence)}  Signal Value: ${signalColor(signalValue)}`)
+  parts.push(`  ${t.heading('Voice')}`)
+  parts.push(`    Tone: ${data.voiceTraits.tone}`)
+  parts.push(`    Vocabulary: ${data.voiceTraits.vocabulary}`)
+  parts.push(`    Emoji: ${data.voiceTraits.emojiUsage}`)
+  parts.push(`    Avg length: ${data.voiceTraits.avgLength} chars`)
+
+  parts.push('')
+  parts.push(`  Sentiment: ${sentimentColor(data.sentiment)}`)
+
+  if (data.recommendations && data.recommendations.length > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Recommendations')}`)
+    for (const r of data.recommendations) {
+      parts.push(`    · ${r}`)
+    }
+  }
 
   return parts.join('\n')
 }

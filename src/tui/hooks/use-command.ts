@@ -2,14 +2,13 @@ import { useState, useCallback } from 'react'
 import { parseInput } from '../router.js'
 import { executeStructuredQuery } from '../../core/orchestrator.js'
 import { ConfigManager } from '../../infra/config.js'
+import { AuthManager } from '../../infra/auth.js'
 import { buildScanSnapshot } from '../../core/builders/scan.js'
 import { buildPulseSnapshot } from '../../core/builders/pulse.js'
 import { buildTraceSnapshot } from '../../core/builders/trace.js'
-import { buildGatherSnapshot } from '../../core/builders/gather.js'
-import { buildReadSnapshot, extractTweetId } from '../../core/builders/read.js'
-import { buildScopeSnapshot } from '../../core/builders/scope.js'
-import { renderScan, renderPulse, renderTrace, renderGather, renderRead, renderScope } from '../../cli/output.js'
-import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, GATHER_MATCH_KEYS } from '../../core/schemas.js'
+import { buildProfileSnapshot, resolveIsSelf } from '../../core/builders/profile.js'
+import { renderScan, renderPulse, renderTrace, renderProfile } from '../../cli/output.js'
+import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS } from '../../core/schemas.js'
 import type { CorvusDeps } from '../../core/types.js'
 import type { Snapshot, MatchKeys } from '../../core/schemas.js'
 import type { BuildResult } from '../../core/types.js'
@@ -20,9 +19,7 @@ const HELP_TEXT = `Commands:
   scan <topic>        Snapshot X discourse on a topic
   pulse <topic>       Sentiment pulse — bull/bear signals
   trace <topic>       Trace how a narrative spreads
-  gather <topic>      X discourse + web search
-  read <id-or-url>    Analyze a single tweet
-  scope <@username>   Profile an X account
+  profile <@user>     Analyze content strategy
   ask <question>      Ask Grok anything
 
   /help               Show this help
@@ -30,7 +27,7 @@ const HELP_TEXT = `Commands:
   /clear              Clear chat
   /exit               Quit`
 
-// Helper to reduce repetition across the 6 structured commands
+// Helper to reduce repetition across the structured commands
 async function runStructured<T extends Snapshot>(
   dispatch: Dispatch<SessionAction>,
   deps: CorvusDeps,
@@ -130,14 +127,6 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       return
     }
 
-    // Validate read input before committing to the query (adding user bubble + incrementing queryCount)
-    if (parsed.command === 'read') {
-      if (!extractTweetId(parsed.args.tweetIdOrUrl)) {
-        dispatch({ type: 'add-error', message: 'Invalid tweet ID or URL.' })
-        return
-      }
-    }
-
     dispatch({ type: 'add-query', entry: { type: 'user', text: input } })
     setIsLoading(true)
     const startTime = Date.now()
@@ -170,23 +159,12 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         setPhaseLabel(`tracing "${args.topic}"...`)
         await runStructured(dispatch, deps, 'trace', args.topic, TRACE_MATCH_KEYS,
           () => buildTraceSnapshot(deps, args.topic, 50), renderTrace, startTime, baseDir)
-      } else if (command === 'gather') {
-        setPhaseLabel(`gathering intelligence on "${args.topic}"...`)
-        await runStructured(dispatch, deps, 'gather', args.topic, GATHER_MATCH_KEYS,
-          () => buildGatherSnapshot(deps, args.topic, 50), renderGather, startTime, baseDir)
-      } else if (command === 'read') {
-        const tweetId = extractTweetId(args.tweetIdOrUrl)
-        if (!tweetId) {
-          dispatch({ type: 'add-error', message: 'Invalid tweet ID or URL.' })
-          return
-        }
-        setPhaseLabel('analyzing tweet...')
-        await runStructured(dispatch, deps, 'read', tweetId, {},
-          () => buildReadSnapshot(deps, tweetId), renderRead, startTime, baseDir)
-      } else if (command === 'scope') {
-        setPhaseLabel(`profiling @${args.username}...`)
-        await runStructured(dispatch, deps, 'scope', args.username, {},
-          () => buildScopeSnapshot(deps, args.username, 10), renderScope, startTime, baseDir)
+      } else if (command === 'profile') {
+        const handle = args.username
+        const isSelf = resolveIsSelf(handle, new AuthManager(baseDir).getXHandle())
+        setPhaseLabel(`profiling @${handle}${isSelf ? ' (self)' : ''}...`)
+        await runStructured(dispatch, deps, 'profile', `@${handle}`, PROFILE_MATCH_KEYS,
+          () => buildProfileSnapshot(deps, handle, 50, isSelf), renderProfile, startTime, baseDir)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

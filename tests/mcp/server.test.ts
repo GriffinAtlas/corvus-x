@@ -3,12 +3,9 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
   TraceSnapshot,
-  GatherSnapshot,
-  ReadSnapshot,
-  ScopeSnapshot,
+  ProfileSnapshot,
   AgentBrief,
 } from '../../src/core/schemas.js'
-import { extractTweetId } from '../../src/core/builders/read.js'
 
 vi.mock('../../src/infra/auth.js', () => ({
   AuthManager: class {
@@ -70,40 +67,17 @@ const traceData: TraceSnapshot = {
   reach: { totalTweets: 10, totalEngagement: 300, uniqueAuthors: 6 },
 }
 
-const gatherData: GatherSnapshot = {
-  metrics: { tweetCount: 10, totalEngagement: 600, uniqueAuthors: 9, engagementPerTweet: 60 },
-  sentiment: { avg: 0.2, positive: 4, neutral: 4, negative: 2 },
-  topPosts: [{ id: '999', author: 'topuser', text: 'Top post', engagement: 200 }],
-  narratives: [{ theme: 'test', description: 'Narrative', tweetCount: 10, avgSentiment: 0.2 }],
-  webContext: ['Major news article about the topic'],
-  outlook: 'Stable short-term, growing medium-term',
-}
-
-const readData: ReadSnapshot = {
-  tweet: {
-    id: '12345',
-    author: 'testuser',
-    text: 'Test tweet content',
-    engagement: { likes: 100, retweets: 20, replies: 5, impressions: 5000 },
-    postedAt: '2026-03-10T12:00:00Z',
-  },
-  analysis: 'Analysis of the tweet content and significance',
-  significance: 'medium',
-  signals: ['Signal from tweet'],
-}
-
-const scopeData: ScopeSnapshot = {
-  account: { handle: 'testuser', followers: 10000, following: 500, tweetCount: 3000 },
-  recentActivity: {
-    avgEngagement: 150,
-    postsAnalyzed: 10,
-    topTweet: { id: '555', text: 'Best tweet', engagement: 500 },
-  },
-  contentPatterns: ['AI', 'tech'],
-  recentFocus: ['AI agents', 'LLMs'],
-  networkPosition: 'Mid-tier tech voice',
-  influence: 'medium',
-  signalValue: 'high',
+const profileData: ProfileSnapshot = {
+  handle: 'testuser',
+  displayName: 'Test User',
+  followers: 10000,
+  following: 500,
+  postFrequency: { postsPerWeek: 5, activeDays: ['Monday', 'Wednesday'], peakHours: [9, 14] },
+  contentMix: [{ category: 'AI', percentage: 60, avgEngagement: 150 }],
+  topPerformers: [{ url: 'https://x.com/testuser/status/1', content: 'Best post', engagement: 500, why: 'Viral thread' }],
+  voiceTraits: { tone: 'casual', vocabulary: 'technical', emojiUsage: 'minimal', avgLength: 180 },
+  sentiment: 0.3,
+  fetchedAt: '2026-03-19T00:00:00Z',
 }
 
 vi.mock('../../src/core/builders/scan.js', () => ({
@@ -118,20 +92,8 @@ vi.mock('../../src/core/builders/trace.js', () => ({
   buildTraceSnapshot: vi.fn(async () => makeBuildResult(traceData)),
 }))
 
-vi.mock('../../src/core/builders/gather.js', () => ({
-  buildGatherSnapshot: vi.fn(async () => makeBuildResult(gatherData)),
-}))
-
-vi.mock('../../src/core/builders/read.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../src/core/builders/read.js')>()
-  return {
-    ...original,
-    buildReadSnapshot: vi.fn(async () => makeBuildResult(readData)),
-  }
-})
-
-vi.mock('../../src/core/builders/scope.js', () => ({
-  buildScopeSnapshot: vi.fn(async () => makeBuildResult(scopeData)),
+vi.mock('../../src/core/builders/profile.js', () => ({
+  buildProfileSnapshot: vi.fn(async () => makeBuildResult(profileData)),
 }))
 
 vi.mock('../../src/core/agent.js', () => {
@@ -188,9 +150,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { buildScanSnapshot } from '../../src/core/builders/scan.js'
 import { buildPulseSnapshot } from '../../src/core/builders/pulse.js'
 import { buildTraceSnapshot } from '../../src/core/builders/trace.js'
-import { buildGatherSnapshot } from '../../src/core/builders/gather.js'
-import { buildReadSnapshot } from '../../src/core/builders/read.js'
-import { buildScopeSnapshot } from '../../src/core/builders/scope.js'
+import { buildProfileSnapshot } from '../../src/core/builders/profile.js'
 
 async function connectClient() {
   const mcpServer = createServer()
@@ -233,9 +193,7 @@ describe('MCP server', () => {
       vi.mocked(buildScanSnapshot).mockClear()
       vi.mocked(buildPulseSnapshot).mockClear()
       vi.mocked(buildTraceSnapshot).mockClear()
-      vi.mocked(buildGatherSnapshot).mockClear()
-      vi.mocked(buildReadSnapshot).mockClear()
-      vi.mocked(buildScopeSnapshot).mockClear()
+      vi.mocked(buildProfileSnapshot).mockClear()
       ;({ client, mcpServer } = await connectClient())
     })
 
@@ -244,16 +202,14 @@ describe('MCP server', () => {
       await mcpServer.close()
     })
 
-    it('lists all 7 tools', async () => {
+    it('lists all 5 tools', async () => {
       const { tools } = await client.listTools()
       const names = tools.map((t) => t.name).sort()
       expect(names).toEqual([
         'corvus_agent',
-        'corvus_gather',
+        'corvus_profile',
         'corvus_pulse',
-        'corvus_read',
         'corvus_scan',
-        'corvus_scope',
         'corvus_trace',
       ])
     })
@@ -299,53 +255,18 @@ describe('MCP server', () => {
       expect(parsed.origin.account).toBe('origin_user')
     })
 
-    it('corvus_gather calls buildGatherSnapshot with correct args', async () => {
+    it('corvus_profile strips @ and calls buildProfileSnapshot', async () => {
       const result = await client.callTool({
-        name: 'corvus_gather',
-        arguments: { topic: 'AI regulation', maxResults: 50 },
+        name: 'corvus_profile',
+        arguments: { username: '@elonmusk', postCount: 20 },
       })
       const parsed = parseContent(result)
-      const [, topic, maxResults] = vi.mocked(buildGatherSnapshot).mock.calls[0]
-      expect(topic).toBe('AI regulation')
-      expect(maxResults).toBe(50)
-      expect(parsed.webContext).toEqual(['Major news article about the topic'])
-      expect(parsed.outlook).toBe('Stable short-term, growing medium-term')
-    })
-
-    it('corvus_read calls buildReadSnapshot with extracted tweet ID', async () => {
-      const result = await client.callTool({
-        name: 'corvus_read',
-        arguments: { tweetIdOrUrl: 'https://x.com/user/status/12345' },
-      })
-      const parsed = parseContent(result)
-      const [, tweetId] = vi.mocked(buildReadSnapshot).mock.calls[0]
-      expect(tweetId).toBe('12345')
-      expect(parsed.tweet.author).toBe('testuser')
-      expect(parsed.significance).toBe('medium')
-    })
-
-    it('corvus_read returns error for invalid tweet ID', async () => {
-      const result = await client.callTool({
-        name: 'corvus_read',
-        arguments: { tweetIdOrUrl: 'not-a-tweet' },
-      })
-      expect(result.isError).toBe(true)
-      const parsed = parseContent(result)
-      expect(parsed.error).toBe('Invalid tweet ID or URL')
-      expect(vi.mocked(buildReadSnapshot)).not.toHaveBeenCalled()
-    })
-
-    it('corvus_scope strips @ and calls buildScopeSnapshot', async () => {
-      const result = await client.callTool({
-        name: 'corvus_scope',
-        arguments: { username: '@elonmusk', tweetCount: 20 },
-      })
-      const parsed = parseContent(result)
-      const [, handle, tweetCount] = vi.mocked(buildScopeSnapshot).mock.calls[0]
+      const [, handle, postCount, isSelf] = vi.mocked(buildProfileSnapshot).mock.calls[0]
       expect(handle).toBe('elonmusk')
-      expect(tweetCount).toBe(20)
-      expect(parsed.account.handle).toBe('testuser')
-      expect(parsed.influence).toBe('medium')
+      expect(postCount).toBe(20)
+      expect(isSelf).toBe(false)
+      expect(parsed.handle).toBe('testuser')
+      expect(parsed.postFrequency.postsPerWeek).toBe(5)
     })
 
     it('corvus_agent runs plan-execute-synthesize pipeline', async () => {
@@ -399,28 +320,16 @@ describe('MCP server', () => {
       expect(parsed.metrics.tweetCount).toBe(10)
     })
 
-    it('corvus_scope works without tweetCount (uses default)', async () => {
+    it('corvus_profile works without postCount (uses default)', async () => {
       const result = await client.callTool({
-        name: 'corvus_scope',
+        name: 'corvus_profile',
         arguments: { username: 'satoshi' },
       })
       const parsed = parseContent(result)
-      expect(vi.mocked(buildScopeSnapshot)).toHaveBeenCalledOnce()
-      const [, handle] = vi.mocked(buildScopeSnapshot).mock.calls[0]
+      expect(vi.mocked(buildProfileSnapshot)).toHaveBeenCalledOnce()
+      const [, handle] = vi.mocked(buildProfileSnapshot).mock.calls[0]
       expect(handle).toBe('satoshi')
-      expect(parsed.account.handle).toBe('testuser')
-    })
-
-    it('corvus_read handles URL with tracking params', async () => {
-      const result = await client.callTool({
-        name: 'corvus_read',
-        arguments: { tweetIdOrUrl: 'https://x.com/user/status/99999?ref=timeline&s=20' },
-      })
-      const parsed = parseContent(result)
-      expect(vi.mocked(buildReadSnapshot)).toHaveBeenCalledOnce()
-      const [, tweetId] = vi.mocked(buildReadSnapshot).mock.calls[0]
-      expect(tweetId).toBe('99999')
-      expect(parsed.tweet.author).toBe('testuser')
+      expect(parsed.handle).toBe('testuser')
     })
 
     it('corvus_scan propagates builder errors', async () => {
@@ -445,7 +354,7 @@ describe('MCP server', () => {
       expect(text[0].text).toContain('Grok timeout')
     })
 
-    it('all 7 tools have descriptions', async () => {
+    it('all 5 tools have descriptions', async () => {
       const { tools } = await client.listTools()
       for (const tool of tools) {
         expect(tool.description).toBeDefined()
@@ -453,7 +362,7 @@ describe('MCP server', () => {
       }
     })
 
-    it('all 7 tools have input schemas', async () => {
+    it('all 5 tools have input schemas', async () => {
       const { tools } = await client.listTools()
       for (const tool of tools) {
         expect(tool.inputSchema).toBeDefined()
@@ -462,42 +371,4 @@ describe('MCP server', () => {
     })
   })
 
-  describe('extractTweetId', () => {
-    it('extracts ID from x.com status URL', () => {
-      expect(extractTweetId('https://x.com/user/status/1234567890')).toBe('1234567890')
-    })
-
-    it('extracts ID from twitter.com status URL', () => {
-      expect(extractTweetId('https://twitter.com/user/status/9876543210')).toBe('9876543210')
-    })
-
-    it('extracts ID from URL with query parameters', () => {
-      expect(extractTweetId('https://x.com/user/status/111222333?s=20')).toBe('111222333')
-    })
-
-    it('accepts raw numeric ID', () => {
-      expect(extractTweetId('1234567890')).toBe('1234567890')
-    })
-
-    it('returns null for plain text', () => {
-      expect(extractTweetId('abc')).toBeNull()
-    })
-
-    it('returns null for empty string', () => {
-      expect(extractTweetId('')).toBeNull()
-    })
-
-    it('returns null for URL without /status/', () => {
-      expect(extractTweetId('https://x.com/user')).toBeNull()
-    })
-
-    it('returns null for mixed alphanumeric', () => {
-      expect(extractTweetId('abc123def')).toBeNull()
-    })
-
-    it('handles very long numeric IDs', () => {
-      const longId = '18446744073709551615'
-      expect(extractTweetId(longId)).toBe(longId)
-    })
-  })
 })

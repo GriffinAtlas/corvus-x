@@ -10,9 +10,7 @@ import { XAdapter } from '../core/x-adapter.js'
 import { buildScanSnapshot } from '../core/builders/scan.js'
 import { buildPulseSnapshot } from '../core/builders/pulse.js'
 import { buildTraceSnapshot } from '../core/builders/trace.js'
-import { buildGatherSnapshot } from '../core/builders/gather.js'
-import { buildReadSnapshot, extractTweetId } from '../core/builders/read.js'
-import { buildScopeSnapshot } from '../core/builders/scope.js'
+import { buildProfileSnapshot } from '../core/builders/profile.js'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../core/agent.js'
 import type { CorvusDeps, GrokCitation } from '../core/types.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
@@ -140,75 +138,27 @@ export function createServer(): McpServer {
   )
 
   server.registerTool(
-    'corvus_gather',
-    {
-      title: 'Gather Intelligence',
-      description:
-        'X discourse + web search — narratives, sentiment, web context, and outlook.',
-      inputSchema: z.object({
-        topic: z.string().describe('Topic to investigate'),
-        maxResults: z
-          .number()
-          .int()
-          .min(10)
-          .max(100)
-          .default(50)
-          .describe('Max tweets to analyze'),
-      }),
-    },
-    async ({ topic, maxResults }): Promise<CallToolResult> => {
-      const result = await buildGatherSnapshot(getDeps(), topic, maxResults)
-      return jsonResult(result.data, result.cost, result.citations)
-    },
-  )
-
-  server.registerTool(
-    'corvus_read',
-    {
-      title: 'Analyze Tweet',
-      description:
-        'Analyze a single tweet — significance, context, and signals. Accepts a tweet ID or x.com URL.',
-      inputSchema: z.object({
-        tweetIdOrUrl: z
-          .string()
-          .describe('Tweet ID (numeric) or full x.com/twitter.com URL'),
-      }),
-    },
-    async ({ tweetIdOrUrl }): Promise<CallToolResult> => {
-      const tweetId = extractTweetId(tweetIdOrUrl)
-      if (!tweetId) {
-        return {
-          content: [{ type: 'text', text: JSON.stringify({ error: 'Invalid tweet ID or URL' }) }],
-          isError: true,
-        }
-      }
-      const result = await buildReadSnapshot(getDeps(), tweetId)
-      return jsonResult(result.data, result.cost, result.citations)
-    },
-  )
-
-  server.registerTool(
-    'corvus_scope',
+    'corvus_profile',
     {
       title: 'Profile Account',
       description:
-        'Profile an X account — influence, content patterns, recent focus, network position, signal value.',
+        'Analyze content strategy of an X account — posting cadence, content mix, top performers, voice traits.',
       inputSchema: z.object({
         username: z
           .string()
           .describe('X username (with or without @)'),
-        tweetCount: z
+        postCount: z
           .number()
           .int()
           .min(5)
-          .max(100)
-          .default(10)
-          .describe('Number of recent tweets to analyze'),
+          .max(200)
+          .default(50)
+          .describe('Number of recent posts to analyze'),
       }),
     },
-    async ({ username, tweetCount }): Promise<CallToolResult> => {
+    async ({ username, postCount }): Promise<CallToolResult> => {
       const handle = username.replace(/^@/, '')
-      const result = await buildScopeSnapshot(getDeps(), handle, tweetCount)
+      const result = await buildProfileSnapshot(getDeps(), handle, postCount, false)
       return jsonResult(result.data, result.cost, result.citations)
     },
   )
