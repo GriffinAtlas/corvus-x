@@ -16,7 +16,7 @@ describe('App', () => {
   it('renders welcome view with crow art', () => {
     const { lastFrame } = render(<App version="0.2.0" init={testInit} />)
     const frame = lastFrame()!
-    expect(frame).toContain('╔═╗╔═╗╦═╗')
+    expect(frame.includes('██████') || frame.includes('╔═╗╔═╗')).toBe(true)
   })
 
   it('renders status panel with grok status', () => {

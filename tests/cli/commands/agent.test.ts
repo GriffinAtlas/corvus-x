@@ -214,7 +214,7 @@ describe('registerAgentCommand', () => {
     ])
 
     const output = logs.join('\n')
-    expect(output).toContain('╔═╗╔═╗╦═╗') // logo box chars
+    expect(output.includes('██████') || output.includes('╔═╗╔═╗')).toBe(true) // logo
     expect(output).toContain('Bitcoin sentiment is cautiously bullish') // signal line
     expect(output).toContain('Confidence') // confidence section
     expect(output).toContain('steps') // footer

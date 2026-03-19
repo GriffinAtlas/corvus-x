@@ -93,6 +93,15 @@ export const LOGO = t.accent(`  ╔═╗╔═╗╦═╗╦  ╦╦ ╦╔═
   ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗
   ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝`)
 
+export const LOGO_LARGE_LINES = [
+  ' ██████╗  ██████╗  ██████╗  ██╗   ██╗ ██╗   ██╗ ███████╗',
+  ' ██╔════╝ ██╔═══██╗ ██╔══██╗ ██║   ██║ ██║   ██║ ██╔════╝',
+  ' ██║      ██║   ██║ ██████╔╝ ██║   ██║ ██║   ██║ ███████╗',
+  ' ██║      ██║   ██║ ██╔══██╗ ╚██╗ ██╔╝ ██║   ██║ ╚════██║',
+  ' ╚██████╗ ╚██████╔╝ ██║  ██║  ╚████╔╝  ╚██████╔╝ ███████║',
+  '  ╚═════╝  ╚═════╝  ╚═╝  ╚═╝   ╚═══╝    ╚═════╝  ╚══════╝',
+]
+
 export const CROW_SMALL = t.accent(
   `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄⣀⣀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⡿⠋⠉⠀⠀⠀⠀
@@ -166,32 +175,46 @@ const CROW_GRADIENT = [
   '#B48AFF', '#C9A5FF', '#D4B8FF',
 ]
 
-export function gradientCrow(): string {
-  const allLines = [...CROW_SMALL_LINES, ...LOGO_LINES]
+const LOGO_LARGE_GRADIENT = [
+  '#3A1078', '#4A1990', '#5522A8', '#602BBF',
+  '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
+  '#5C29A8', '#6E33C6', '#7C3AED',
+  '#8B4FFF', '#9F67FF', '#B48AFF',
+]
+
+export function gradientCrow(large = false): string {
+  const logoLines = large ? LOGO_LARGE_LINES : LOGO_LINES
+  const allLines = [...CROW_SMALL_LINES, ...logoLines]
+  const grad = large ? LOGO_LARGE_GRADIENT : CROW_GRADIENT
   return allLines
-    .map((line, i) => chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])(line))
+    .map((line, i) => chalk.hex(grad[i % grad.length])(line))
     .join('\n')
 }
 
 export function revealCrow(): Promise<void> {
+  const cols = process.stdout.columns ?? 80
+  const large = cols >= 80
+  const logoLines = large ? LOGO_LARGE_LINES : LOGO_LINES
+  const grad = large ? LOGO_LARGE_GRADIENT : CROW_GRADIENT
+
   if (!isTTY) {
-    console.log(gradientCrow())
+    console.log(gradientCrow(large))
     return Promise.resolve()
   }
 
-  const allLines = [...CROW_SMALL_LINES, ...LOGO_LINES]
+  const allLines = [...CROW_SMALL_LINES, ...logoLines]
   let i = 0
 
   return new Promise((resolve) => {
     const timer = setInterval(() => {
-      const color = chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])
+      const color = chalk.hex(grad[i % grad.length])
       console.log(color(allLines[i]))
       i++
       if (i >= allLines.length) {
         clearInterval(timer)
         resolve()
       }
-    }, 55)
+    }, 45)
   })
 }
 

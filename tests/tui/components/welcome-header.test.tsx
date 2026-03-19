@@ -13,7 +13,8 @@ describe('WelcomeHeader', () => {
   it('renders block-letter logo', () => {
     const { lastFrame } = render(<WelcomeHeader version="0.2.0" />)
     const frame = lastFrame()!
-    expect(frame).toContain('╔═╗╔═╗╦═╗')
+    // Large logo uses ██████╗ block chars, small uses ╔═╗
+    expect(frame.includes('██████') || frame.includes('╔═╗╔═╗')).toBe(true)
   })
 
   it('renders tagline', () => {

@@ -16,7 +16,7 @@ describe('WelcomeView', () => {
       />,
     )
     const frame = lastFrame()!
-    expect(frame).toContain('╔═╗╔═╗╦═╗')
+    expect(frame.includes('██████') || frame.includes('╔═╗╔═╗')).toBe(true)
     expect(frame).toContain('●')
     expect(frame).toContain('Grok')
     expect(frame).toContain('Quick start')

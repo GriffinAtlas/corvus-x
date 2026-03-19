@@ -1,6 +1,6 @@
 import React from 'react'
-import { Box, Text } from 'ink'
-import { CROW_SMALL_LINES, LOGO_LINES } from '../../cli/theme.js'
+import { Box, Text, useStdout } from 'ink'
+import { CROW_SMALL_LINES, LOGO_LINES, LOGO_LARGE_LINES } from '../../cli/theme.js'
 
 interface Props {
   version: string
@@ -11,9 +11,18 @@ const CROW_COLORS = [
   '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
 ]
 
-const LOGO_COLORS = ['#9F67FF', '#B48AFF', '#C9A5FF']
+const LOGO_SMALL_COLORS = ['#9F67FF', '#B48AFF', '#C9A5FF']
+
+const LOGO_LARGE_COLORS = [
+  '#5C29A8', '#6E33C6', '#7C3AED',
+  '#8B4FFF', '#9F67FF', '#B48AFF',
+]
 
 export function WelcomeHeader({ version }: Props) {
+  const { stdout } = useStdout()
+  const columns = stdout?.columns ?? 80
+  const useLarge = columns >= 80
+
   return (
     <Box flexDirection="column" paddingLeft={1} paddingTop={1}>
       <Box flexDirection="row" alignItems="flex-start">
@@ -25,13 +34,18 @@ export function WelcomeHeader({ version }: Props) {
         </Box>
 
         {/* Logo + tagline */}
-        <Box flexDirection="column" paddingLeft={3} paddingTop={2}>
-          {LOGO_LINES.map((line, i) => (
-            <Text key={i} color={LOGO_COLORS[i % LOGO_COLORS.length]}>{line}</Text>
-          ))}
+        <Box flexDirection="column" paddingLeft={2} paddingTop={useLarge ? 0 : 2}>
+          {useLarge ? (
+            LOGO_LARGE_LINES.map((line, i) => (
+              <Text key={i} color={LOGO_LARGE_COLORS[i % LOGO_LARGE_COLORS.length]}>{line}</Text>
+            ))
+          ) : (
+            LOGO_LINES.map((line, i) => (
+              <Text key={i} color={LOGO_SMALL_COLORS[i % LOGO_SMALL_COLORS.length]}>{line}</Text>
+            ))
+          )}
           <Text> </Text>
-          <Text dimColor>      investigate X · grow your presence</Text>
-          <Text dimColor>      v{version}</Text>
+          <Text dimColor>  investigate X · grow your presence · v{version}</Text>
         </Box>
       </Box>
     </Box>
