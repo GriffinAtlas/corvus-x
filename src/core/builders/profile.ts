@@ -96,7 +96,7 @@ async function buildProfileFromXApi(
     },
   )
 
-  const grok = parseGrokJson<ProfileSnapshot>(response.text, GrokProfileResponseSchema)
+  const grok = parseGrokJson<ProfileSnapshot>(response.text)
 
   return {
     data: {

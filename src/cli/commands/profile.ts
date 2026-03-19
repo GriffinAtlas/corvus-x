@@ -14,12 +14,11 @@ export function registerProfileCommand(program: Command): void {
     .description('Analyze content strategy — yours or anyone\'s')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --posts <count>', 'number of recent posts to analyze', '50')
-    .option('--refresh', 'force re-fetch even if recent snapshot exists')
     .option('--cost', 'show estimated cost before executing')
     .action(
       async (
         username: string,
-        options: { format: OutputFormat; posts: string; refresh?: boolean; cost?: boolean },
+        options: { format: OutputFormat; posts: string; cost?: boolean },
       ) => {
         const handle = username.replace(/^@/, '')
         const postCount = Math.min(parseInt(options.posts, 10) || 50, 200)

@@ -13,9 +13,6 @@ export {
 // Agent
 export { AgentPlanner, AgentExecutor, AgentSynthesizer } from './core/agent.js'
 
-// Voice
-export { VoiceProfileManager } from './core/voice.js'
-
 // Compute
 export {
   computeBaseMetrics,
@@ -54,7 +51,6 @@ export type {
   PulseSnapshot,
   TraceSnapshot,
   ProfileSnapshot,
-  VoiceProfile,
   StoredSnapshot,
   MatchKeys,
   GrokTweetScore,
@@ -67,7 +63,6 @@ export {
   GrokPulseResponseSchema,
   GrokTraceResponseSchema,
   GrokProfileResponseSchema,
-  GrokVoiceProfileResponseSchema,
   AgentPlanSchema,
   ReplanDecisionSchema,
 } from './core/validators.js'
