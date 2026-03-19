@@ -235,5 +235,39 @@ describe('parseInput', () => {
         args: { topic: 'bitcoin' },
       })
     })
+
+    it('profile is case-insensitive', () => {
+      expect(parseInput('PROFILE alice')).toEqual({
+        type: 'command',
+        command: 'profile',
+        args: { username: 'alice' },
+      })
+    })
+
+    it('profile strips @ from handle', () => {
+      expect(parseInput('profile @alice')).toEqual({
+        type: 'command',
+        command: 'profile',
+        args: { username: 'alice' },
+      })
+    })
+
+    it('profile handles username with underscores and numbers', () => {
+      expect(parseInput('profile alice_123')).toEqual({
+        type: 'command',
+        command: 'profile',
+        args: { username: 'alice_123' },
+      })
+    })
+
+    it('profile preserves multi-word input after keyword as username', () => {
+      // "profile some user" — rest is "some user", treated as username
+      const result = parseInput('profile some user')
+      expect(result).toEqual({
+        type: 'command',
+        command: 'profile',
+        args: { username: 'some user' },
+      })
+    })
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildProfileSnapshot } from '../../../src/core/builders/profile.js'
+import { buildProfileSnapshot, resolveIsSelf } from '../../../src/core/builders/profile.js'
 import type { CorvusDeps } from '../../../src/core/types.js'
 import type { XUser } from '../../../src/core/x-adapter.js'
 
@@ -163,5 +163,66 @@ describe('buildProfileSnapshot — Grok-only path', () => {
     expect(result.data.topPerformers).toEqual([])
     expect(result.data.voiceTraits).toEqual({ tone: '', vocabulary: '', emojiUsage: '', avgLength: 0 })
     expect(result.data.sentiment).toBe(0)
+  })
+
+  it('includes recommendations when self in Grok-only path', async () => {
+    const grokOnlyResponse = {
+      ...profileGrokResponse,
+      displayName: 'Self User',
+      followers: 100,
+      following: 50,
+    }
+    const deps = makeDeps({ grokResponse: grokOnlyResponse, x: null })
+
+    const result = await buildProfileSnapshot(deps, 'selfuser', 50, true)
+    expect(result.data.recommendations).toEqual(['Post more threads', 'Engage in morning hours'])
+  })
+})
+
+describe('resolveIsSelf', () => {
+  it('returns true for matching handles (same case)', () => {
+    expect(resolveIsSelf('alice', 'alice')).toBe(true)
+  })
+
+  it('returns true for matching handles (case-insensitive)', () => {
+    expect(resolveIsSelf('Alice', 'alice')).toBe(true)
+    expect(resolveIsSelf('alice', 'ALICE')).toBe(true)
+    expect(resolveIsSelf('RogGriff', 'roggriff')).toBe(true)
+  })
+
+  it('returns false for non-matching handles', () => {
+    expect(resolveIsSelf('alice', 'bob')).toBe(false)
+  })
+
+  it('returns false when selfHandle is null', () => {
+    expect(resolveIsSelf('alice', null)).toBe(false)
+  })
+
+  it('returns false for empty string selfHandle', () => {
+    // empty string is not null, but handles should not match
+    expect(resolveIsSelf('alice', '')).toBe(false)
+  })
+
+  it('handles empty string as input handle', () => {
+    expect(resolveIsSelf('', 'alice')).toBe(false)
+    expect(resolveIsSelf('', '')).toBe(true)
+  })
+})
+
+describe('buildProfileSnapshot — X API path with empty tweets', () => {
+  it('does not generate voice profile when tweets array is empty', async () => {
+    const deps = makeDeps({
+      grokResponse: profileGrokResponse,
+      x: {
+        getUser: vi.fn().mockResolvedValue(user),
+        getUserTweets: vi.fn().mockResolvedValue([]),
+      },
+    })
+
+    const result = await buildProfileSnapshot(deps, 'alice', 50, true)
+
+    // Should still return profile data even with no tweets
+    expect(result.data.handle).toBe('alice')
+    expect(result.data.recommendations).toEqual(['Post more threads', 'Engage in morning hours'])
   })
 })

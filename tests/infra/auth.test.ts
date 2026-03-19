@@ -132,4 +132,79 @@ describe('AuthManager', () => {
     const badAuth = new AuthManager(badPath)
     expect(() => badAuth.setGrokKey('test')).toThrow('Failed to write credentials')
   })
+
+  // ── xHandle ──
+
+  it('returns null when no x handle is stored', () => {
+    expect(auth.getXHandle()).toBeNull()
+  })
+
+  it('stores and retrieves x handle', () => {
+    auth.setXHandle('RogGriff')
+    expect(auth.getXHandle()).toBe('RogGriff')
+  })
+
+  it('strips @ prefix on setXHandle', () => {
+    auth.setXHandle('@RogGriff')
+    expect(auth.getXHandle()).toBe('RogGriff')
+    // verify the stored value on disk is also stripped
+    const parsed = JSON.parse(fs.readFileSync(path.join(tmpDir, 'credentials.json'), 'utf-8'))
+    expect(parsed.xHandle).toBe('RogGriff')
+  })
+
+  it('strips @ prefix on getXHandle from stored value', () => {
+    // simulate a file written with @ prefix (e.g. old version)
+    fs.mkdirSync(tmpDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(tmpDir, 'credentials.json'),
+      JSON.stringify({ xHandle: '@legacy' }),
+    )
+    expect(auth.getXHandle()).toBe('legacy')
+  })
+
+  it('env var CORVUS_X_HANDLE overrides stored handle', () => {
+    auth.setXHandle('stored-handle')
+    vi.stubEnv('CORVUS_X_HANDLE', 'env-handle')
+    expect(auth.getXHandle()).toBe('env-handle')
+  })
+
+  it('env var CORVUS_X_HANDLE strips @ prefix', () => {
+    vi.stubEnv('CORVUS_X_HANDLE', '@EnvUser')
+    expect(auth.getXHandle()).toBe('EnvUser')
+  })
+
+  it('env var CORVUS_X_HANDLE works when no file exists', () => {
+    vi.stubEnv('CORVUS_X_HANDLE', 'envonly')
+    expect(auth.getXHandle()).toBe('envonly')
+  })
+
+  it('overwrites an existing x handle', () => {
+    auth.setXHandle('old-handle')
+    auth.setXHandle('new-handle')
+    expect(auth.getXHandle()).toBe('new-handle')
+  })
+
+  it('setting x handle does not clobber grok key or x token', () => {
+    auth.setGrokKey('my-key')
+    auth.setXToken('my-token')
+    auth.setXHandle('my-handle')
+    expect(auth.getGrokKey()).toBe('my-key')
+    expect(auth.getXToken()).toBe('my-token')
+    expect(auth.getXHandle()).toBe('my-handle')
+  })
+
+  it('returns null for x handle when credentials file is corrupted', () => {
+    fs.writeFileSync(path.join(tmpDir, 'credentials.json'), '{{{bad')
+    expect(auth.getXHandle()).toBeNull()
+  })
+
+  it('writes all three credentials as valid JSON on disk', () => {
+    auth.setGrokKey('k')
+    auth.setXToken('t')
+    auth.setXHandle('h')
+    const parsed = JSON.parse(fs.readFileSync(path.join(tmpDir, 'credentials.json'), 'utf-8'))
+    expect(parsed.grokKey).toBe('k')
+    expect(parsed.xBearerToken).toBe('t')
+    expect(parsed.xHandle).toBe('h')
+  })
 })

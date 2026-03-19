@@ -6,6 +6,7 @@ import {
   renderScan,
   renderPulse,
   renderTrace,
+  renderProfile,
   renderAgentBrief,
   renderAgentBriefMd,
 } from '../../src/cli/output.js'
@@ -14,6 +15,7 @@ import type {
   ScanSnapshot,
   PulseSnapshot,
   TraceSnapshot,
+  ProfileSnapshot,
   AgentBrief,
 } from '../../src/core/schemas.js'
 
@@ -362,6 +364,140 @@ describe('renderTrace', () => {
     const output = renderTrace(empty)
     expect(output).not.toContain('Timeline')
     expect(output).not.toContain('Mutations')
+  })
+})
+
+describe('renderProfile', () => {
+  const profile: ProfileSnapshot = {
+    handle: 'RogGriff',
+    displayName: 'Roger Griffin',
+    followers: 5200,
+    following: 340,
+    postFrequency: { postsPerWeek: 7, activeDays: ['Monday', 'Wednesday', 'Friday'], peakHours: [9, 14, 20] },
+    contentMix: [
+      { category: 'TypeScript', percentage: 40, avgEngagement: 120 },
+      { category: 'AI Agents', percentage: 35, avgEngagement: 200 },
+    ],
+    topPerformers: [
+      { url: 'https://x.com/RogGriff/status/1', content: 'Thread about building CLI agents', engagement: 500, why: 'Threads get 3x engagement' },
+    ],
+    voiceTraits: { tone: 'casual technical', vocabulary: 'developer jargon', emojiUsage: 'minimal', avgLength: 180 },
+    recommendations: ['Post more threads', 'Engage in morning hours'],
+    sentiment: 0.35,
+    fetchedAt: '2026-03-19T12:00:00Z',
+  }
+
+  it('renders handle and follower count', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('@RogGriff')
+    expect(output).toContain('5K followers')
+    expect(output).toContain('340 following')
+  })
+
+  it('renders display name when different from handle', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('Roger Griffin')
+  })
+
+  it('omits display name when same as handle', () => {
+    const sameNameProfile = { ...profile, displayName: 'RogGriff' }
+    const output = renderProfile(sameNameProfile)
+    // handle line has @RogGriff, but display name line should not duplicate it
+    const lines = output.split('\n')
+    const displayNameLines = lines.filter((l: string) => l.trim() === 'RogGriff')
+    expect(displayNameLines).toHaveLength(0)
+  })
+
+  it('renders posting cadence', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('7 posts/week')
+    expect(output).toContain('Monday, Wednesday, Friday')
+    expect(output).toContain('9:00')
+    expect(output).toContain('14:00')
+  })
+
+  it('renders content mix categories', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('TypeScript')
+    expect(output).toContain('40%')
+    expect(output).toContain('AI Agents')
+    expect(output).toContain('35%')
+  })
+
+  it('renders top performers with truncation', () => {
+    const longContent = 'A'.repeat(150)
+    const longProfile = {
+      ...profile,
+      topPerformers: [{ url: '', content: longContent, engagement: 100, why: 'reason' }],
+    }
+    const output = renderProfile(longProfile)
+    expect(output).toContain('A'.repeat(120) + '...')
+    expect(output).not.toContain('A'.repeat(121))
+  })
+
+  it('renders voice traits', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('casual technical')
+    expect(output).toContain('developer jargon')
+    expect(output).toContain('minimal')
+    expect(output).toContain('180 chars')
+  })
+
+  it('renders sentiment with color formatting', () => {
+    const output = renderProfile(profile)
+    // sentimentColor formats positive values with +
+    expect(output).toContain('Sentiment')
+  })
+
+  it('renders recommendations when present', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('Recommendations')
+    expect(output).toContain('Post more threads')
+    expect(output).toContain('Engage in morning hours')
+  })
+
+  it('omits recommendations section when undefined', () => {
+    const noRecs = { ...profile, recommendations: undefined }
+    const output = renderProfile(noRecs)
+    expect(output).not.toContain('Recommendations')
+  })
+
+  it('omits recommendations section when empty array', () => {
+    const emptyRecs = { ...profile, recommendations: [] }
+    const output = renderProfile(emptyRecs)
+    expect(output).not.toContain('Recommendations')
+  })
+
+  it('handles all empty arrays gracefully', () => {
+    const minimal: ProfileSnapshot = {
+      handle: 'empty',
+      displayName: 'empty',
+      followers: 0,
+      following: 0,
+      postFrequency: { postsPerWeek: 0, activeDays: [], peakHours: [] },
+      contentMix: [],
+      topPerformers: [],
+      voiceTraits: { tone: '', vocabulary: '', emojiUsage: '', avgLength: 0 },
+      sentiment: 0,
+      fetchedAt: '2026-03-19T00:00:00Z',
+    }
+    const output = renderProfile(minimal)
+    expect(output).toContain('@empty')
+    expect(output).toContain('0 followers')
+    expect(output).not.toContain('Content Mix')
+    expect(output).not.toContain('Top Performers')
+  })
+
+  it('renders negative sentiment correctly', () => {
+    const negProfile = { ...profile, sentiment: -0.42 }
+    const output = renderProfile(negProfile)
+    expect(output).toContain('Sentiment')
+  })
+
+  it('omits peak hours line when peakHours is empty', () => {
+    const noPeaks = { ...profile, postFrequency: { ...profile.postFrequency, peakHours: [] } }
+    const output = renderProfile(noPeaks)
+    expect(output).not.toContain('Peak hours')
   })
 })
 

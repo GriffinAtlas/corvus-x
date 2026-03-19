@@ -84,6 +84,74 @@ describe('VoiceProfileManager', () => {
     expect(manager.isStale(old)).toBe(true)
   })
 
+  it('isStale returns false at exactly 7 days (boundary)', () => {
+    const exactly7Days = {
+      ...sampleProfile,
+      generatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }
+    // exactly 7 days is NOT stale (> not >=)
+    expect(manager.isStale(exactly7Days)).toBe(false)
+  })
+
+  it('isStale returns true at 7 days + 1 second', () => {
+    const justOver = {
+      ...sampleProfile,
+      generatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 - 1000).toISOString(),
+    }
+    expect(manager.isStale(justOver)).toBe(true)
+  })
+
+  it('returns null for empty profile file', () => {
+    fs.writeFileSync(path.join(tmpDir, 'voice-profile.json'), '')
+    expect(manager.load()).toBeNull()
+  })
+
+  it('generate stores examplePosts capped at 5', async () => {
+    const grokResponse = {
+      text: JSON.stringify({
+        traits: sampleProfile.traits,
+        topicPreferences: sampleProfile.topicPreferences,
+      }),
+      usage: { inputTokens: 500, outputTokens: 200, costUsd: 0.003, toolCalls: 0 },
+      citations: [],
+    }
+    const mockGrok = { query: vi.fn().mockResolvedValue(grokResponse) }
+
+    const tweets = Array.from({ length: 10 }, (_, i) => ({
+      id: String(i),
+      text: `Post number ${i}`,
+      authorId: 'u1',
+      createdAt: '2026-03-10T12:00:00Z',
+      metrics: { likes: 10, retweets: 5, replies: 2, impressions: 100 },
+    }))
+
+    const profile = await manager.generate(mockGrok as any, 'testuser', tweets)
+    expect(profile.examplePosts).toHaveLength(5)
+    expect(profile.examplePosts[0]).toBe('Post number 0')
+    expect(profile.examplePosts[4]).toBe('Post number 4')
+  })
+
+  it('generate sets generatedAt to a valid ISO date', async () => {
+    const grokResponse = {
+      text: JSON.stringify({
+        traits: sampleProfile.traits,
+        topicPreferences: [],
+      }),
+      usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+      citations: [],
+    }
+    const mockGrok = { query: vi.fn().mockResolvedValue(grokResponse) }
+    const tweets = [{ id: '1', text: 'hi', authorId: 'u1', createdAt: '2026-03-10T12:00:00Z', metrics: { likes: 1, retweets: 0, replies: 0, impressions: 10 } }]
+
+    const before = Date.now()
+    const profile = await manager.generate(mockGrok as any, 'user', tweets)
+    const after = Date.now()
+
+    const ts = new Date(profile.generatedAt).getTime()
+    expect(ts).toBeGreaterThanOrEqual(before)
+    expect(ts).toBeLessThanOrEqual(after)
+  })
+
   it('generate calls Grok, parses response, saves profile', async () => {
     const grokResponse = {
       text: JSON.stringify({
