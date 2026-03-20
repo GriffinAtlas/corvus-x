@@ -317,12 +317,13 @@ export function registerAgentCommand(program: Command): void {
           return
         }
 
+        const xToken = auth.getXToken()
+        const deps: CorvusDeps = {
+          grok: new GrokAdapter(grokKey),
+          x: xToken ? new XAdapter(xToken) : null,
+        }
+
         if (options.classic) {
-          const xToken = auth.getXToken()
-          const deps: CorvusDeps = {
-            grok: new GrokAdapter(grokKey),
-            x: xToken ? new XAdapter(xToken) : null,
-          }
           await runClassicAgent(deps, question, {
             interactive: options.interactive,
             maxSteps: Math.max(2, Math.min(12, parseInt(options.maxSteps, 10) || 8)),
@@ -331,8 +332,19 @@ export function registerAgentCommand(program: Command): void {
             budget: Math.max(0.01, parseFloat(options.budget) || 0.1),
           })
         } else {
-          const grok = new GrokAdapter(grokKey)
-          await runMultiAgent(grok, question, options.format)
+          try {
+            await runMultiAgent(deps.grok, question, options.format)
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            console.log(t.warning(`\n  Multi-agent failed: ${msg}`))
+            console.log(t.muted('  Falling back to classic mode...\n'))
+            await runClassicAgent(deps, question, {
+              maxSteps: 6,
+              format: options.format,
+              replan: true,
+              budget: 0.1,
+            })
+          }
         }
       },
     )

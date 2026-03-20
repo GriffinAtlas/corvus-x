@@ -23,7 +23,7 @@ const TOOL_COST_PER_CALL = 0.005
 
 export const DEFAULT_MODEL = 'grok-4-1-fast'
 
-const TIMEOUT_MS = 30_000
+const TIMEOUT_MS = 60_000
 const RETRY_DELAY_MS = 2_000
 const MAX_ATTEMPTS = 2
 const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503])

@@ -243,13 +243,21 @@ describe('registerAgentCommand', () => {
     expect(parsed.confidence).toBeDefined()
   })
 
-  it('API error propagates in multi-agent mode', async () => {
+  it('prints fallback message when multi-agent fails', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    mockQuery.mockRejectedValueOnce(new Error('Grok unavailable'))
+    // Multi-agent fails, then classic also fails (no more mocks) — that's fine,
+    // we just check the fallback message appears
+    mockQuery.mockRejectedValue(new Error('model not available'))
 
-    await expect(
-      program.parseAsync(['node', 'corvus', 'agent', 'test']),
-    ).rejects.toThrow('Grok unavailable')
+    try {
+      await program.parseAsync(['node', 'corvus', 'agent', 'test'])
+    } catch {
+      // classic mode will also fail since all mocks reject
+    }
+
+    const output = logs.join('\n')
+    expect(output).toContain('Multi-agent failed')
+    expect(output).toContain('Falling back')
   })
 
   it('--classic flag uses old orchestration pipeline', async () => {
