@@ -15,7 +15,7 @@ export {
 } from './core/builders.js'
 
 // Agent
-export { AgentPlanner, AgentExecutor, AgentSynthesizer } from './core/agent.js'
+export { AgentPlanner, AgentExecutor, AgentSynthesizer, agentMulti } from './core/agent.js'
 
 // Compute
 export {

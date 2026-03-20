@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import readline from 'readline'
-import { t, revealCrow } from '../theme.js'
+import { t, revealCrow, banner, divider } from '../theme.js'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
 import { GrokAdapter, MODEL_PRICING, DEFAULT_MODEL } from '../../core/grok-adapter.js'
@@ -8,7 +8,7 @@ import { XAdapter } from '../../core/x-adapter.js'
 import { SnapshotStore } from '../../core/snapshots.js'
 import { diffSnapshots, formatDiffLines } from '../../core/differ.js'
 import { AGENT_MATCH_KEYS } from '../../core/schemas.js'
-import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../core/agent.js'
+import { AgentPlanner, AgentExecutor, AgentSynthesizer, agentMulti, MULTI_AGENT_MODEL } from '../../core/agent.js'
 import { StepProgress } from '../progress.js'
 import { renderAgentBrief, renderAgentBriefMd } from '../output.js'
 import type { AgentPlan, AgentStep } from '../../core/agent.js'
@@ -86,15 +86,205 @@ async function editPlan(plan: AgentPlan): Promise<AgentPlan> {
   return { ...plan, steps }
 }
 
+// ── Multi-agent mode (default) ──
+
+async function runMultiAgent(
+  grok: GrokAdapter,
+  question: string,
+  format: OutputFormat,
+): Promise<void> {
+  console.log(banner('agent', question))
+  console.log(`  ${divider()}`)
+  console.log('')
+  console.log(t.muted(`  model: ${MULTI_AGENT_MODEL}`))
+  console.log(t.muted('  investigating...\n'))
+
+  const result = await agentMulti(grok, question)
+  const brief = result.brief
+
+  const store = new SnapshotStore(ConfigManager.defaultDir())
+  const previous = store.loadLatest<AgentBrief>('agent', question)
+  store.save('agent', question, brief, JSON.stringify(brief), result.cost)
+
+  const renderOpts = {
+    stepCount: brief.evidence.length,
+    durationMs: result.durationMs,
+    tweetCount: 0,
+    accountCount: brief.keyAccounts.length,
+    cost: result.cost,
+    previousSentiment: previous ? (previous.data as AgentBrief).sentiment : undefined,
+  }
+
+  switch (format) {
+    case 'json':
+      console.log(JSON.stringify(brief, null, 2))
+      break
+    case 'md':
+      console.log(renderAgentBriefMd(brief, renderOpts))
+      break
+    case 'table':
+    default:
+      console.log(renderAgentBrief(brief, renderOpts))
+      if (previous) {
+        const diff = diffSnapshots(previous.data, brief, AGENT_MATCH_KEYS)
+        const diffText = formatDiffLines(diff, Date.now() - previous.timestamp)
+        if (diffText) {
+          console.log('')
+          console.log(t.muted(diffText))
+        }
+      }
+      break
+  }
+  console.log('')
+}
+
+// ── Classic mode (manual orchestration) ──
+
+async function runClassicAgent(
+  deps: CorvusDeps,
+  question: string,
+  options: {
+    interactive?: boolean
+    maxSteps: number
+    format: OutputFormat
+    replan: boolean
+    budget: number
+  },
+): Promise<void> {
+  console.log('')
+  await revealCrow()
+  console.log('')
+
+  console.log(t.muted(`  planning: ${question}`))
+  const planner = new AgentPlanner(deps.grok)
+  let plan: AgentPlan
+  let planCost: number
+
+  const planStart = Date.now()
+  const planResult = await planner.plan(question)
+  plan = planResult.plan
+  planCost = planResult.costUsd
+  const planDuration = ((Date.now() - planStart) / 1000).toFixed(1)
+  console.log(t.muted(`  plan: ${plan.steps.length} steps (${planDuration}s)\n`))
+
+  if (options.interactive) {
+    displayPlan(plan)
+    const answer = await prompt('  Proceed? [Y/n/edit] ')
+    if (answer === 'n' || answer === 'no') {
+      console.log(t.muted('\n  aborted\n'))
+      return
+    }
+    if (answer === 'edit') {
+      plan = await editPlan(plan)
+      if (plan.steps.length === 0) {
+        console.log(t.muted('\n  no steps remaining, aborted\n'))
+        return
+      }
+    }
+  }
+
+  const progress = new StepProgress(plan.steps.map((s) => ({ label: stepLabel(s) })))
+
+  let aborted = false
+  const agentStartTime = Date.now()
+
+  const executor = new AgentExecutor(deps, question, plan, {
+    maxSteps: options.maxSteps,
+    budget: options.budget,
+    replan: options.replan,
+    onStepStart: (index) => progress.start(index),
+    onStepComplete: (index, _step, durationMs) => progress.complete(index, durationMs),
+    onStepFail: (index) => progress.fail(index),
+    onStepSkip: (index, _step, reason) => progress.skip(index, reason),
+    onReplan: (newSteps) => {
+      for (const s of newSteps) progress.addStep(stepLabel(s), 'replan')
+    },
+    onLeadFound: (label, tag) => progress.addStep(label, tag),
+  })
+
+  const sigintHandler = () => {
+    aborted = true
+    executor.abort()
+  }
+  process.on('SIGINT', sigintHandler)
+
+  progress.render()
+  const context = await executor.execute(planCost)
+
+  progress.cleanup()
+  process.removeListener('SIGINT', sigintHandler)
+
+  if (aborted || context.results.length === 0) {
+    console.log('')
+    console.log(t.muted(`\n  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`))
+    return
+  }
+
+  if (options.interactive && context.results.length > 0) {
+    const answer = await prompt('\n  Synthesize brief? [Y/n] ')
+    if (answer === 'n' || answer === 'no') {
+      console.log(t.muted(`\n  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`))
+      return
+    }
+  }
+
+  console.log(t.muted('\n  synthesizing...'))
+  const synthesizer = new AgentSynthesizer(deps.grok)
+  const brief = await synthesizer.synthesize(context)
+
+  const store = new SnapshotStore(ConfigManager.defaultDir())
+  const previous = store.loadLatest<AgentBrief>('agent', question)
+  store.save('agent', question, brief, JSON.stringify(context), context.totalCost)
+
+  const totalDuration = Date.now() - agentStartTime
+  const allTweets = context.results.reduce((sum, r) => sum + r.tweets.length, 0)
+  const allAuthors = new Set(context.results.flatMap((r) => r.tweets.map((tw) => tw.authorId))).size
+
+  const renderOpts = {
+    stepCount: context.results.length,
+    durationMs: totalDuration,
+    tweetCount: allTweets,
+    accountCount: allAuthors,
+    cost: context.totalCost,
+    previousSentiment: previous ? (previous.data as AgentBrief).sentiment : undefined,
+  }
+
+  console.log('')
+  switch (options.format) {
+    case 'json':
+      console.log(JSON.stringify(brief, null, 2))
+      break
+    case 'md':
+      console.log(renderAgentBriefMd(brief, renderOpts))
+      break
+    case 'table':
+    default:
+      console.log(renderAgentBrief(brief, renderOpts))
+      if (previous) {
+        const diff = diffSnapshots(previous.data, brief, AGENT_MATCH_KEYS)
+        const diffText = formatDiffLines(diff, Date.now() - previous.timestamp)
+        if (diffText) {
+          console.log('')
+          console.log(t.muted(diffText))
+        }
+      }
+      break
+  }
+  console.log('')
+}
+
+// ── Command registration ──
+
 export function registerAgentCommand(program: Command): void {
   program
     .command('agent <question...>')
-    .description('Investigate a question — plans, executes, and synthesizes a brief')
-    .option('-i, --interactive', 'checkpoint mode with plan approval')
-    .option('-n, --max-steps <n>', 'maximum steps (2-12)', '8')
+    .description('Investigate a question — uses Grok multi-agent for deep research')
+    .option('-i, --interactive', 'checkpoint mode with plan approval (classic only)')
+    .option('-n, --max-steps <n>', 'maximum steps for classic mode (2-12)', '8')
     .option('-f, --format <type>', 'output format: table, json, md', 'table')
-    .option('--no-replan', 'disable adaptive replanning')
-    .option('--budget <amount>', 'cost cap in USD', '0.10')
+    .option('--classic', 'use manual step-by-step orchestration instead of multi-agent')
+    .option('--no-replan', 'disable adaptive replanning (classic only)')
+    .option('--budget <amount>', 'cost cap in USD (classic only)', '0.10')
     .option('--cost', 'show estimated cost before executing')
     .action(
       async (
@@ -103,14 +293,13 @@ export function registerAgentCommand(program: Command): void {
           interactive?: boolean
           maxSteps: string
           format: OutputFormat
+          classic?: boolean
           replan: boolean
           budget: string
           cost?: boolean
         },
       ) => {
         const question = questionParts.join(' ')
-        const maxSteps = Math.max(2, Math.min(12, parseInt(options.maxSteps, 10) || 8))
-        const budget = Math.max(0.01, parseFloat(options.budget) || 0.1)
 
         const auth = new AuthManager(ConfigManager.defaultDir())
         const grokKey = auth.getGrokKey()
@@ -120,190 +309,31 @@ export function registerAgentCommand(program: Command): void {
         }
 
         if (options.cost) {
-          const pricing = MODEL_PRICING[DEFAULT_MODEL]
-          const perStep = (1000 * pricing.input + 2048 * pricing.output) / 1_000_000
-          console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))
-          console.log(t.muted(`  Estimated cost per step: $${perStep.toFixed(6)}`))
-          console.log(t.muted(`  Max steps: ${maxSteps}`))
-          console.log(t.muted(`  Budget cap: $${budget.toFixed(2)}`))
-          console.log(
-            t.muted(
-              `  Estimated max total: $${(perStep * (maxSteps + 2)).toFixed(6)} (includes plan + synthesis)`,
-            ),
-          )
-          console.log()
+          const model = options.classic ? DEFAULT_MODEL : MULTI_AGENT_MODEL
+          const pricing = MODEL_PRICING[model]
+          console.log(t.muted(`\n  Model: ${model}`))
+          console.log(t.muted(`  Input:  $${pricing.input.toFixed(2)}/M tokens`))
+          console.log(t.muted(`  Output: $${pricing.output.toFixed(2)}/M tokens\n`))
           return
         }
 
-        const xToken = auth.getXToken()
-        const deps: CorvusDeps = {
-          grok: new GrokAdapter(grokKey),
-          x: xToken ? new XAdapter(xToken) : null,
-        }
-
-        console.log('')
-        await revealCrow()
-        console.log('')
-
-        console.log(t.muted(`  planning: ${question}`))
-        const planner = new AgentPlanner(deps.grok)
-        let plan: AgentPlan
-        let planCost: number
-
-        try {
-          const planStart = Date.now()
-          const planResult = await planner.plan(question)
-          plan = planResult.plan
-          planCost = planResult.costUsd
-          const planDuration = ((Date.now() - planStart) / 1000).toFixed(1)
-          console.log(t.muted(`  plan: ${plan.steps.length} steps (${planDuration}s)\n`))
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err)
-          console.log(t.error(`\n  Planning failed: ${msg}\n`))
-          process.exit(1)
-        }
-
-        if (options.interactive) {
-          displayPlan(plan)
-          const answer = await prompt('  Proceed? [Y/n/edit] ')
-          if (answer === 'n' || answer === 'no') {
-            console.log(t.muted('\n  aborted\n'))
-            return
+        if (options.classic) {
+          const xToken = auth.getXToken()
+          const deps: CorvusDeps = {
+            grok: new GrokAdapter(grokKey),
+            x: xToken ? new XAdapter(xToken) : null,
           }
-          if (answer === 'edit') {
-            plan = await editPlan(plan)
-            if (plan.steps.length === 0) {
-              console.log(t.muted('\n  no steps remaining, aborted\n'))
-              return
-            }
-          }
+          await runClassicAgent(deps, question, {
+            interactive: options.interactive,
+            maxSteps: Math.max(2, Math.min(12, parseInt(options.maxSteps, 10) || 8)),
+            format: options.format,
+            replan: options.replan,
+            budget: Math.max(0.01, parseFloat(options.budget) || 0.1),
+          })
+        } else {
+          const grok = new GrokAdapter(grokKey)
+          await runMultiAgent(grok, question, options.format)
         }
-
-        const progress = new StepProgress(plan.steps.map((s) => ({ label: stepLabel(s) })))
-
-        let aborted = false
-        const agentStartTime = Date.now()
-
-        const executor = new AgentExecutor(deps, question, plan, {
-          maxSteps,
-          budget,
-          replan: options.replan,
-          onStepStart: (index, _step) => {
-            progress.start(index)
-          },
-          onStepComplete: (index, _step, durationMs) => {
-            progress.complete(index, durationMs)
-          },
-          onStepFail: (index, _step) => {
-            progress.fail(index)
-          },
-          onStepSkip: (index, _step, reason) => {
-            progress.skip(index, reason)
-          },
-          onReplan: (newSteps) => {
-            for (const s of newSteps) {
-              progress.addStep(stepLabel(s), 'replan')
-            }
-          },
-          onLeadFound: (label, tag) => {
-            progress.addStep(label, tag)
-          },
-        })
-
-        const sigintHandler = () => {
-          aborted = true
-          executor.abort()
-        }
-        process.on('SIGINT', sigintHandler)
-
-        progress.render()
-        const context = await executor.execute(planCost)
-
-        progress.cleanup()
-        process.removeListener('SIGINT', sigintHandler)
-
-        if (aborted || context.results.length === 0) {
-          console.log('')
-          console.log(
-            t.muted(
-              `\n  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`,
-            ),
-          )
-          return
-        }
-
-        if (options.interactive && context.results.length > 0) {
-          const answer = await prompt('\n  Synthesize brief? [Y/n] ')
-          if (answer === 'n' || answer === 'no') {
-            console.log(
-              t.muted(
-                `\n  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`,
-              ),
-            )
-            return
-          }
-        }
-
-        console.log(t.muted('\n  synthesizing...'))
-        const synthesizer = new AgentSynthesizer(deps.grok)
-        let brief: AgentBrief
-
-        try {
-          brief = await synthesizer.synthesize(context)
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err)
-          console.log(t.error(`\n  Synthesis failed: ${msg}\n`))
-          console.log(
-            t.muted(
-              `  ${context.results.length} steps completed · $${context.totalCost.toFixed(4)}\n`,
-            ),
-          )
-          return
-        }
-
-        const store = new SnapshotStore(ConfigManager.defaultDir())
-        const previous = store.loadLatest<AgentBrief>('agent', question)
-        store.save('agent', question, brief, JSON.stringify(context), context.totalCost)
-
-        const totalDuration = Date.now() - agentStartTime
-        const allTweets = context.results.reduce((sum, r) => sum + r.tweets.length, 0)
-        const allAuthors = new Set(
-          context.results.flatMap((r) => r.tweets.map((tw) => tw.authorId)),
-        ).size
-
-        const renderOpts = {
-          stepCount: context.results.length,
-          durationMs: totalDuration,
-          tweetCount: allTweets,
-          accountCount: allAuthors,
-          cost: context.totalCost,
-          previousSentiment: previous ? (previous.data as AgentBrief).sentiment : undefined,
-        }
-
-        console.log('')
-        switch (options.format) {
-          case 'json':
-            console.log(JSON.stringify(brief, null, 2))
-            break
-          case 'md':
-            console.log(renderAgentBriefMd(brief, renderOpts))
-            break
-          case 'table':
-          default: {
-            console.log(renderAgentBrief(brief, renderOpts))
-
-            if (previous) {
-              const diff = diffSnapshots(previous.data, brief, AGENT_MATCH_KEYS)
-              const diffText = formatDiffLines(diff, Date.now() - previous.timestamp)
-              if (diffText) {
-                console.log('')
-                console.log(t.muted(diffText))
-              }
-            }
-            break
-          }
-        }
-        console.log('')
       },
     )
 }

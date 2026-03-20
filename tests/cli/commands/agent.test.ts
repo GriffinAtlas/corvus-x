@@ -163,7 +163,7 @@ describe('registerAgentCommand', () => {
   it('registers agent command on program', () => {
     const cmd = program.commands.find((c) => c.name() === 'agent')
     expect(cmd).toBeDefined()
-    expect(cmd!.description()).toBe('Investigate a question — plans, executes, and synthesizes a brief')
+    expect(cmd!.description()).toBe('Investigate a question — uses Grok multi-agent for deep research')
   })
 
   it('exits with code 1 when no grok key is configured', async () => {
@@ -181,45 +181,28 @@ describe('registerAgentCommand', () => {
   it('--cost flag shows pricing without API call', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     await program.parseAsync(['node', 'corvus', 'agent', '--cost', 'bitcoin sentiment'])
-    expect(logs.some((l) => l.includes('grok-4-1-fast'))).toBe(true)
-    expect(logs.some((l) => l.includes('Estimated cost per step'))).toBe(true)
+    expect(logs.some((l) => l.includes('multi-agent'))).toBe(true)
     expect(mockQuery).not.toHaveBeenCalled()
   })
 
-  it('runs full agent pipeline and produces brief output', async () => {
+  it('runs multi-agent pipeline and produces brief output', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
-    vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
 
-    // Plan with no-replan to keep it predictable
-    // Grok calls: plan, scan analysis, pulse analysis, synthesis
-    // But scan leads may add scope steps, so provide extra mock responses
-    mockQuery
-      .mockResolvedValueOnce(grokApiResponse(JSON.stringify(makePlanResponse()))) // plan
-      .mockResolvedValueOnce(grokApiResponse(makeScanGrokResponse())) // scan
-      .mockResolvedValueOnce(grokApiResponse(makePulseGrokResponse())) // pulse
-      .mockResolvedValueOnce(grokApiResponse(makeBriefResponse())) // synthesis
-
-    // X API calls: scan search, pulse search
-    mockFetch
-      .mockResolvedValueOnce(xSearchResponse()) // scan X search
-      .mockResolvedValueOnce(xSearchResponse()) // pulse X search
+    // Multi-agent mode: single API call returns the brief directly
+    mockQuery.mockResolvedValueOnce(grokApiResponse(makeBriefResponse()))
 
     await program.parseAsync([
       'node',
       'corvus',
       'agent',
-      '--no-replan',
-      '-n',
-      '2',
       'bitcoin',
       'sentiment',
     ])
 
     const output = logs.join('\n')
-    expect(output.includes('██████') || output.includes('╔═╗╔═╗')).toBe(true) // logo
+    expect(output).toContain('multi-agent') // model label
     expect(output).toContain('Bitcoin sentiment is cautiously bullish') // signal line
     expect(output).toContain('Confidence') // confidence section
-    expect(output).toContain('steps') // footer
   })
 
   it('--format json produces valid JSON', async () => {
@@ -260,18 +243,22 @@ describe('registerAgentCommand', () => {
     expect(parsed.confidence).toBeDefined()
   })
 
-  it('planning error prints message and exits', async () => {
+  it('API error propagates in multi-agent mode', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     mockQuery.mockRejectedValueOnce(new Error('Grok unavailable'))
 
-    try {
-      await program.parseAsync(['node', 'corvus', 'agent', 'test'])
-    } catch {
-      /* process.exit */
-    }
+    await expect(
+      program.parseAsync(['node', 'corvus', 'agent', 'test']),
+    ).rejects.toThrow('Grok unavailable')
+  })
 
-    expect(exitCode).toBe(1)
-    expect(logs.some((l) => l.includes('Planning failed'))).toBe(true)
+  it('--classic flag uses old orchestration pipeline', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+    mockQuery.mockRejectedValueOnce(new Error('Grok planning failed'))
+
+    await expect(
+      program.parseAsync(['node', 'corvus', 'agent', '--classic', 'test']),
+    ).rejects.toThrow()
   })
 
   it('agent command requires at least one argument', () => {

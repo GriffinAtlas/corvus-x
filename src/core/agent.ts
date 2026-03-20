@@ -510,6 +510,104 @@ export class AgentSynthesizer {
   }
 }
 
+// ── Multi-agent model (single-call) ──
+
+const MULTI_AGENT_MODEL = 'grok-4.20-multi-agent-beta-0309'
+
+const MULTI_AGENT_PROMPT = `You are an autonomous research agent investigating X (Twitter) discourse.
+You have access to x_search and web_search tools. Use them to research the question thoroughly.
+
+After your research, return a JSON brief:
+{
+  "signalLine": "one sentence conclusion, no hedging",
+  "summary": ["3-7 key findings"],
+  "contradictions": ["inconsistencies between sources"],
+  "keyAccounts": [{ "handle": "user", "reach": 5000, "sentiment": 0.5, "stance": "their position" }],
+  "evidence": [{ "source": "what you searched", "key": "finding", "detail": "specifics" }]
+}
+
+Rules:
+- Search multiple angles. Follow leads. Check contradicting sources.
+- Filter out spam, scams, memecoin promotions, and bot activity.
+- signalLine: direct, no hedging. Write like Bloomberg, not a chatbot.
+- keyAccounts: 3-5 most significant voices with their stance.
+- contradictions: flag real inconsistencies. Be specific.
+- Return ONLY valid JSON after your research.`
+
+export interface MultiAgentResult {
+  brief: AgentBrief
+  cost: number
+  durationMs: number
+}
+
+export async function agentMulti(
+  grok: GrokAdapter,
+  question: string,
+  onChunk?: (text: string) => void,
+): Promise<MultiAgentResult> {
+  const startTime = Date.now()
+
+  let response
+  if (onChunk) {
+    response = await grok.queryStream(
+      question,
+      {
+        model: MULTI_AGENT_MODEL,
+        systemPrompt: MULTI_AGENT_PROMPT,
+        enableXSearch: true,
+        enableWebSearch: true,
+        maxTokens: 8192,
+      },
+      onChunk,
+    )
+  } else {
+    response = await grok.query(question, {
+      model: MULTI_AGENT_MODEL,
+      systemPrompt: MULTI_AGENT_PROMPT,
+      enableXSearch: true,
+      enableWebSearch: true,
+      maxTokens: 8192,
+    })
+  }
+
+  const grokBrief = parseGrokJson<Partial<AgentBrief>>(response.text)
+
+  const brief: AgentBrief = {
+    signalLine: grokBrief.signalLine ?? 'No signal.',
+    sentiment: grokBrief.sentiment ?? 0,
+    summary: grokBrief.summary ?? [],
+    contradictions: grokBrief.contradictions ?? [],
+    keyAccounts: (grokBrief.keyAccounts ?? []).map((a) => ({
+      handle: a.handle ?? '',
+      reach: a.reach ?? 0,
+      sentiment: a.sentiment ?? 0,
+      stance: a.stance ?? '',
+    })),
+    evidence: (grokBrief.evidence ?? []).map((e) => ({
+      source: e.source ?? '',
+      key: e.key ?? '',
+      detail: e.detail ?? '',
+    })),
+    confidence: {
+      overall: grokBrief.confidence?.overall ?? 0.5,
+      volume: grokBrief.confidence?.volume ?? 'moderate',
+      consistency: grokBrief.confidence?.consistency ?? 0.5,
+      diversity: grokBrief.confidence?.diversity ?? 0.5,
+    },
+    sampleSize: 0,
+    staleness: null,
+    citations: response.citations,
+  }
+
+  return {
+    brief,
+    cost: response.usage.costUsd,
+    durationMs: Date.now() - startTime,
+  }
+}
+
+export { MULTI_AGENT_MODEL }
+
 function mergeContradictions(local: string[], grok: string[]): string[] {
   const merged = [...local]
   for (const g of grok) {
