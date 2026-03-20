@@ -108,13 +108,20 @@ program
       console.error(`  Run corvus --help for available commands.\n`)
       process.exit(1)
     }
-    const { withFullScreen } = await import('fullscreen-ink')
     const React = await import('react')
     const { App, initApp } = await import('../src/tui/app.js')
     const init = initApp()
-    const ink = withFullScreen(React.createElement(App, { version: VERSION, init }))
-    await ink.start()
-    await ink.waitUntilExit()
+    const element = React.createElement(App, { version: VERSION, init })
+
+    try {
+      const { withFullScreen } = await import('fullscreen-ink')
+      const ink = withFullScreen(element)
+      await ink.start()
+      await ink.waitUntilExit()
+    } catch {
+      const { render } = await import('ink')
+      render(element)
+    }
   })
 
 program.parse()
