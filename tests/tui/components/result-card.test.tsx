@@ -13,13 +13,13 @@ describe('ResultCard', () => {
     expect(frame).toContain('bitcoin')
   })
 
-  it('renders cost and elapsed time', () => {
+  it('renders elapsed time without cost', () => {
     const { lastFrame } = render(
       <ResultCard command="pulse" topic="ETH" rendered="output" cost={0.005} elapsed={2500} />,
     )
     const frame = lastFrame()!
-    expect(frame).toContain('$0.005')
     expect(frame).toContain('2.5s')
+    expect(frame).not.toContain('$')
   })
 
   it('renders the inner content', () => {

@@ -21,10 +21,10 @@ export function ResultCard({ command, topic, rendered, cost, elapsed, truncated,
         <Text bold color="#B48AFF">{command}</Text>
         <Text dimColor>{` · ${topic}`}</Text>
         <Text dimColor>{'  '}</Text>
-        <Text dimColor>{`${elapsedStr} · $${cost.toFixed(3)}`}</Text>
+        <Text dimColor>{elapsedStr}</Text>
       </Box>
       <Box marginTop={0} marginLeft={2}>
-        <Text>{rendered}</Text>
+        <Text>{rendered.endsWith('\n') ? rendered.slice(0, -1) : rendered}</Text>
       </Box>
       {(truncated ?? 0) > 0 && (
         <Box marginLeft={2}>
