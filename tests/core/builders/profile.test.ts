@@ -83,6 +83,7 @@ describe('buildProfileSnapshot — X API path', () => {
     expect(result.data.contentMix[0].category).toBe('TypeScript')
     expect(result.data.topPerformers).toHaveLength(1)
     expect(result.data.voiceTraits.tone).toBe('casual technical')
+    expect(result.data.algorithmScore).toEqual({ replyRate: 0.35, authorReplyRate: 0.6, conversationRatio: 0.2, bookmarkToLikeRatio: 0.08, grade: 'B' })
     expect(result.data.sentiment).toBe(0.3)
     expect(result.data.fetchedAt).toBeDefined()
     expect(result.cost).toBe(0.004)
@@ -163,6 +164,7 @@ describe('buildProfileSnapshot — Grok-only path', () => {
     expect(result.data.contentMix).toEqual([])
     expect(result.data.topPerformers).toEqual([])
     expect(result.data.voiceTraits).toEqual({ tone: '', vocabulary: '', emojiUsage: '', avgLength: 0 })
+    expect(result.data.algorithmScore).toEqual({ replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' })
     expect(result.data.sentiment).toBe(0)
   })
 

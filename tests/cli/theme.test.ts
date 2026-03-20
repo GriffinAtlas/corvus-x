@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { strip, sentimentBar, confidenceBar, divider, box, LOGO } from '../../src/cli/theme.js'
+import { strip, sentimentBar, confidenceBar, divider, box, LOGO, percentBar, labeledDivider } from '../../src/cli/theme.js'
 
 describe('strip', () => {
   it('removes ANSI color codes', () => {
@@ -123,6 +123,55 @@ describe('box', () => {
     // All lines should be the same width
     const widths = lines.map((l) => l.length)
     expect(new Set(widths).size).toBe(1)
+  })
+})
+
+describe('percentBar', () => {
+  it('returns string of correct stripped width', () => {
+    expect(strip(percentBar(0.5, 20)).length).toBe(20)
+    expect(strip(percentBar(0.5, 10)).length).toBe(10)
+  })
+
+  it('fills proportionally — 0% empty, 100% full', () => {
+    const empty = strip(percentBar(0, 10))
+    expect(empty).toBe('░'.repeat(10))
+    const full = strip(percentBar(1, 10))
+    expect(full).toBe('█'.repeat(10))
+  })
+
+  it('clamps values below 0 and above 1', () => {
+    expect(strip(percentBar(-0.5, 10))).toBe('░'.repeat(10))
+    expect(strip(percentBar(1.5, 10))).toBe('█'.repeat(10))
+  })
+
+  it('fills half at 0.5', () => {
+    const bar = strip(percentBar(0.5, 10))
+    expect(bar.slice(0, 5)).toBe('█'.repeat(5))
+    expect(bar.slice(5)).toBe('░'.repeat(5))
+  })
+})
+
+describe('labeledDivider', () => {
+  it('includes the label text', () => {
+    const result = strip(labeledDivider('Test'))
+    expect(result).toContain('Test')
+  })
+
+  it('has dashes on both sides', () => {
+    const result = strip(labeledDivider('Hello'))
+    expect(result).toMatch(/^──/)
+    expect(result).toMatch(/─+$/)
+  })
+
+  it('pads to requested width', () => {
+    const result = strip(labeledDivider('Hi', 30))
+    expect(result.length).toBeGreaterThanOrEqual(28)
+  })
+
+  it('handles label longer than width gracefully', () => {
+    const long = 'A'.repeat(50)
+    const result = strip(labeledDivider(long, 20))
+    expect(result).toContain(long)
   })
 })
 

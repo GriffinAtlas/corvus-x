@@ -8,6 +8,7 @@ import {
   renderTrace,
   renderProfile,
   renderHooks,
+  renderTiming,
   renderAgentBrief,
   renderAgentBriefMd,
 } from '../../src/cli/output.js'
@@ -18,6 +19,7 @@ import type {
   TraceSnapshot,
   ProfileSnapshot,
   HooksSnapshot,
+  TimingSnapshot,
   AgentBrief,
 } from '../../src/core/schemas.js'
 
@@ -384,6 +386,7 @@ describe('renderProfile', () => {
       { url: 'https://x.com/RogGriff/status/1', content: 'Thread about building CLI agents', engagement: 500, why: 'Threads get 3x engagement' },
     ],
     voiceTraits: { tone: 'casual technical', vocabulary: 'developer jargon', emojiUsage: 'minimal', avgLength: 180 },
+    algorithmScore: { replyRate: 0.42, authorReplyRate: 0.71, conversationRatio: 0.31, bookmarkToLikeRatio: 0.12, grade: 'A' },
     recommendations: ['Post more threads', 'Engage in morning hours'],
     sentiment: 0.35,
     fetchedAt: '2026-03-19T12:00:00Z',
@@ -480,6 +483,7 @@ describe('renderProfile', () => {
       contentMix: [],
       topPerformers: [],
       voiceTraits: { tone: '', vocabulary: '', emojiUsage: '', avgLength: 0 },
+      algorithmScore: { replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' },
       sentiment: 0,
       fetchedAt: '2026-03-19T00:00:00Z',
     }
@@ -501,6 +505,44 @@ describe('renderProfile', () => {
     const noPeaks = { ...profile, postFrequency: { ...profile.postFrequency, peakHours: [] } }
     const output = renderProfile(noPeaks)
     expect(output).not.toContain('Peak hours')
+  })
+
+  it('renders algorithm health section with grade', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('Algorithm Health')
+    expect(output).toContain('A')
+  })
+
+  it('renders algorithm metrics with percentages', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('Reply rate')
+    expect(output).toContain('42%')
+    expect(output).toContain('Author replies')
+    expect(output).toContain('71%')
+    expect(output).toContain('Conversations')
+    expect(output).toContain('31%')
+    expect(output).toContain('Bookmark/like')
+    expect(output).toContain('12.0%')
+  })
+
+  it('renders algorithm weight annotations', () => {
+    const output = renderProfile(profile)
+    expect(output).toContain('27x likes')
+    expect(output).toContain('75x weight')
+    expect(output).toContain('150x a like')
+    expect(output).toContain('20x likes')
+  })
+
+  it('omits algorithm section when grade is N/A', () => {
+    const noAlgo = { ...profile, algorithmScore: { ...profile.algorithmScore, grade: 'N/A' } }
+    const output = renderProfile(noAlgo)
+    expect(output).not.toContain('Algorithm Health')
+  })
+
+  it('omits bookmark/like row when ratio is 0', () => {
+    const noBm = { ...profile, algorithmScore: { ...profile.algorithmScore, bookmarkToLikeRatio: 0 } }
+    const output = renderProfile(noBm)
+    expect(output).not.toContain('Bookmark/like')
   })
 })
 
@@ -584,6 +626,69 @@ describe('renderHooks', () => {
     const output = renderHooks(empty)
     expect(output).toContain('0 opportunities')
     expect(output).toContain('No reply opportunities found')
+  })
+})
+
+describe('renderTiming', () => {
+  const timing: TimingSnapshot = {
+    handle: 'alice',
+    peakWindows: [
+      { day: 'Monday', hour: 9, score: 0.95 },
+      { day: 'Wednesday', hour: 14, score: 0.6 },
+      { day: 'Friday', hour: 20, score: 0.3 },
+    ],
+    recommendations: ['Post at 9am UTC on Mondays', 'Avoid weekends'],
+    sampleSize: 50,
+    fetchedAt: '2026-03-20T00:00:00Z',
+  }
+
+  it('renders handle in label', () => {
+    const output = renderTiming(timing)
+    expect(output).toContain('@alice')
+  })
+
+  it('renders topic when handle is absent', () => {
+    const topicTiming: TimingSnapshot = { ...timing, handle: undefined, topic: 'AI agents' }
+    const output = renderTiming(topicTiming)
+    expect(output).toContain('AI agents')
+  })
+
+  it('renders peak windows with day and hour', () => {
+    const output = renderTiming(timing)
+    expect(output).toContain('Monday')
+    expect(output).toContain('9')
+    expect(output).toContain('Wednesday')
+    expect(output).toContain('14')
+  })
+
+  it('renders score percentages', () => {
+    const output = renderTiming(timing)
+    expect(output).toContain('95%')
+    expect(output).toContain('60%')
+    expect(output).toContain('30%')
+  })
+
+  it('renders recommendations', () => {
+    const output = renderTiming(timing)
+    expect(output).toContain('Post at 9am UTC on Mondays')
+    expect(output).toContain('Avoid weekends')
+  })
+
+  it('renders sample size when > 0', () => {
+    const output = renderTiming(timing)
+    expect(output).toContain('50 posts')
+  })
+
+  it('handles empty peakWindows', () => {
+    const empty: TimingSnapshot = { ...timing, peakWindows: [] }
+    const output = renderTiming(empty)
+    expect(output).not.toContain('Peak Windows')
+  })
+
+  it('handles empty recommendations', () => {
+    const noRecs: TimingSnapshot = { ...timing, recommendations: [] }
+    const output = renderTiming(noRecs)
+    expect(output).not.toContain('Recommendations')
   })
 })
 
