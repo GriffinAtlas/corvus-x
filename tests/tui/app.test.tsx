@@ -13,10 +13,11 @@ const testInit: AppInit = {
 }
 
 describe('App', () => {
-  it('renders welcome view with crow art', () => {
+  it('renders welcome view with header', () => {
     const { lastFrame } = render(<App version="0.2.0" init={testInit} />)
     const frame = lastFrame()!
-    expect(frame.includes('██████') || frame.includes('╔═╗╔═╗')).toBe(true)
+    // Compact header (terminal < 30 rows) shows corvus; big header shows crow art
+    expect(frame).toContain('corvus')
   })
 
   it('renders status panel with grok status', () => {

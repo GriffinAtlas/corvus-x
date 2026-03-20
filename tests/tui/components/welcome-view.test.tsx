@@ -14,7 +14,8 @@ describe('WelcomeView', () => {
       />,
     )
     const frame = lastFrame()!
-    expect(frame.includes('██████') || frame.includes('╔═╗╔═╗')).toBe(true)
+    // Compact header (terminal < 30 rows) shows ▸ corvus; big header shows crow art
+    expect(frame.includes('corvus')).toBe(true)
     expect(frame).toContain('●')
     expect(frame).toContain('Grok')
     expect(frame).toContain('Try')
