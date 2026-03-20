@@ -1,6 +1,6 @@
 {
   "name": "corvus-x",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI agent toolkit for X — investigate discourse, grow your presence, all from the terminal",
   "type": "module",
   "main": "dist/src/index.js",
