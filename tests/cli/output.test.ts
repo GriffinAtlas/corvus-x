@@ -528,7 +528,7 @@ describe('renderProfile', () => {
     expect(output).toContain('27x likes')
     expect(output).toContain('75x weight')
     expect(output).toContain('150x a like')
-    expect(output).toContain('20x likes')
+    expect(output).toContain('save-worthy')
   })
 
   it('omits algorithm section when grade is N/A', () => {

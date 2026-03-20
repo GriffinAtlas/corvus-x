@@ -24,7 +24,7 @@ Rules:
   - replyRate: fraction of posts that received replies (0.0-1.0). The algorithm weights replies at 13.5x.
   - authorReplyRate: fraction of replies the author responded to (0.0-1.0). Author replies are weighted 75x.
   - conversationRatio: fraction of posts that became conversations (reply + author reply). Worth 150x a like.
-  - bookmarkToLikeRatio: bookmarks/likes ratio. Bookmarks worth 10x, likes only 0.5x.
+  - bookmarkToLikeRatio: bookmarks/likes ratio. Bookmarks indicate save-worthy content (not directly an algorithm signal, but correlates with quality).
   - grade: overall algorithm health A/B/C/D/F. A = strong reply culture + author engagement. F = like-farming with no replies.
 - recommendations: 3-5 actionable suggestions based on algorithm weights. Only when analyzing the user's own account.
 - sentiment: -1.0 to 1.0.

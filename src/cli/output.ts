@@ -365,7 +365,7 @@ export function renderProfile(data: ProfileSnapshot): string {
     parts.push(`    Author replies   ${percentBar(algo.authorReplyRate, 15, t.positive)} ${(algo.authorReplyRate * 100).toFixed(0)}%  ${t.muted('75x weight')}`)
     parts.push(`    Conversations    ${percentBar(algo.conversationRatio, 15, t.positive)} ${(algo.conversationRatio * 100).toFixed(0)}%  ${t.muted('150x a like')}`)
     if (algo.bookmarkToLikeRatio > 0) {
-      parts.push(`    Bookmark/like    ${percentBar(algo.bookmarkToLikeRatio, 15)} ${(algo.bookmarkToLikeRatio * 100).toFixed(1)}%  ${t.muted('20x likes')}`)
+      parts.push(`    Bookmark/like    ${percentBar(algo.bookmarkToLikeRatio, 15)} ${(algo.bookmarkToLikeRatio * 100).toFixed(1)}%  ${t.muted('save-worthy')}`)
     }
   }
 
