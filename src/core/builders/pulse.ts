@@ -19,9 +19,10 @@ Rules:
 - narrative: assign each tweet to a theme.
 - bullSignals: 2-5 reasons for optimism found in the discourse.
 - bearSignals: 2-5 reasons for concern found in the discourse.
+- Ignore spam, bot activity, and promotional shills when assessing sentiment.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are an intelligence analyst reading market/social pulse. Search X for recent posts about the given topic, then analyze sentiment. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are an intelligence analyst reading market/social pulse. Search X for recent posts about the given topic, then analyze sentiment. Ignore spam and bot activity. Return ONLY a JSON object:
 {
   "tweetCount": 25,
   "uniqueAuthors": 15,

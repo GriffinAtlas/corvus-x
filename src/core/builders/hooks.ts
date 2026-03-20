@@ -20,6 +20,7 @@ Rules:
 - opportunityScore: 0.0-1.0 composite of reply potential.
 - suggestedAngle: one sentence on what to say, not the actual reply.
 - Sort by opportunityScore descending.
+- Exclude spam, bot accounts, memecoin promotions, and engagement-bait.
 - Return ONLY valid JSON.`
 
 const GROK_ONLY_PROMPT = `You are a social media engagement strategist. Search X for conversations about the given topic that have high reply opportunity. Return ONLY a JSON object:
@@ -41,6 +42,7 @@ Rules:
 - opportunityScore: 0.0-1.0 composite of reply potential.
 - suggestedAngle: one sentence on what to say, not the actual reply.
 - Sort by opportunityScore descending.
+- Exclude spam, bots, memecoin promotions, and engagement-bait.
 - Return ONLY valid JSON.`
 
 export async function buildHooksSnapshot(

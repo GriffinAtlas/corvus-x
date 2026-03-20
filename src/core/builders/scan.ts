@@ -28,9 +28,10 @@ Rules:
 - sentiment: -1.0 (very negative) to 1.0 (very positive).
 - narrative: assign each tweet to one of 2-5 themes you identify.
 - signals: 3-5 key observations about the discourse.
+- Ignore spam, scam promotions, bot activity, and memecoin shills. Focus on genuine discourse.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are an intelligence analyst. Search X for recent posts about the given topic, then analyze what you find. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are an intelligence analyst. Search X for recent posts about the given topic, then analyze what you find. Ignore spam, scams, and bot activity. Return ONLY a JSON object:
 {
   "tweetCount": 25,
   "uniqueAuthors": 15,

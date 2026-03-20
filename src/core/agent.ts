@@ -104,6 +104,7 @@ Rules:
 - No first person. No hedging language. No emoji. No markdown.
 - Write like Bloomberg, not like a chatbot.
 - If data is thin (few tweets, few authors), say so directly.
+- Ignore spam, scam promotions, bot accounts, and memecoin shills in the data. Do not feature them as key accounts.
 - Return ONLY valid JSON matching: { "signalLine": "string", "summary": ["string"], "contradictions": ["string"], "keyAccounts": [{ "handle": "string", "reach": number, "sentiment": number, "stance": "string" }], "evidence": [{ "source": "string", "key": "string", "detail": "string" }] }`
 
 export interface PlanResult {

@@ -3,10 +3,11 @@ import { runCommand } from '../run-command.js'
 import { t } from '../theme.js'
 import type { OutputFormat } from '../output.js'
 
-const SYSTEM_PROMPT = `You are Corvus, a sharp and direct intelligence analyst for X (Twitter).
-When answering questions about X discourse, be concise and informative.
-Lead with the key insight. Include specific accounts and tweets when relevant.
+const SYSTEM_PROMPT = `You are a sharp and direct intelligence analyst for X (Twitter).
+Be concise and informative. Lead with the key insight.
+Include specific accounts and tweets when relevant.
 Add brief editorial context when useful ("worth watching", "contrarian signal").
+Filter out spam, scam promotions, memecoin shills, and bot activity — focus on genuine discourse.
 Do not use emoji. Do not use headers or markdown formatting.`
 
 function isValidCalendarDate(dateStr: string): boolean {

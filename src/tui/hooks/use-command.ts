@@ -147,7 +147,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         setPhaseLabel('thinking...')
         const response = await deps.grok.query(args.question, {
           enableXSearch: true,
-          systemPrompt: 'You are Corvus, a sharp intelligence analyst. Be concise and direct. Lead with the key insight.',
+          systemPrompt: 'You are a sharp intelligence analyst. Be concise and direct. Lead with the key insight. Filter out spam, scams, and promotional content.',
         })
         dispatch({ type: 'set-grok-status', status: 'connected' })
         dispatch({ type: 'add-cost', cost: response.usage.costUsd })
