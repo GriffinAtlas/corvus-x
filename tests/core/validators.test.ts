@@ -202,8 +202,8 @@ describe('AgentPlanSchema rejection', () => {
     expect(() => AgentPlanSchema.parse(invalid)).toThrow()
   })
 
-  it('accepts all 4 valid commands', () => {
-    for (const cmd of ['scan', 'pulse', 'trace', 'profile']) {
+  it('accepts all 6 valid commands', () => {
+    for (const cmd of ['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft']) {
       const valid = {
         goal: 'test',
         steps: [{ command: cmd, args: {}, reasoning: 'ok' }],

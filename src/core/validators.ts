@@ -100,7 +100,7 @@ export const GrokVoiceProfileResponseSchema = z.object({
 })
 
 const AgentStepSchema = z.object({
-  command: z.enum(['scan', 'pulse', 'trace', 'profile']),
+  command: z.enum(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft']),
   args: z.object({
     topic: z.string().optional(),
     username: z.string().optional(),

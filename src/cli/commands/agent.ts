@@ -68,7 +68,7 @@ async function editPlan(plan: AgentPlan): Promise<AgentPlan> {
       continue
     }
 
-    const addMatch = input.match(/^add\s+(scan|pulse|trace|profile)\s+(.+)$/)
+    const addMatch = input.match(/^add\s+(scan|pulse|trace|profile|hooks|draft)\s+(.+)$/)
     if (addMatch) {
       const command = addMatch[1] as AgentStep['command']
       const target = addMatch[2]

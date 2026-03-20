@@ -103,6 +103,47 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 | `history` | Browse stored snapshots |
 | `auth setup` | Configure API keys and handle |
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                       USER                               │
+│  corvus agent "question"    corvus grow "topic"          │
+│  corvus scan "topic"        corvus profile @handle       │
+└──────────────┬──────────────────────┬───────────────────┘
+               │                      │
+       ┌───────▼───────┐      ┌──────▼──────┐
+       │  AGENT LOOP   │      │  DIRECT CMD │
+       │               │      │             │
+       │  Plan ────┐   │      │  Builder    │
+       │  Execute  │   │      │     ↓       │
+       │  Replan ──┘   │      │  Renderer   │
+       │  Synthesize   │      │     ↓       │
+       └───────┬───────┘      │  Output     │
+               │              └──────┬──────┘
+               │                     │
+       ┌───────▼─────────────────────▼───────┐
+       │              BUILDERS                │
+       │                                      │
+       │  Intel:  scan, pulse, trace          │
+       │  Growth: profile, hooks, draft       │
+       │  Analytics: review, timing           │
+       │                                      │
+       │  Each has dual path:                 │
+       │    X API (real data) │ Grok (search) │
+       └───────┬──────────────────────┬───────┘
+               │                      │
+       ┌───────▼───────┐      ┌──────▼──────┐
+       │   GROK API    │      │   X API v2  │
+       │ /v1/responses │      │ /2/tweets   │
+       │               │      │ /2/users    │
+       │ x_search      │      │ /2/search   │
+       │ web_search    │      │             │
+       └───────────────┘      └─────────────┘
+```
+
+The **agent loop** is the key differentiator. When you run `corvus agent`, Grok plans which commands to run, executes them, discovers leads (accounts, narratives), replans mid-investigation if data is thin, and synthesizes everything into a brief. The agent can now use both intel commands (scan, pulse, trace, profile) and growth commands (hooks, draft).
+
 ## The Growth Workflow
 
 The fastest way to use Corvus for growth:

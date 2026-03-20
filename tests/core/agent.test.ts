@@ -1035,7 +1035,7 @@ describe('AgentExecutor — error and edge cases', () => {
     expect(onReplan).toHaveBeenCalled()
     const revisedSteps = onReplan.mock.calls[0][0]
     expect(revisedSteps.every((s: { command: string }) =>
-      ['scan', 'pulse', 'trace', 'profile'].includes(s.command),
+      ['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft'].includes(s.command),
     )).toBe(true)
     expect(revisedSteps.some((s: { command: string }) => s.command === 'eval')).toBe(false)
     expect(revisedSteps.some((s: { command: string }) => s.command === 'shell')).toBe(false)

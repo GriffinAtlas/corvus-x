@@ -19,7 +19,7 @@ export interface AgentPlan {
 }
 
 export interface AgentStep {
-  command: 'scan' | 'pulse' | 'trace' | 'profile'
+  command: 'scan' | 'pulse' | 'trace' | 'profile' | 'hooks' | 'draft'
   args: {
     topic?: string
     username?: string
@@ -62,22 +62,27 @@ export interface AgentOptions {
   onLeadFound?: (label: string, tag: string) => void
 }
 
-const PLANNER_SYSTEM_PROMPT = `You are a planning engine for an X intelligence CLI. Given a user's question,
+const PLANNER_SYSTEM_PROMPT = `You are a planning engine for an X intelligence and growth CLI. Given a user's question,
 produce a JSON execution plan using only these commands:
 
-- scan <topic> — discourse landscape, narratives, sentiment (default 50 tweets)
+Intel commands:
+- scan <topic> — discourse landscape, narratives, sentiment
 - pulse <topic> — sentiment momentum, bull/bear signals, key voices
 - trace <narrative> — track how a narrative spread, origin, mutations
 - profile <username> — content strategy analysis of an X account
 
+Growth commands:
+- hooks <topic> — find conversations to reply to, scored by opportunity
+- draft <topic> — draft a post grounded in current discourse
+
 Rules:
-- Return ONLY valid JSON matching this schema: { "goal": "string", "steps": [{ "command": "scan|pulse|trace|profile", "args": { "topic?": "string", "username?": "string", "count?": number }, "reasoning": "string" }] }
+- Return ONLY valid JSON matching this schema: { "goal": "string", "steps": [{ "command": "scan|pulse|trace|profile|hooks|draft", "args": { "topic?": "string", "username?": "string", "count?": number }, "reasoning": "string" }] }
 - Maximum 8 steps.
 - Start broad (scan or pulse), then narrow (profile, trace).
-- Include reasoning for each step — one sentence explaining why.
-- Do not include steps that duplicate information.
+- If the user asks about growing, posting, or engagement, include hooks and/or draft steps.
 - If the question names specific accounts, include profile steps for them.
-- If the question is about a narrative or claim, include a trace step.`
+- If the question is about a narrative or claim, include a trace step.
+- Include reasoning for each step — one sentence explaining why.`
 
 const REPLAN_SYSTEM_PROMPT = `You are adjusting an investigation plan. Review what has been found so far and decide whether the remaining plan should change.
 
@@ -87,7 +92,7 @@ Return JSON:
 
 Rules:
 - Maximum 3 additional steps beyond the original plan.
-- Only add profile steps for discovered leads — do not repeat scan/pulse.
+- Only add profile/hooks/draft steps for discovered leads — do not repeat scan/pulse.
 - If the data is sufficient, you may remove remaining steps.
 - Return ONLY valid JSON.`
 
@@ -127,7 +132,7 @@ export class AgentPlanner {
       throw new Error('Planner returned an empty or invalid plan')
     }
 
-    const validCommands = new Set(['scan', 'pulse', 'trace', 'profile'])
+    const validCommands = new Set(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft'])
 
     return {
       plan: {
@@ -166,6 +171,14 @@ async function resolveBuildFn(command: string): Promise<BuildFn> {
       const { buildProfileSnapshot } = await import('./builders/profile.js')
       return buildProfileSnapshot as unknown as BuildFn
     }
+    case 'hooks': {
+      const { buildHooksSnapshot } = await import('./builders/hooks.js')
+      return buildHooksSnapshot as unknown as BuildFn
+    }
+    case 'draft': {
+      const { buildDraftSnapshot } = await import('./builders/draft.js')
+      return buildDraftSnapshot as unknown as BuildFn
+    }
     default:
       throw new Error(`Unknown command: ${command}`)
   }
@@ -176,9 +189,12 @@ function buildArgs(step: AgentStep): unknown[] {
     case 'scan':
     case 'pulse':
     case 'trace':
+    case 'hooks':
       return [step.args.topic ?? '', step.args.count ?? 50, 2]
     case 'profile':
       return [step.args.username ?? '', 20, false]
+    case 'draft':
+      return [step.args.topic ?? '', {}]
     default:
       return []
   }
@@ -382,7 +398,7 @@ export class AgentExecutor {
     const decision = parseGrokJson<ReplanDecision>(response.text)
 
     if (decision.action === 'revise' && 'steps' in decision && Array.isArray(decision.steps)) {
-      const validCommands = new Set(['scan', 'pulse', 'trace', 'profile'])
+      const validCommands = new Set(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft'])
       const maxAdditional = remaining.length + 3
       return decision.steps
         .filter((s) => validCommands.has(s.command))
