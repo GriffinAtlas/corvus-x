@@ -151,9 +151,10 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         })
         dispatch({ type: 'set-grok-status', status: 'connected' })
         dispatch({ type: 'add-cost', cost: response.usage.costUsd })
+        const cleanText = response.text.replace(/\[\[(\d+)\]\]\([^)]+\)/g, '[$1]')
         dispatch({
           type: 'add-result',
-          entry: { type: 'prose', text: response.text, cost: response.usage.costUsd },
+          entry: { type: 'prose', text: cleanText, cost: response.usage.costUsd },
         })
       } else if (command === 'scan') {
         setPhaseLabel(`scanning "${args.topic}"...`)

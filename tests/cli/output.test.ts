@@ -41,14 +41,8 @@ describe('formatOutput', () => {
       expect(formatOutput(makeResult(), 'table')).toContain('AI agents are trending')
     })
 
-    it('includes cost with 4 decimal places', () => {
-      expect(formatOutput(makeResult(), 'table')).toContain('$0.0010')
-    })
-
-    it('shows (cached) instead of cost when cached', () => {
-      const output = formatOutput(makeResult({ cached: true }), 'table')
-      expect(output).toContain('(cached)')
-      expect(output).not.toContain('$0.0010')
+    it('does not show cost in table format', () => {
+      expect(formatOutput(makeResult(), 'table')).not.toContain('$')
     })
 
     it('includes command name and query', () => {
@@ -64,9 +58,6 @@ describe('formatOutput', () => {
       expect(output).toContain('  line3')
     })
 
-    it('handles zero cost', () => {
-      expect(formatOutput(makeResult({ cost: 0 }), 'table')).toContain('$0.0000')
-    })
   })
 
   describe('json', () => {
@@ -193,10 +184,6 @@ describe('formatOutput', () => {
     expect(() => formatOutput(result, 'json')).not.toThrow()
     expect(() => formatOutput(result, 'csv')).not.toThrow()
     expect(() => formatOutput(result, 'md')).not.toThrow()
-  })
-
-  it('handles very small cost', () => {
-    expect(formatOutput(makeResult({ cost: 0.00001 }), 'table')).toContain('$0.0000')
   })
 
   it('handles unicode in response', () => {
@@ -862,11 +849,11 @@ describe('formatStructuredOutput', () => {
     expect(output).toContain('$0.0030')
   })
 
-  it('table format includes command, topic, and rendered snapshot', () => {
+  it('table format includes command and topic without cost', () => {
     const output = formatStructuredOutput(makeStructuredResult(), 'table', renderScan)
     expect(output).toContain('scan')
     expect(output).toContain('bitcoin')
-    expect(output).toContain('$0.0030')
+    expect(output).not.toContain('$0.003')
   })
 
   it('table format includes citations when present', () => {

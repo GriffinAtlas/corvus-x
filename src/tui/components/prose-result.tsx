@@ -8,7 +8,7 @@ interface Props {
   index?: number
 }
 
-export function ProseResult({ text, cost, truncated, index }: Props) {
+export function ProseResult({ text, truncated, index }: Props) {
   return (
     <Box flexDirection="column" marginLeft={1} marginBottom={1}>
       <Box marginLeft={2}>
@@ -19,9 +19,6 @@ export function ProseResult({ text, cost, truncated, index }: Props) {
           <Text dimColor>{`... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
         </Box>
       )}
-      <Box marginLeft={2} marginTop={0}>
-        <Text dimColor>{`$${cost.toFixed(4)}`}</Text>
-      </Box>
     </Box>
   )
 }

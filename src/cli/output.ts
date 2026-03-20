@@ -30,16 +30,17 @@ export function formatOutput(result: CommandResult, format: OutputFormat): strin
   }
 }
 
-function formatTable(result: CommandResult): string {
-  const cost = result.cached ? t.muted('(cached)') : t.muted(`cost: $${result.cost.toFixed(4)}`)
+function cleanCitations(text: string): string {
+  return text.replace(/\[\[(\d+)\]\]\([^)]+\)/g, '[$1]')
+}
 
+function formatTable(result: CommandResult): string {
+  const text = cleanCitations(result.response)
   return [
     banner(result.command, result.query),
     `  ${divider()}`,
     '',
-    `  ${result.response.split('\n').join('\n  ')}`,
-    '',
-    `  ${cost}`,
+    `  ${text.split('\n').join('\n  ')}`,
     '',
   ].join('\n')
 }
@@ -122,8 +123,6 @@ export function formatStructuredOutput<T extends Snapshot>(
         parts.push(renderCitations(result.citations))
       }
 
-      parts.push('')
-      parts.push(`  ${t.muted(`cost: $${result.cost.toFixed(4)}`)}`)
       parts.push('')
       return parts.join('\n')
     }

@@ -99,8 +99,6 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
       receivedContent = !firstChunk
       if (receivedContent) {
         console.log('\n')
-        console.log(`  ${t.muted(`cost: $${response.usage.costUsd.toFixed(4)}`)}`)
-        console.log()
       }
     } else {
       response = await opts.execute(deps)

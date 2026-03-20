@@ -9,9 +9,9 @@ describe('ProseResult', () => {
     expect(lastFrame()!).toContain('AI is transforming healthcare.')
   })
 
-  it('renders cost', () => {
+  it('does not show cost', () => {
     const { lastFrame } = render(<ProseResult text="Response" cost={0.0045} />)
-    expect(lastFrame()!).toContain('$0.0045')
+    expect(lastFrame()!).not.toContain('$')
   })
 
   it('shows truncation footer when truncated > 0', () => {
