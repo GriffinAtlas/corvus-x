@@ -9,6 +9,8 @@ describe('sessionReducer', () => {
     expect(initialSession.xApiStatus).toBe('no-key')
     expect(initialSession.history).toEqual([])
     expect(initialSession.startTime).toBeGreaterThan(0)
+    expect(initialSession.refCounter).toBe(0)
+    expect(initialSession.contextMap).toEqual({})
   })
 
   it('add-query appends to history without incrementing queryCount', () => {
@@ -21,22 +23,59 @@ describe('sessionReducer', () => {
     expect(state.queryCount).toBe(0)
   })
 
-  it('add-result with result entry increments queryCount', () => {
+  it('add-result with result entry increments queryCount and assigns refId', () => {
     const state = sessionReducer(initialSession, {
       type: 'add-result',
-      entry: { type: 'result', command: 'scan', topic: 'bitcoin', rendered: 'output', cost: 0.003, elapsed: 1200 },
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'bitcoin', rendered: 'output', cost: 0.003, elapsed: 1200 },
     })
     expect(state.history).toHaveLength(1)
     expect(state.queryCount).toBe(1)
+    expect(state.refCounter).toBe(1)
+    const entry = state.history[0]
+    if (entry.type === 'result') {
+      expect(entry.refId).toBe('scan:1')
+    }
   })
 
-  it('add-result with system entry does not increment queryCount', () => {
+  it('add-result with prose entry assigns refId with ask prefix', () => {
+    const state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'prose', refId: '', text: 'answer', cost: 0.001 },
+    })
+    expect(state.refCounter).toBe(1)
+    const entry = state.history[0]
+    if (entry.type === 'prose') {
+      expect(entry.refId).toBe('ask:1')
+    }
+  })
+
+  it('refCounter increments across multiple results', () => {
+    let state = sessionReducer(initialSession, {
+      type: 'add-result',
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+    })
+    state = sessionReducer(state, {
+      type: 'add-result',
+      entry: { type: 'result', refId: '', command: 'hooks', topic: 'btc', rendered: 'y', cost: 0, elapsed: 0 },
+    })
+    state = sessionReducer(state, {
+      type: 'add-result',
+      entry: { type: 'prose', refId: '', text: 'z', cost: 0 },
+    })
+    expect(state.refCounter).toBe(3)
+    if (state.history[0].type === 'result') expect(state.history[0].refId).toBe('scan:1')
+    if (state.history[1].type === 'result') expect(state.history[1].refId).toBe('hooks:2')
+    if (state.history[2].type === 'prose') expect(state.history[2].refId).toBe('ask:3')
+  })
+
+  it('add-result with system entry does not increment queryCount or refCounter', () => {
     const state = sessionReducer(initialSession, {
       type: 'add-result',
       entry: { type: 'system', message: 'help text' },
     })
     expect(state.history).toHaveLength(1)
     expect(state.queryCount).toBe(0)
+    expect(state.refCounter).toBe(0)
   })
 
   it('add-cost increases totalCost', () => {
@@ -63,15 +102,26 @@ describe('sessionReducer', () => {
     expect(state.xApiStatus).toBe('optional')
   })
 
-  it('clear-history empties history and resets queryCount', () => {
+  it('clear-history empties history, resets queryCount, refCounter, and contextMap', () => {
     let state = sessionReducer(initialSession, {
       type: 'add-query',
       entry: { type: 'user', text: 'test' },
+    })
+    state = sessionReducer(state, {
+      type: 'add-result',
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+    })
+    state = sessionReducer(state, {
+      type: 'add-context',
+      topic: 'btc',
+      entry: { command: 'scan', topic: 'btc', snapshot: {} as any, timestamp: Date.now() },
     })
     state = sessionReducer(state, { type: 'clear-history' })
     expect(state.history).toEqual([])
     expect(state.queryCount).toBe(0)
     expect(state.totalCost).toBe(0)
+    expect(state.refCounter).toBe(0)
+    expect(state.contextMap).toEqual({})
   })
 
   it('add-error appends system notice', () => {
@@ -86,7 +136,7 @@ describe('sessionReducer', () => {
   it('expand-entry sets expanded on result entry', () => {
     let state = sessionReducer(initialSession, {
       type: 'add-result',
-      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'output', cost: 0.003, elapsed: 1200 },
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'btc', rendered: 'output', cost: 0.003, elapsed: 1200 },
     })
     state = sessionReducer(state, { type: 'expand-entry', index: 0 })
     const entry = state.history[0]
@@ -97,7 +147,7 @@ describe('sessionReducer', () => {
   it('expand-entry sets expanded on prose entry', () => {
     let state = sessionReducer(initialSession, {
       type: 'add-result',
-      entry: { type: 'prose', text: 'long text', cost: 0.002 },
+      entry: { type: 'prose', refId: '', text: 'long text', cost: 0.002 },
     })
     state = sessionReducer(state, { type: 'expand-entry', index: 0 })
     const entry = state.history[0]
@@ -122,7 +172,7 @@ describe('sessionReducer', () => {
   it('expand-entry no-ops on already-expanded entry', () => {
     let state = sessionReducer(initialSession, {
       type: 'add-result',
-      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
     })
     state = sessionReducer(state, { type: 'expand-entry', index: 0 })
     const state2 = sessionReducer(state, { type: 'expand-entry', index: 0 })
@@ -132,7 +182,7 @@ describe('sessionReducer', () => {
   it('expand-entry no-ops when index is negative', () => {
     let state = sessionReducer(initialSession, {
       type: 'add-result',
-      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
     })
     state = sessionReducer(state, { type: 'expand-entry', index: -1 })
     const entry = state.history[0]
@@ -161,7 +211,7 @@ describe('sessionReducer', () => {
   it('expand-entry no-ops when index is NaN', () => {
     let state = sessionReducer(initialSession, {
       type: 'add-result',
-      entry: { type: 'result', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
+      entry: { type: 'result', refId: '', command: 'scan', topic: 'btc', rendered: 'x', cost: 0, elapsed: 0 },
     })
     state = sessionReducer(state, { type: 'expand-entry', index: NaN })
     const entry = state.history[0]
@@ -177,5 +227,48 @@ describe('sessionReducer', () => {
     const { startTime } = state
     state = sessionReducer(state, { type: 'clear-history' })
     expect(state.startTime).toBe(startTime)
+  })
+
+  describe('add-context', () => {
+    it('adds context entry keyed by normalized topic', () => {
+      const state = sessionReducer(initialSession, {
+        type: 'add-context',
+        topic: 'AI Agents',
+        entry: { command: 'scan', topic: 'AI Agents', snapshot: {} as any, timestamp: 1000 },
+      })
+      expect(state.contextMap['ai agents']).toHaveLength(1)
+      expect(state.contextMap['ai agents'][0].command).toBe('scan')
+    })
+
+    it('accumulates multiple entries for same topic', () => {
+      let state = sessionReducer(initialSession, {
+        type: 'add-context',
+        topic: 'bitcoin',
+        entry: { command: 'scan', topic: 'bitcoin', snapshot: {} as any, timestamp: 1000 },
+      })
+      state = sessionReducer(state, {
+        type: 'add-context',
+        topic: 'Bitcoin',
+        entry: { command: 'pulse', topic: 'Bitcoin', snapshot: {} as any, timestamp: 2000 },
+      })
+      expect(state.contextMap['bitcoin']).toHaveLength(2)
+      expect(state.contextMap['bitcoin'][0].command).toBe('scan')
+      expect(state.contextMap['bitcoin'][1].command).toBe('pulse')
+    })
+
+    it('keeps separate contexts for different topics', () => {
+      let state = sessionReducer(initialSession, {
+        type: 'add-context',
+        topic: 'bitcoin',
+        entry: { command: 'scan', topic: 'bitcoin', snapshot: {} as any, timestamp: 1000 },
+      })
+      state = sessionReducer(state, {
+        type: 'add-context',
+        topic: 'AI agents',
+        entry: { command: 'scan', topic: 'AI agents', snapshot: {} as any, timestamp: 2000 },
+      })
+      expect(state.contextMap['bitcoin']).toHaveLength(1)
+      expect(state.contextMap['ai agents']).toHaveLength(1)
+    })
   })
 })

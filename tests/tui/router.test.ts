@@ -66,6 +66,21 @@ describe('parseInput', () => {
         args: {},
       })
     })
+
+    it('parses agent with question', () => {
+      expect(parseInput('agent what is the discourse on AI')).toEqual({
+        type: 'command',
+        command: 'agent',
+        args: { question: 'what is the discourse on AI' },
+      })
+    })
+
+    it('returns error for agent without question', () => {
+      expect(parseInput('agent')).toEqual({
+        type: 'error',
+        message: 'Usage: agent <question>',
+      })
+    })
   })
 
   describe('slash commands', () => {
@@ -87,6 +102,10 @@ describe('parseInput', () => {
 
     it('parses /exit', () => {
       expect(parseInput('/exit')).toEqual({ type: 'slash', command: 'exit' })
+    })
+
+    it('parses /brief', () => {
+      expect(parseInput('/brief')).toEqual({ type: 'slash', command: 'brief' })
     })
 
     it('returns error for unknown slash command', () => {
@@ -111,6 +130,30 @@ describe('parseInput', () => {
         type: 'slash',
         command: 'view',
         args: { index: '42' },
+      })
+    })
+
+    it('parses /view with ref ID', () => {
+      expect(parseInput('/view scan:1')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { refId: 'scan:1' },
+      })
+    })
+
+    it('parses /view with hooks ref ID', () => {
+      expect(parseInput('/view hooks:3')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { refId: 'hooks:3' },
+      })
+    })
+
+    it('parses /view with ask ref ID', () => {
+      expect(parseInput('/view ask:5')).toEqual({
+        type: 'slash',
+        command: 'view',
+        args: { refId: 'ask:5' },
       })
     })
 

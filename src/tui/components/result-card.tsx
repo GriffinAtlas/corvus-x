@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Text } from 'ink'
 
 interface Props {
+  refId?: string
   command: string
   topic: string
   rendered: string
@@ -11,13 +12,14 @@ interface Props {
   index?: number
 }
 
-export function ResultCard({ command, topic, rendered, cost, elapsed, truncated, index }: Props) {
+export function ResultCard({ refId, command, topic, rendered, cost, elapsed, truncated, index }: Props) {
   const elapsedStr = `${(elapsed / 1000).toFixed(1)}s`
 
   return (
     <Box flexDirection="column" marginLeft={1} marginBottom={1}>
       <Box>
         <Text color="#7C3AED" bold>{'▸ '}</Text>
+        {refId && <Text dimColor>{`[${refId}] `}</Text>}
         <Text bold color="#B48AFF">{command}</Text>
         <Text dimColor>{` · ${topic}`}</Text>
         <Text dimColor>{'  '}</Text>
@@ -28,7 +30,7 @@ export function ResultCard({ command, topic, rendered, cost, elapsed, truncated,
       </Box>
       {(truncated ?? 0) > 0 && (
         <Box marginLeft={2}>
-          <Text dimColor>{`... ${truncated} more lines · /view ${(index ?? 0) + 1}`}</Text>
+          <Text dimColor>{`... ${truncated} more lines · /view ${refId ?? (index ?? 0) + 1}`}</Text>
         </Box>
       )}
     </Box>

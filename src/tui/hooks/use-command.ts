@@ -11,13 +11,15 @@ import { buildHooksSnapshot } from '../../core/builders/hooks.js'
 import { buildDraftSnapshot } from '../../core/builders/draft.js'
 import { buildReviewSnapshot } from '../../core/builders/review.js'
 import { buildTimingSnapshot } from '../../core/builders/timing.js'
-import { renderScan, renderPulse, renderTrace, renderProfile, renderDraft, renderHooks, renderReview, renderTiming } from '../../cli/output.js'
+import { agentMulti, AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../core/agent.js'
+import { renderScan, renderPulse, renderTrace, renderProfile, renderDraft, renderHooks, renderReview, renderTiming, renderAgentBrief } from '../../cli/output.js'
+import { buildContextSummary } from '../../core/context.js'
 import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS, HOOKS_MATCH_KEYS, REVIEW_MATCH_KEYS, TIMING_MATCH_KEYS } from '../../core/schemas.js'
 import type { CorvusDeps } from '../../core/types.js'
 import type { Snapshot, MatchKeys } from '../../core/schemas.js'
 import type { BuildResult } from '../../core/types.js'
 import type { Dispatch } from 'react'
-import type { ChatEntry, SessionAction } from './use-session.js'
+import type { ChatEntry, SessionAction, Session } from './use-session.js'
 
 const HELP_TEXT = `Commands:
   scan <topic>        Snapshot X discourse on a topic
@@ -25,15 +27,29 @@ const HELP_TEXT = `Commands:
   trace <topic>       Trace how a narrative spreads
   draft <topic>       Draft a post in your voice
   hooks <topic>       Find conversations to reply to
+  grow <topic>        Full growth workflow (hooks + draft + timing)
+  agent <question>    Deep research — multi-step investigation
   profile <@user>     Analyze content strategy
   review              Review your recent posting
   timing [topic]      Best times to post
   ask <question>      Ask Grok anything
 
   /help               Show this help
+  /brief              Session summary with ref IDs
   /cost               Session spend
   /clear              Clear chat
-  /exit               Quit`
+  /view <N or ref>    Expand a truncated result (e.g., /view 3 or /view scan:1)
+  /exit               Quit
+
+Context flows between commands on the same topic.
+Run scan first, then draft — the draft will use scan insights.`
+
+function getContextForTopic(session: Session, topic: string): string {
+  const key = topic.toLowerCase().trim()
+  const entries = session.contextMap[key]
+  if (!entries || entries.length === 0) return ''
+  return buildContextSummary(entries)
+}
 
 // Helper to reduce repetition across the structured commands
 async function runStructured<T extends Snapshot>(
@@ -56,17 +72,20 @@ async function runStructured<T extends Snapshot>(
   dispatch({
     type: 'add-result',
     entry: {
-      type: 'result', command, topic,
-      rendered: renderFn(result.data),
+      type: 'result', refId: '', command, topic,
+      rendered: renderFn(result.data as T),
       cost: result.cost,
       elapsed: Date.now() - startTime,
     },
   })
+  dispatch({
+    type: 'add-context',
+    topic,
+    entry: { command, topic, snapshot: result.data as Snapshot, timestamp: Date.now() },
+  })
 }
 
-// dispatch and exit are passed in rather than read from context,
-// because useCommand is called in the same component that provides the context.
-export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void, history: ChatEntry[] = []) {
+export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void, history: ChatEntry[] = [], session?: Session) {
   const [isLoading, setIsLoading] = useState(false)
   const [phaseLabel, setPhaseLabel] = useState<string | null>(null)
 
@@ -99,7 +118,42 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         case 'exit':
           exit()
           return
+        case 'brief': {
+          const results = history.filter(
+            (e): e is Extract<ChatEntry, { type: 'result' }> => e.type === 'result',
+          )
+          if (results.length === 0) {
+            dispatch({ type: 'add-result', entry: { type: 'system', message: 'No results yet. Run a command first.' } })
+            return
+          }
+          const lines = results.map((r) =>
+            `  [${r.refId}]  ${r.command} · ${r.topic}  ${(r.elapsed / 1000).toFixed(1)}s`,
+          )
+          dispatch({
+            type: 'add-result',
+            entry: { type: 'system', message: `Session brief (${results.length} results):\n\n${lines.join('\n')}` },
+          })
+          return
+        }
         case 'view': {
+          // Ref ID mode (e.g., /view scan:1)
+          if (parsed.args?.refId) {
+            const idx = history.findIndex(
+              (e) => (e.type === 'result' || e.type === 'prose') && e.refId === parsed.args!.refId,
+            )
+            if (idx < 0) {
+              dispatch({ type: 'add-error', message: `No result with ref ${parsed.args.refId}. Try /brief to see available refs.` })
+              return
+            }
+            const entry = history[idx]
+            if ((entry.type === 'result' || entry.type === 'prose') && entry.expanded) {
+              dispatch({ type: 'add-error', message: `${parsed.args.refId} is already expanded.` })
+              return
+            }
+            dispatch({ type: 'expand-entry', index: idx })
+            return
+          }
+          // Numeric index mode (e.g., /view 3)
           const index = parseInt(parsed.args?.index ?? '') - 1
           if (index < 0 || index >= history.length) {
             dispatch({ type: 'add-error', message: `Entry ${index + 1} does not exist.` })
@@ -142,6 +196,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
     try {
       const { command, args } = parsed
       const baseDir = ConfigManager.defaultDir()
+      const priorContext = session ? getContextForTopic(session, args.topic ?? args.question ?? '') : ''
 
       if (command === 'ask') {
         setPhaseLabel('thinking...')
@@ -154,8 +209,79 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         const cleanText = response.text.replace(/\[\[(\d+)\]\]\([^)]+\)/g, '[$1]')
         dispatch({
           type: 'add-result',
-          entry: { type: 'prose', text: cleanText, cost: response.usage.costUsd },
+          entry: { type: 'prose', refId: '', text: cleanText, cost: response.usage.costUsd },
         })
+      } else if (command === 'agent') {
+        setPhaseLabel(`investigating "${args.question}"...`)
+        try {
+          const result = await agentMulti(deps.grok, args.question)
+          dispatch({ type: 'set-grok-status', status: 'connected' })
+          dispatch({ type: 'add-cost', cost: result.cost })
+          const rendered = renderAgentBrief(result.brief, {
+            stepCount: result.brief.evidence.length,
+            durationMs: result.durationMs,
+            tweetCount: result.brief.sampleSize,
+            accountCount: result.brief.keyAccounts.length,
+            cost: result.cost,
+          })
+          dispatch({
+            type: 'add-result',
+            entry: {
+              type: 'result', refId: '', command: 'agent', topic: args.question,
+              rendered,
+              cost: result.cost,
+              elapsed: result.durationMs,
+            },
+          })
+        } catch {
+          // Fallback to classic agent pipeline
+          setPhaseLabel(`investigating "${args.question}" (classic)...`)
+          const planner = new AgentPlanner(deps.grok)
+          const { plan, costUsd: planCost } = await planner.plan(args.question)
+          dispatch({ type: 'add-cost', cost: planCost })
+          dispatch({
+            type: 'add-result',
+            entry: { type: 'system', message: `Agent plan: ${plan.goal}\n${plan.steps.map((s, i) => `  ${i + 1}. ${s.command} ${s.args.topic ?? s.args.username ?? ''} — ${s.reasoning}`).join('\n')}` },
+          })
+
+          const executor = new AgentExecutor(deps, args.question, plan, {
+            maxSteps: 8,
+            budget: 1.0,
+            replan: true,
+            onStepStart: (i, step) => {
+              setPhaseLabel(`step ${i + 1}/${plan.steps.length}: ${step.command}...`)
+            },
+            onStepComplete: (i, step, durationMs) => {
+              dispatch({
+                type: 'add-result',
+                entry: { type: 'system', message: `  step ${i + 1} done: ${step.command} (${(durationMs / 1000).toFixed(1)}s)` },
+              })
+            },
+          })
+
+          const ctx = await executor.execute(planCost)
+          const synthesizer = new AgentSynthesizer(deps.grok)
+          const brief = await synthesizer.synthesize(ctx)
+
+          dispatch({ type: 'set-grok-status', status: 'connected' })
+          dispatch({ type: 'add-cost', cost: ctx.totalCost })
+          const rendered = renderAgentBrief(brief, {
+            stepCount: ctx.results.length,
+            durationMs: Date.now() - startTime,
+            tweetCount: brief.sampleSize,
+            accountCount: brief.keyAccounts.length,
+            cost: ctx.totalCost,
+          })
+          dispatch({
+            type: 'add-result',
+            entry: {
+              type: 'result', refId: '', command: 'agent', topic: args.question,
+              rendered,
+              cost: ctx.totalCost,
+              elapsed: Date.now() - startTime,
+            },
+          })
+        }
       } else if (command === 'scan') {
         setPhaseLabel(`scanning "${args.topic}"...`)
         await runStructured(dispatch, deps, 'scan', args.topic, SCAN_MATCH_KEYS,
@@ -171,34 +297,89 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       } else if (command === 'draft') {
         setPhaseLabel(`drafting post about "${args.topic}"...`)
         await runStructured(dispatch, deps, 'draft', args.topic, {},
-          () => buildDraftSnapshot(deps, args.topic, {}), renderDraft, startTime, baseDir)
+          () => buildDraftSnapshot(deps, args.topic, { priorContext: priorContext || undefined }), renderDraft, startTime, baseDir)
       } else if (command === 'grow') {
-        setPhaseLabel(`growing "${args.topic}" — hooks...`)
-        const hooks = await buildHooksSnapshot(deps, args.topic, 30)
+        // Progressive grow: each step dispatches its own result
+        const topic = args.topic
+
+        // Step 1: Hooks
+        setPhaseLabel(`grow "${topic}" — finding hooks...`)
+        const hooks = await buildHooksSnapshot(deps, topic, 30, priorContext || undefined)
         dispatch({ type: 'add-cost', cost: hooks.cost })
-        setPhaseLabel(`growing "${args.topic}" — drafting...`)
-        const draft = await buildDraftSnapshot(deps, args.topic, {})
-        dispatch({ type: 'add-cost', cost: draft.cost })
-        setPhaseLabel(`growing "${args.topic}" — timing...`)
-        const handle = new AuthManager(baseDir).getXHandle()
-        const timing = await buildTimingSnapshot(deps, { handle: handle ?? undefined, topic: args.topic })
-        dispatch({ type: 'add-cost', cost: timing.cost })
-        dispatch({ type: 'set-grok-status', status: 'connected' })
-        if (deps.x) dispatch({ type: 'set-x-status', status: 'connected' })
-        const combined = [renderHooks(hooks.data), '', renderDraft(draft.data), '', renderTiming(timing.data)].join('\n')
         dispatch({
           type: 'add-result',
           entry: {
-            type: 'result', command: 'grow', topic: args.topic,
-            rendered: combined,
-            cost: hooks.cost + draft.cost + timing.cost,
+            type: 'result', refId: '', command: 'hooks', topic,
+            rendered: renderHooks(hooks.data),
+            cost: hooks.cost,
             elapsed: Date.now() - startTime,
           },
+        })
+        dispatch({
+          type: 'add-context',
+          topic,
+          entry: { command: 'hooks', topic, snapshot: hooks.data, timestamp: Date.now() },
+        })
+
+        // Step 2: Draft (with hooks context injected)
+        const hooksEndTime = Date.now()
+        setPhaseLabel(`grow "${topic}" — drafting...`)
+        const hooksContext = hooks.data.opportunities
+          .slice(0, 5)
+          .map((o) => `@${o.author}: "${o.content}" (${o.engagement.likes} likes, ${o.engagement.replies} replies) — angle: ${o.suggestedAngle}`)
+          .join('\n')
+        const draftContext = session ? getContextForTopic(session, topic) : ''
+        const draft = await buildDraftSnapshot(deps, topic, { hooksContext, priorContext: draftContext || undefined })
+        dispatch({ type: 'add-cost', cost: draft.cost })
+        dispatch({
+          type: 'add-result',
+          entry: {
+            type: 'result', refId: '', command: 'draft', topic,
+            rendered: renderDraft(draft.data),
+            cost: draft.cost,
+            elapsed: Date.now() - hooksEndTime,
+          },
+        })
+        dispatch({
+          type: 'add-context',
+          topic,
+          entry: { command: 'draft', topic, snapshot: draft.data, timestamp: Date.now() },
+        })
+
+        // Step 3: Timing
+        const draftEndTime = Date.now()
+        setPhaseLabel(`grow "${topic}" — timing...`)
+        const handle = new AuthManager(baseDir).getXHandle()
+        const timing = await buildTimingSnapshot(deps, { handle: handle ?? undefined, topic })
+        dispatch({ type: 'add-cost', cost: timing.cost })
+        dispatch({
+          type: 'add-result',
+          entry: {
+            type: 'result', refId: '', command: 'timing', topic,
+            rendered: renderTiming(timing.data),
+            cost: timing.cost,
+            elapsed: Date.now() - draftEndTime,
+          },
+        })
+        dispatch({
+          type: 'add-context',
+          topic,
+          entry: { command: 'timing', topic, snapshot: timing.data, timestamp: Date.now() },
+        })
+
+        dispatch({ type: 'set-grok-status', status: 'connected' })
+        if (deps.x) dispatch({ type: 'set-x-status', status: 'connected' })
+
+        // Summary message
+        const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+        dispatch({
+          type: 'add-result',
+          entry: { type: 'system', message: `grow complete — 3 steps, ${totalElapsed}s` },
         })
       } else if (command === 'hooks') {
         setPhaseLabel(`finding hooks for "${args.topic}"...`)
         await runStructured(dispatch, deps, 'hooks', args.topic, HOOKS_MATCH_KEYS,
-          () => buildHooksSnapshot(deps, args.topic, 50), renderHooks, startTime, baseDir)
+          () => buildHooksSnapshot(deps, args.topic, 50, priorContext || undefined), renderHooks, startTime, baseDir)
       } else if (command === 'profile') {
         const handle = args.username
         const isSelf = resolveIsSelf(handle, new AuthManager(baseDir).getXHandle())
@@ -243,7 +424,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       setPhaseLabel(null)
       setIsLoading(false)
     }
-  }, [deps, dispatch, exit, history])
+  }, [deps, dispatch, exit, history, session])
 
   return { execute, isLoading, phaseLabel }
 }

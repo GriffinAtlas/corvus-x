@@ -68,7 +68,7 @@ export function App({ version, init }: Props) {
     xApiStatus,
   })
 
-  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit, session.history)
+  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit, session.history, session)
 
   const [scrollOffset, setScrollOffset] = useState(0)
   const userScrolled = useRef(false)

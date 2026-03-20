@@ -52,17 +52,19 @@ export async function buildHooksSnapshot(
   deps: CorvusDeps,
   topic: string,
   maxResults: number,
+  priorContext?: string,
 ): Promise<BuildResult<HooksSnapshot>> {
   if (deps.x) {
-    return buildHooksFromXApi(deps, topic, maxResults)
+    return buildHooksFromXApi(deps, topic, maxResults, priorContext)
   }
-  return buildHooksFromGrok(deps, topic)
+  return buildHooksFromGrok(deps, topic, priorContext)
 }
 
 async function buildHooksFromXApi(
   deps: CorvusDeps,
   topic: string,
   maxResults: number,
+  priorContext?: string,
 ): Promise<BuildResult<HooksSnapshot>> {
   const { tweets, users } = await deps.x!.searchRecent(topic, maxResults)
   if (tweets.length === 0) throw new Error(`No tweets found for "${topic}"`)
@@ -78,13 +80,13 @@ async function buildHooksFromXApi(
     })
     .join('\n')
 
-  const response = await deps.grok.query(
-    `Find the best conversations to reply to about "${topic}" from these ${tweets.length} tweets:\n\n${tweetBlock}`,
-    {
-      systemPrompt: SYSTEM_PROMPT,
-      maxTokens: 4096,
-    },
-  )
+  let prompt = `Find the best conversations to reply to about "${topic}" from these ${tweets.length} tweets:\n\n${tweetBlock}`
+  if (priorContext) prompt += `\n\n${priorContext}`
+
+  const response = await deps.grok.query(prompt, {
+    systemPrompt: SYSTEM_PROMPT,
+    maxTokens: 4096,
+  })
 
   const grok = parseGrokJson<{ opportunities: HooksSnapshot['opportunities'] }>(response.text)
 
@@ -110,15 +112,16 @@ async function buildHooksFromXApi(
 async function buildHooksFromGrok(
   deps: CorvusDeps,
   topic: string,
+  priorContext?: string,
 ): Promise<BuildResult<HooksSnapshot>> {
-  const response = await deps.grok.query(
-    `Find the best conversations to reply to about: "${topic}"`,
-    {
-      systemPrompt: GROK_ONLY_PROMPT,
-      enableXSearch: true,
-      maxTokens: 4096,
-    },
-  )
+  let prompt = `Find the best conversations to reply to about: "${topic}"`
+  if (priorContext) prompt += `\n\n${priorContext}`
+
+  const response = await deps.grok.query(prompt, {
+    systemPrompt: GROK_ONLY_PROMPT,
+    enableXSearch: true,
+    maxTokens: 4096,
+  })
 
   const grok = parseGrokJson<{ opportunities: HooksSnapshot['opportunities'] }>(response.text)
 

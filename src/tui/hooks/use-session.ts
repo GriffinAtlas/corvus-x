@@ -1,14 +1,22 @@
 import { createContext, useContext } from 'react'
 import type { Dispatch } from 'react'
+import type { Snapshot } from '../../core/schemas.js'
 
 export type GrokStatus = 'connected' | 'error' | 'no-key'
 export type XApiStatus = 'connected' | 'error' | 'no-key' | 'optional'
 
+export interface ContextEntry {
+  command: string
+  topic: string
+  snapshot: Snapshot
+  timestamp: number
+}
+
 export type ChatEntry =
   | { type: 'user'; text: string }
-  | { type: 'result'; command: string; topic: string; rendered: string;
+  | { type: 'result'; refId: string; command: string; topic: string; rendered: string;
       cost: number; elapsed: number; expanded?: boolean }
-  | { type: 'prose'; text: string; cost: number; expanded?: boolean }
+  | { type: 'prose'; refId: string; text: string; cost: number; expanded?: boolean }
   | { type: 'error'; message: string }
   | { type: 'system'; message: string }
 
@@ -19,6 +27,8 @@ export interface Session {
   grokStatus: GrokStatus
   xApiStatus: XApiStatus
   history: ChatEntry[]
+  refCounter: number
+  contextMap: Record<string, ContextEntry[]>
 }
 
 export type SessionAction =
@@ -30,6 +40,7 @@ export type SessionAction =
   | { type: 'set-x-status'; status: XApiStatus }
   | { type: 'clear-history' }
   | { type: 'expand-entry'; index: number }
+  | { type: 'add-context'; topic: string; entry: ContextEntry }
 
 export const initialSession: Session = {
   startTime: Date.now(),
@@ -38,6 +49,12 @@ export const initialSession: Session = {
   grokStatus: 'no-key',
   xApiStatus: 'no-key',
   history: [],
+  refCounter: 0,
+  contextMap: {},
+}
+
+function normalizeTopic(topic: string): string {
+  return topic.toLowerCase().trim()
 }
 
 export function sessionReducer(state: Session, action: SessionAction): Session {
@@ -49,10 +66,17 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
       }
     case 'add-result': {
       const isApiResult = action.entry.type === 'result' || action.entry.type === 'prose'
+      let entry = action.entry
+      if (isApiResult) {
+        const nextRef = state.refCounter + 1
+        const label = entry.type === 'result' ? entry.command : 'ask'
+        entry = { ...entry, refId: `${label}:${nextRef}` } as ChatEntry
+      }
       return {
         ...state,
-        history: [...state.history, action.entry],
+        history: [...state.history, entry],
         queryCount: state.queryCount + (isApiResult ? 1 : 0),
+        refCounter: isApiResult ? state.refCounter + 1 : state.refCounter,
       }
     }
     case 'add-cost':
@@ -67,7 +91,7 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
     case 'set-x-status':
       return { ...state, xApiStatus: action.status }
     case 'clear-history':
-      return { ...state, history: [], queryCount: 0, totalCost: 0 }
+      return { ...state, history: [], queryCount: 0, totalCost: 0, refCounter: 0, contextMap: {} }
     case 'expand-entry': {
       if (!Number.isInteger(action.index) || action.index < 0 || action.index >= state.history.length) return state
       const entry = state.history[action.index]
@@ -80,6 +104,17 @@ export function sessionReducer(state: Session, action: SessionAction): Session {
           if (e.type === 'result' || e.type === 'prose') return { ...e, expanded: true }
           return e
         }),
+      }
+    }
+    case 'add-context': {
+      const key = normalizeTopic(action.topic)
+      const existing = state.contextMap[key] ?? []
+      return {
+        ...state,
+        contextMap: {
+          ...state.contextMap,
+          [key]: [...existing, action.entry],
+        },
       }
     }
   }

@@ -30,6 +30,7 @@ function renderEntry(entry: ChatEntry, index: number) {
       return (
         <ResultCard
           key={index}
+          refId={entry.refId}
           command={entry.command}
           topic={entry.topic}
           rendered={rendered}
@@ -48,6 +49,7 @@ function renderEntry(entry: ChatEntry, index: number) {
       return (
         <ProseResult
           key={index}
+          refId={entry.refId}
           text={text}
           cost={entry.cost}
           truncated={truncated}

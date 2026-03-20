@@ -5,16 +5,18 @@ export type ParsedCommand =
   | { type: 'empty' }
 
 const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace', 'hooks', 'draft', 'grow'])
-const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'view'])
+const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'view', 'brief'])
 
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
+  'agent',
   'profile',
   'review',
   'timing',
   'ask',
   'history',
   '/view',
+  '/brief',
 ] as const
 
 export function parseInput(raw: string): ParsedCommand {
@@ -22,12 +24,17 @@ export function parseInput(raw: string): ParsedCommand {
   if (!input) return { type: 'empty' }
 
   if (input.startsWith('/')) {
-    // /view N — must be checked before generic slash lookup
+    // /view N or /view ref:N — must be checked before generic slash lookup
     if (input === '/view' || input.startsWith('/view ')) {
       const rest = input.slice(5).trim()
-      if (!rest) return { type: 'error', message: 'Usage: /view <number>' }
+      if (!rest) return { type: 'error', message: 'Usage: /view <number or ref>' }
+      // Try ref ID format (e.g., scan:1)
+      if (/^[a-z]+:\d+$/.test(rest)) {
+        return { type: 'slash', command: 'view', args: { refId: rest } }
+      }
+      // Try numeric index
       const n = parseInt(rest)
-      if (isNaN(n) || n < 1) return { type: 'error', message: 'Usage: /view <number>' }
+      if (isNaN(n) || n < 1) return { type: 'error', message: 'Usage: /view <number or ref>' }
       return { type: 'slash', command: 'view', args: { index: String(n) } }
     }
 
@@ -45,6 +52,11 @@ export function parseInput(raw: string): ParsedCommand {
   if (TOPIC_COMMANDS.has(keyword)) {
     if (!rest) return { type: 'error', message: `Usage: ${keyword} <topic>` }
     return { type: 'command', command: keyword, args: { topic: rest } }
+  }
+
+  if (keyword === 'agent') {
+    if (!rest) return { type: 'error', message: 'Usage: agent <question>' }
+    return { type: 'command', command: 'agent', args: { question: rest } }
   }
 
   if (keyword === 'review') {

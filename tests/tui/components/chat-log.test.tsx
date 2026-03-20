@@ -23,14 +23,14 @@ describe('ChatLog', () => {
   })
 
   it('renders prose entry', () => {
-    const entries: ChatEntry[] = [{ type: 'prose', text: 'AI analysis here', cost: 0.001 }]
+    const entries: ChatEntry[] = [{ type: 'prose', refId: 'ask:1', text: 'AI analysis here', cost: 0.001 }]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     expect(lastFrame()!).toContain('AI analysis here')
   })
 
   it('renders result entry', () => {
     const entries: ChatEntry[] = [
-      { type: 'result', command: 'scan', topic: 'bitcoin', rendered: 'Scan output', cost: 0.003, elapsed: 1500 },
+      { type: 'result', refId: 'scan:1', command: 'scan', topic: 'bitcoin', rendered: 'Scan output', cost: 0.003, elapsed: 1500 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     expect(lastFrame()!).toContain('scan')
@@ -46,7 +46,7 @@ describe('ChatLog', () => {
   it('renders multiple entries in order', () => {
     const entries: ChatEntry[] = [
       { type: 'user', text: 'scan bitcoin' },
-      { type: 'result', command: 'scan', topic: 'bitcoin', rendered: 'Output', cost: 0.003, elapsed: 1000 },
+      { type: 'result', refId: 'scan:1', command: 'scan', topic: 'bitcoin', rendered: 'Output', cost: 0.003, elapsed: 1000 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
@@ -56,7 +56,7 @@ describe('ChatLog', () => {
   it('truncates result entry to 40 lines', () => {
     const longOutput = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
-      { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
+      { type: 'result', refId: 'scan:1', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
@@ -64,13 +64,13 @@ describe('ChatLog', () => {
     expect(frame).toContain('line 40')
     expect(frame).not.toContain('line 41')
     expect(frame).toContain('15 more lines')
-    expect(frame).toContain('/view 1')
+    expect(frame).toContain('/view scan:1')
   })
 
   it('does not truncate short result entry', () => {
     const shortOutput = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
-      { type: 'result', command: 'scan', topic: 'btc', rendered: shortOutput, cost: 0.003, elapsed: 1200 },
+      { type: 'result', refId: 'scan:1', command: 'scan', topic: 'btc', rendered: shortOutput, cost: 0.003, elapsed: 1200 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
@@ -81,7 +81,7 @@ describe('ChatLog', () => {
   it('shows full content when expanded', () => {
     const longOutput = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
-      { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput,
+      { type: 'result', refId: 'scan:1', command: 'scan', topic: 'btc', rendered: longOutput,
         cost: 0.003, elapsed: 1200, expanded: true },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
@@ -93,7 +93,7 @@ describe('ChatLog', () => {
   it('truncates prose entry to 60 lines', () => {
     const longText = Array.from({ length: 80 }, (_, i) => `paragraph ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
-      { type: 'prose', text: longText, cost: 0.002 },
+      { type: 'prose', refId: 'ask:1', text: longText, cost: 0.002 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
@@ -101,13 +101,13 @@ describe('ChatLog', () => {
     expect(frame).toContain('paragraph 60')
     expect(frame).not.toContain('paragraph 61')
     expect(frame).toContain('20 more lines')
-    expect(frame).toContain('/view 1')
+    expect(frame).toContain('/view ask:1')
   })
 
   it('shows full prose content when expanded', () => {
     const longText = Array.from({ length: 70 }, (_, i) => `paragraph ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
-      { type: 'prose', text: longText, cost: 0.002, expanded: true },
+      { type: 'prose', refId: 'ask:1', text: longText, cost: 0.002, expanded: true },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
@@ -118,10 +118,10 @@ describe('ChatLog', () => {
   it('truncation footer uses correct /view index when startIndex is non-zero', () => {
     const longOutput = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
-      { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
+      { type: 'result', refId: 'scan:1', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} startIndex={4} />)
     const frame = lastFrame()!
-    expect(frame).toContain('/view 5')
+    expect(frame).toContain('/view scan:1')
   })
 })

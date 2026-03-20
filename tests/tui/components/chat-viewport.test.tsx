@@ -84,6 +84,7 @@ describe('ChatViewport', () => {
     // With viewportHeight=9, one result should fit but two should not
     const resultEntry: ChatEntry = {
       type: 'result',
+      refId: 'scan:1',
       command: 'scan',
       topic: 'btc',
       rendered: 'line1\nline2\nline3\nline4\nline5',
@@ -108,6 +109,7 @@ describe('ChatViewport', () => {
   it('correctly estimates height for prose entries', () => {
     const proseEntry: ChatEntry = {
       type: 'prose',
+      refId: 'ask:1',
       text: 'para1\npara2\npara3',
       cost: 0.002,
     }
