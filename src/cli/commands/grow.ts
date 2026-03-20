@@ -1,7 +1,7 @@
 import { Command } from 'commander'
 import ora from 'ora'
 import { t, divider, banner } from '../theme.js'
-import { initDeps } from '../run-command.js'
+import { initDeps, showCostAndExit } from '../run-command.js'
 import { renderHooks, renderDraft, renderTiming } from '../output.js'
 import { buildHooksSnapshot } from '../../core/builders/hooks.js'
 import { buildDraftSnapshot } from '../../core/builders/draft.js'
@@ -23,8 +23,7 @@ export function registerGrowCommand(program: Command): void {
         const topic = topicParts.join(' ')
 
         if (options.cost) {
-          console.log(t.muted('\n  grow runs 3 Grok queries: hooks + draft + timing'))
-          console.log(t.muted('  estimated cost: $0.010 - 0.020\n'))
+          await showCostAndExit()
           return
         }
 

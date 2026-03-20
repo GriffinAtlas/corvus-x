@@ -31,7 +31,7 @@ export function initDeps(): CorvusDeps {
   }
 }
 
-async function showCostAndExit(): Promise<void> {
+export async function showCostAndExit(): Promise<void> {
   const { MODEL_PRICING, DEFAULT_MODEL } = await import('../core/grok-adapter.js')
   const pricing = MODEL_PRICING[DEFAULT_MODEL]
   console.log(t.muted(`\n  Model: ${DEFAULT_MODEL}`))

@@ -109,11 +109,20 @@ async function buildProfileFromXApi(
 
   const grok = parseGrokJson<ProfileSnapshot>(response.text)
 
+  // Compute real replyRate from actual tweet data — override Grok's estimate
+  const realReplyRate = tweets.length > 0
+    ? tweets.filter((tw) => tw.metrics.replies > 0).length / tweets.length
+    : 0
+  const algoScore = grok.algorithmScore ?? { replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' }
+  algoScore.replyRate = Number(realReplyRate.toFixed(2))
+
   if (isSelf && tweets.length > 0) {
     const voiceManager = new VoiceProfileManager(ConfigManager.defaultDir())
     const existing = voiceManager.load()
     if (!existing || voiceManager.isStale(existing)) {
-      voiceManager.generate(deps.grok, handle, tweets).catch(() => {})
+      voiceManager.generate(deps.grok, handle, tweets).catch((err) => {
+        process.stderr.write(`corvus: voice profile generation failed: ${err instanceof Error ? err.message : String(err)}\n`)
+      })
     }
   }
 
@@ -127,7 +136,7 @@ async function buildProfileFromXApi(
       contentMix: grok.contentMix,
       topPerformers: grok.topPerformers,
       voiceTraits: grok.voiceTraits,
-      algorithmScore: grok.algorithmScore,
+      algorithmScore: algoScore,
       recommendations: isSelf ? grok.recommendations ?? undefined : undefined,
       sentiment: grok.sentiment,
       fetchedAt: new Date().toISOString(),
