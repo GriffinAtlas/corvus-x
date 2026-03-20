@@ -150,8 +150,6 @@ export class GrokAdapter {
       tools.push({ type: 'web_search' })
     }
 
-    if (tools.length === 0) tools.push({ type: 'x_search' })
-
     return tools
   }
 
@@ -246,8 +244,14 @@ export class GrokAdapter {
       ...(tools.length > 0 ? { tools } : {}),
     }
 
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 120_000)
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stream: any = await (this.client as any).responses.create(createParams)
+    const stream: any = await (this.client as any).responses.create({
+      ...createParams,
+      signal: controller.signal,
+    })
 
     let text = ''
     let inputTokens = 0
@@ -265,6 +269,8 @@ export class GrokAdapter {
         toolCallCount = event.response.output?.filter((o: { type: string }) => o.type === 'tool_call')?.length ?? 0
       }
     }
+
+    clearTimeout(timer)
 
     if (inputTokens === 0 && outputTokens === 0) {
       outputTokens = Math.ceil(text.length / 4)

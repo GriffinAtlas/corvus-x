@@ -34,8 +34,7 @@ export function WelcomeView({
         <BigHeader version={version} columns={columns} />
       ) : (
         <Box paddingLeft={2} paddingTop={1}>
-          <Text color="#7C3AED" bold>{'▸ corvus'}</Text>
-          <Text dimColor>{` v${version}  investigate X · grow your presence`}</Text>
+          <Text dimColor>investigate X · grow your presence</Text>
         </Box>
       )}
       <Box paddingLeft={2} paddingTop={1}>

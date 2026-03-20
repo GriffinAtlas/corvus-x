@@ -361,7 +361,7 @@ export function renderProfile(data: ProfileSnapshot): string {
     const gradeColor = algo.grade <= 'B' ? t.positive : algo.grade === 'C' ? t.warning : t.negative
     parts.push('')
     parts.push(`  ${labeledDivider(`Algorithm Health  ${gradeColor(algo.grade)}`)}`)
-    parts.push(`    Reply rate       ${percentBar(algo.replyRate, 15, t.accent)} ${(algo.replyRate * 100).toFixed(0)}%  ${t.muted('27x likes')}`)
+    parts.push(`    Reply rate       ${percentBar(algo.replyRate, 15, t.accent)} ${(algo.replyRate * 100).toFixed(0)}%  ${t.muted('13.5x likes')}`)
     parts.push(`    Author replies   ${percentBar(algo.authorReplyRate, 15, t.positive)} ${(algo.authorReplyRate * 100).toFixed(0)}%  ${t.muted('75x weight')}`)
     parts.push(`    Conversations    ${percentBar(algo.conversationRatio, 15, t.positive)} ${(algo.conversationRatio * 100).toFixed(0)}%  ${t.muted('150x a like')}`)
     if (algo.bookmarkToLikeRatio > 0) {

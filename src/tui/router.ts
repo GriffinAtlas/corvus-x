@@ -10,9 +10,6 @@ const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'vie
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
   'profile',
-  'hooks',
-  'draft',
-  'grow',
   'review',
   'timing',
   'ask',

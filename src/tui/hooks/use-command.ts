@@ -184,6 +184,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         const timing = await buildTimingSnapshot(deps, { handle: handle ?? undefined, topic: args.topic })
         dispatch({ type: 'add-cost', cost: timing.cost })
         dispatch({ type: 'set-grok-status', status: 'connected' })
+        if (deps.x) dispatch({ type: 'set-x-status', status: 'connected' })
         const combined = [renderHooks(hooks.data), '', renderDraft(draft.data), '', renderTiming(timing.data)].join('\n')
         dispatch({
           type: 'add-result',

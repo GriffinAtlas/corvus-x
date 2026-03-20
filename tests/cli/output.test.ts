@@ -524,7 +524,7 @@ describe('renderProfile', () => {
 
   it('renders algorithm weight annotations', () => {
     const output = renderProfile(profile)
-    expect(output).toContain('27x likes')
+    expect(output).toContain('13.5x likes')
     expect(output).toContain('75x weight')
     expect(output).toContain('150x a like')
     expect(output).toContain('save-worthy')
