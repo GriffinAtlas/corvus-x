@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import Spinner from 'ink-spinner'
@@ -72,9 +72,17 @@ export function InputBar({ onSubmit, isLoading, phaseLabel }: Props) {
     )
   }
 
+  const PROMPT_COLORS = ['#7C3AED', '#8B4FFF', '#9F67FF', '#B48AFF', '#9F67FF', '#8B4FFF']
+  const [promptFrame, setPromptFrame] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => setPromptFrame((f) => (f + 1) % PROMPT_COLORS.length), 400)
+    return () => clearInterval(timer)
+  }, [])
+
   return (
     <Box paddingLeft={2}>
-      <Text color="#B48AFF" bold>{'❯ '}</Text>
+      <Text color={PROMPT_COLORS[promptFrame]} bold>{'❯ '}</Text>
       <TextInput
         key={mountKey}
         placeholder="type a command or question..."

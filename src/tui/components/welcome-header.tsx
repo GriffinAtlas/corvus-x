@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useStdout } from 'ink'
 import { CROW_SMALL_LINES, LOGO_LINES, LOGO_LARGE_LINES } from '../../cli/theme.js'
 
@@ -6,30 +6,40 @@ interface Props {
   version: string
 }
 
-const CROW_COLORS = [
+const WAVE_COLORS = [
   '#3A1078', '#4A1990', '#5522A8', '#602BBF',
   '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
+  '#B48AFF', '#C9A5FF', '#B48AFF', '#9F67FF',
+  '#8B4FFF', '#7C3AED', '#6E33C6', '#602BBF',
 ]
-
-const LOGO_SMALL_COLORS = ['#9F67FF', '#B48AFF', '#C9A5FF']
 
 const LOGO_LARGE_COLORS = [
   '#5C29A8', '#6E33C6', '#7C3AED',
   '#8B4FFF', '#9F67FF', '#B48AFF',
 ]
 
+const LOGO_SMALL_COLORS = ['#9F67FF', '#B48AFF', '#C9A5FF']
+
 export function WelcomeHeader({ version }: Props) {
   const { stdout } = useStdout()
   const columns = stdout?.columns ?? 80
   const useLarge = columns >= 80
+  const [frame, setFrame] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrame((f) => (f + 1) % WAVE_COLORS.length)
+    }, 200)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <Box flexDirection="column" paddingLeft={1} paddingTop={1}>
       <Box flexDirection="row" alignItems="flex-start">
-        {/* Crow art with gradient */}
+        {/* Animated crow — wave cycles through gradient */}
         <Box flexDirection="column">
           {CROW_SMALL_LINES.map((line, i) => (
-            <Text key={i} color={CROW_COLORS[i % CROW_COLORS.length]}>{line}</Text>
+            <Text key={i} color={WAVE_COLORS[(frame + i) % WAVE_COLORS.length]}>{line}</Text>
           ))}
         </Box>
 
