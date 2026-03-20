@@ -19,11 +19,20 @@ const SUGGESTIONS = [
   '/exit',
 ]
 
+const PROMPT_COLORS = ['#7C3AED', '#8B4FFF', '#9F67FF', '#B48AFF', '#9F67FF', '#8B4FFF']
+
 export function InputBar({ onSubmit, isLoading, phaseLabel }: Props) {
   const [inputHistory, setInputHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [mountKey, setMountKey] = useState(0)
   const [value, setValue] = useState('')
+  const [promptFrame, setPromptFrame] = useState(0)
+
+  useEffect(() => {
+    if (isLoading) return
+    const timer = setInterval(() => setPromptFrame((f) => (f + 1) % PROMPT_COLORS.length), 400)
+    return () => clearInterval(timer)
+  }, [isLoading])
 
   function setInput(text: string, index: number) {
     setValue(text)
@@ -71,14 +80,6 @@ export function InputBar({ onSubmit, isLoading, phaseLabel }: Props) {
       </Box>
     )
   }
-
-  const PROMPT_COLORS = ['#7C3AED', '#8B4FFF', '#9F67FF', '#B48AFF', '#9F67FF', '#8B4FFF']
-  const [promptFrame, setPromptFrame] = useState(0)
-
-  useEffect(() => {
-    const timer = setInterval(() => setPromptFrame((f) => (f + 1) % PROMPT_COLORS.length), 400)
-    return () => clearInterval(timer)
-  }, [])
 
   return (
     <Box paddingLeft={2}>
