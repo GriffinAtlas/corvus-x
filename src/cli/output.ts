@@ -329,7 +329,7 @@ export function renderProfile(data: ProfileSnapshot): string {
     for (const c of data.contentMix.slice(0, 7)) {
       const pct = c.percentage / 100
       parts.push(
-        `    ${c.category.padEnd(16)} ${percentBar(pct, 12, t.accent)} ${String(c.percentage).padStart(3)}%  ${compactNum(c.avgEngagement)} avg eng`,
+        `    ${c.category.padEnd(16)} ${percentBar(pct, 12, t.accent)} ${String(c.percentage).padStart(3)}%  ${compactNum(c.avgEngagement)} avg interactions`,
       )
     }
   }
@@ -443,7 +443,7 @@ export function renderHooks(data: HooksSnapshot): string {
     const scoreColor = opp.opportunityScore >= 0.7 ? t.positive : opp.opportunityScore >= 0.4 ? t.warning : t.muted
     parts.push(`  ${percentBar(opp.opportunityScore, 8, scoreColor)} ${scoreColor(`${(opp.opportunityScore * 100).toFixed(0)}%`)}  @${opp.author}  ${compactNum(opp.authorFollowers)} followers`)
     const eng = opp.engagement
-    parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.retweets} RTs · ${eng.replies} replies`)}`)
+    parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.retweets} reposts · ${eng.replies} replies`)}`)
     parts.push(`    ${opp.content.length > 140 ? opp.content.slice(0, 140) + '...' : opp.content}`)
     parts.push(`    ${t.positive('→')} ${opp.suggestedAngle}`)
     if (opp.tweetUrl) {
@@ -464,7 +464,7 @@ export function renderReview(data: ReviewSnapshot): string {
     parts.push('')
     parts.push(`  ${t.heading('Top Performers')}`)
     for (const p of data.topPosts.slice(0, 5)) {
-      parts.push(`    ${t.positive(compactNum(p.engagement) + ' eng')}  ${t.muted(p.why)}`)
+      parts.push(`    ${t.positive(compactNum(p.engagement) + ' interactions')}  ${t.muted(p.why)}`)
       parts.push(`      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`)
     }
   }
@@ -473,7 +473,7 @@ export function renderReview(data: ReviewSnapshot): string {
     parts.push('')
     parts.push(`  ${t.heading('Underperformers')}`)
     for (const p of data.underperformers.slice(0, 3)) {
-      parts.push(`    ${t.negative(compactNum(p.engagement) + ' eng')}  ${t.muted(p.why)}`)
+      parts.push(`    ${t.negative(compactNum(p.engagement) + ' interactions')}  ${t.muted(p.why)}`)
       parts.push(`      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`)
     }
   }
