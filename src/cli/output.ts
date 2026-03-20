@@ -335,6 +335,19 @@ export function renderProfile(data: ProfileSnapshot): string {
     if (avgLength > 0) parts.push(`    Avg length: ${avgLength} chars`)
   }
 
+  const algo = data.algorithmScore
+  if (algo && algo.grade && algo.grade !== 'N/A') {
+    const gradeColor = algo.grade === 'A' ? t.positive : algo.grade === 'B' ? t.positive : algo.grade === 'C' ? t.warning : t.negative
+    parts.push('')
+    parts.push(`  ${t.heading('Algorithm Health')}  ${gradeColor(algo.grade)}`)
+    parts.push(`    Reply rate: ${(algo.replyRate * 100).toFixed(0)}%  ${t.muted('(replies worth 27x likes)')}`)
+    parts.push(`    Author reply-back: ${(algo.authorReplyRate * 100).toFixed(0)}%  ${t.muted('(75x weight)')}`)
+    parts.push(`    Conversations: ${(algo.conversationRatio * 100).toFixed(0)}%  ${t.muted('(150x a like)')}`)
+    if (algo.bookmarkToLikeRatio > 0) {
+      parts.push(`    Bookmark/like ratio: ${(algo.bookmarkToLikeRatio * 100).toFixed(1)}%  ${t.muted('(bookmarks 20x likes)')}`)
+    }
+  }
+
   if (data.sentiment !== 0) {
     parts.push('')
     parts.push(`  Sentiment: ${sentimentColor(data.sentiment)}`)

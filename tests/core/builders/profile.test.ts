@@ -15,6 +15,7 @@ const profileGrokResponse = {
     { url: 'https://x.com/alice/status/1', content: 'Great thread on TS', engagement: 500, why: 'Threads perform well' },
   ],
   voiceTraits: { tone: 'casual technical', vocabulary: 'developer jargon', emojiUsage: 'minimal', avgLength: 180 },
+  algorithmScore: { replyRate: 0.35, authorReplyRate: 0.6, conversationRatio: 0.2, bookmarkToLikeRatio: 0.08, grade: 'B' },
   recommendations: ['Post more threads', 'Engage in morning hours'],
   sentiment: 0.3,
 }

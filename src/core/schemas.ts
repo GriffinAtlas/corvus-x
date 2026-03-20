@@ -125,6 +125,13 @@ export interface ProfileSnapshot {
   contentMix: Array<{ category: string; percentage: number; avgEngagement: number }>
   topPerformers: Array<{ url: string; content: string; engagement: number; why: string }>
   voiceTraits: { tone: string; vocabulary: string; emojiUsage: string; avgLength: number }
+  algorithmScore: {
+    replyRate: number
+    authorReplyRate: number
+    conversationRatio: number
+    bookmarkToLikeRatio: number
+    grade: string
+  }
   recommendations?: string[]
   sentiment: number
   fetchedAt: string

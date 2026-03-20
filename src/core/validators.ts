@@ -68,6 +68,13 @@ export const GrokProfileResponseSchema = z.object({
     emojiUsage: z.string(),
     avgLength: z.number(),
   }),
+  algorithmScore: z.object({
+    replyRate: z.number(),
+    authorReplyRate: z.number(),
+    conversationRatio: z.number(),
+    bookmarkToLikeRatio: z.number(),
+    grade: z.string(),
+  }),
   recommendations: z.array(z.string()).nullable(),
   sentiment: z.number(),
 })

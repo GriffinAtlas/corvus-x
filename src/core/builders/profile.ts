@@ -3,25 +3,32 @@ import { GrokProfileResponseSchema } from '../validators.js'
 import type { ProfileSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are a content strategy analyst. Analyze the posts provided and return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are a content strategy analyst who understands the X algorithm's scoring weights. Analyze the posts and return ONLY a JSON object:
 {
   "postFrequency": { "postsPerWeek": 5, "activeDays": ["Monday", "Wednesday"], "peakHours": [9, 14] },
   "contentMix": [{ "category": "TypeScript", "percentage": 40, "avgEngagement": 120 }],
   "topPerformers": [{ "url": "", "content": "post text", "engagement": 500, "why": "reason" }],
   "voiceTraits": { "tone": "casual technical", "vocabulary": "developer jargon", "emojiUsage": "minimal", "avgLength": 180 },
+  "algorithmScore": { "replyRate": 0.12, "authorReplyRate": 0.45, "conversationRatio": 0.08, "bookmarkToLikeRatio": 0.05, "grade": "B" },
   "recommendations": ["actionable suggestion"],
   "sentiment": 0.3
 }
 Rules:
 - postFrequency: from the posts provided. peakHours in UTC (0-23).
 - contentMix: 3-7 categories with percentage and avg engagement.
-- topPerformers: 3-5 highest-engagement posts with why they worked.
+- topPerformers: 3-5 posts with highest ALGORITHMIC value (not just likes). Replies worth 27x likes. Conversations worth 150x likes.
 - voiceTraits: characterize their writing style.
-- recommendations: 3-5 actionable suggestions. Only when analyzing the user's own account.
+- algorithmScore: X algorithm analysis based on real weights.
+  - replyRate: fraction of posts that received replies (0.0-1.0). The algorithm weights replies at 13.5x.
+  - authorReplyRate: fraction of replies the author responded to (0.0-1.0). Author replies are weighted 75x.
+  - conversationRatio: fraction of posts that became conversations (reply + author reply). Worth 150x a like.
+  - bookmarkToLikeRatio: bookmarks/likes ratio. Bookmarks worth 10x, likes only 0.5x.
+  - grade: overall algorithm health A/B/C/D/F. A = strong reply culture + author engagement. F = like-farming with no replies.
+- recommendations: 3-5 actionable suggestions based on algorithm weights. Only when analyzing the user's own account.
 - sentiment: -1.0 to 1.0.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are a content strategy analyst. Search X for this user's recent posts and profile, then analyze. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are a content strategy analyst who understands the X algorithm's scoring weights. Search X for this user's recent posts and profile, then analyze. Return ONLY a JSON object:
 {
   "displayName": "User Name",
   "followers": 5000,
@@ -30,6 +37,7 @@ const GROK_ONLY_PROMPT = `You are a content strategy analyst. Search X for this 
   "contentMix": [{ "category": "TypeScript", "percentage": 40, "avgEngagement": 120 }],
   "topPerformers": [{ "url": "", "content": "post text", "engagement": 500, "why": "reason" }],
   "voiceTraits": { "tone": "casual technical", "vocabulary": "developer jargon", "emojiUsage": "minimal", "avgLength": 180 },
+  "algorithmScore": { "replyRate": 0.12, "authorReplyRate": 0.45, "conversationRatio": 0.08, "bookmarkToLikeRatio": 0.05, "grade": "B" },
   "recommendations": ["actionable suggestion"],
   "sentiment": 0.3
 }
@@ -37,9 +45,10 @@ Rules:
 - displayName/followers/following: profile stats (best effort).
 - postFrequency: from posts found. peakHours in UTC (0-23).
 - contentMix: 3-7 categories.
-- topPerformers: 3-5 highest-engagement posts.
+- topPerformers: 3-5 posts with highest ALGORITHMIC value. Replies worth 27x likes.
 - voiceTraits: characterize their writing style.
-- recommendations: 3-5 suggestions. Only when analyzing the user's own account.
+- algorithmScore: X algorithm analysis. replyRate (0-1), authorReplyRate (0-1, how often they reply back), conversationRatio (0-1, posts that became conversations), bookmarkToLikeRatio, grade (A-F based on algorithm health).
+- recommendations: 3-5 suggestions based on algorithm weights. Only when analyzing the user's own account.
 - sentiment: -1.0 to 1.0.
 - Return ONLY valid JSON.`
 
@@ -108,6 +117,7 @@ async function buildProfileFromXApi(
       contentMix: grok.contentMix,
       topPerformers: grok.topPerformers,
       voiceTraits: grok.voiceTraits,
+      algorithmScore: grok.algorithmScore,
       recommendations: isSelf ? grok.recommendations ?? undefined : undefined,
       sentiment: grok.sentiment,
       fetchedAt: new Date().toISOString(),
@@ -154,6 +164,7 @@ async function buildProfileFromGrok(
       contentMix: grok.contentMix ?? [],
       topPerformers: grok.topPerformers ?? [],
       voiceTraits: grok.voiceTraits ?? { tone: '', vocabulary: '', emojiUsage: '', avgLength: 0 },
+      algorithmScore: grok.algorithmScore ?? { replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' },
       recommendations: isSelf ? grok.recommendations ?? undefined : undefined,
       sentiment: grok.sentiment ?? 0,
       fetchedAt: new Date().toISOString(),
