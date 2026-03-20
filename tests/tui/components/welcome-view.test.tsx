@@ -7,11 +7,9 @@ describe('WelcomeView', () => {
   it('renders header and panels when connected', () => {
     const { lastFrame } = render(
       <WelcomeView
-        version="0.2.0"
+        version="0.3.0"
         grokStatus="connected"
         xApiStatus="optional"
-        totalCost={0}
-        queryCount={0}
         recentTopics={[]}
       />,
     )
@@ -20,17 +18,14 @@ describe('WelcomeView', () => {
     expect(frame).toContain('●')
     expect(frame).toContain('Grok')
     expect(frame).toContain('Quick start')
-    expect(frame).toContain('scan')
   })
 
   it('renders setup notice when no key', () => {
     const { lastFrame } = render(
       <WelcomeView
-        version="0.2.0"
+        version="0.3.0"
         grokStatus="no-key"
         xApiStatus="no-key"
-        totalCost={0}
-        queryCount={0}
         recentTopics={[]}
       />,
     )
@@ -45,11 +40,9 @@ describe('WelcomeView', () => {
     ]
     const { lastFrame } = render(
       <WelcomeView
-        version="0.2.0"
+        version="0.3.0"
         grokStatus="connected"
         xApiStatus="connected"
-        totalCost={0}
-        queryCount={0}
         recentTopics={topics}
       />,
     )

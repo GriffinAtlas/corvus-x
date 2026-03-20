@@ -10,8 +10,6 @@ interface Props {
   version: string
   grokStatus: GrokStatus
   xApiStatus: XApiStatus
-  totalCost: number
-  queryCount: number
   recentTopics: { command: string; topic: string; latest: number }[]
 }
 
@@ -19,8 +17,6 @@ export function WelcomeView({
   version,
   grokStatus,
   xApiStatus,
-  totalCost,
-  queryCount,
   recentTopics,
 }: Props) {
   const { stdout } = useStdout()
@@ -39,8 +35,6 @@ export function WelcomeView({
             <StatusPanel
               grokStatus={grokStatus}
               xApiStatus={xApiStatus}
-              totalCost={totalCost}
-              queryCount={queryCount}
             />
             <QuickStartPanel recentTopics={recentTopics} />
           </Box>

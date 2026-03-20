@@ -5,8 +5,6 @@ import type { GrokStatus, XApiStatus } from '../hooks/use-session.js'
 interface Props {
   grokStatus: GrokStatus
   xApiStatus: XApiStatus
-  totalCost: number
-  queryCount: number
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -36,7 +34,7 @@ function StatusDot({ status, label }: { status: string; label: string }) {
   )
 }
 
-export function StatusPanel({ grokStatus, xApiStatus, totalCost, queryCount }: Props) {
+export function StatusPanel({ grokStatus, xApiStatus }: Props) {
   return (
     <Box
       flexDirection="column"
@@ -47,9 +45,6 @@ export function StatusPanel({ grokStatus, xApiStatus, totalCost, queryCount }: P
       <Text bold dimColor>Status</Text>
       <StatusDot status={grokStatus} label="Grok " />
       <StatusDot status={xApiStatus} label="X API" />
-      <Text dimColor>
-        {`$${totalCost.toFixed(3)} · ${queryCount} ${queryCount === 1 ? 'query' : 'queries'}`}
-      </Text>
     </Box>
   )
 }

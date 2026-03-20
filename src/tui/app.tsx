@@ -136,8 +136,6 @@ export function App({ version, init }: Props) {
                 version={version}
                 grokStatus={session.grokStatus}
                 xApiStatus={session.xApiStatus}
-                totalCost={session.totalCost}
-                queryCount={session.queryCount}
                 recentTopics={recentTopics}
               />
             ) : (
