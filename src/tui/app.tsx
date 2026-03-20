@@ -1,6 +1,5 @@
 import React, { useReducer, useRef, useState, useEffect } from 'react'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
-import { useScreenSize } from 'fullscreen-ink'
 import { WelcomeView } from './components/welcome-view.js'
 import { CompactHeader } from './components/compact-header.js'
 import { ChatViewport } from './components/chat-viewport.js'
@@ -73,7 +72,8 @@ export function App({ version, init }: Props) {
 
   const [scrollOffset, setScrollOffset] = useState(0)
   const userScrolled = useRef(false)
-  const { height: terminalHeight } = useScreenSize()
+  const { stdout } = useStdout()
+  const terminalHeight = stdout?.rows ?? 24
 
   // Auto-snap to bottom on new entries — only when user hasn't scrolled away
   const historyLength = session.history.length
@@ -121,7 +121,7 @@ export function App({ version, init }: Props) {
   return (
     <SessionContext value={session}>
       <DispatchContext value={dispatch}>
-        <Box flexDirection="column" height={terminalHeight}>
+        <Box flexDirection="column">
           {/* Pinned header */}
           <CompactHeader
             version={version}
@@ -129,23 +129,20 @@ export function App({ version, init }: Props) {
             xApiStatus={session.xApiStatus}
           />
 
-          {/* Content area — fills all available space */}
-          <Box flexDirection="column" flexGrow={1}>
-            {session.history.length === 0 ? (
-              <WelcomeView
-                version={version}
-                grokStatus={session.grokStatus}
-                xApiStatus={session.xApiStatus}
-                recentTopics={recentTopics}
-              />
-            ) : (
-              <ChatViewport
-                entries={session.history}
-                scrollOffset={scrollOffset}
-                viewportHeight={terminalHeight - 4}
-              />
-            )}
-          </Box>
+          {session.history.length === 0 ? (
+            <WelcomeView
+              version={version}
+              grokStatus={session.grokStatus}
+              xApiStatus={session.xApiStatus}
+              recentTopics={recentTopics}
+            />
+          ) : (
+            <ChatViewport
+              entries={session.history}
+              scrollOffset={scrollOffset}
+              viewportHeight={terminalHeight - 4}
+            />
+          )}
 
           {/* Pinned footer */}
           <InputBar onSubmit={execute} isLoading={isLoading} phaseLabel={phaseLabel} />
