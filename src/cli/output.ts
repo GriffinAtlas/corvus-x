@@ -441,9 +441,12 @@ export function renderHooks(data: HooksSnapshot): string {
   for (const opp of data.opportunities) {
     parts.push('')
     const scoreColor = opp.opportunityScore >= 0.7 ? t.positive : opp.opportunityScore >= 0.4 ? t.warning : t.muted
-    parts.push(`  ${percentBar(opp.opportunityScore, 8, scoreColor)} ${scoreColor(`${(opp.opportunityScore * 100).toFixed(0)}%`)}  @${opp.author}  ${compactNum(opp.authorFollowers)} followers`)
     const eng = opp.engagement
-    parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.retweets} reposts · ${eng.replies} replies`)}`)
+    const competition = eng.likes > 0 ? (eng.replies / eng.likes * 100).toFixed(0) : '0'
+    const compLabel = Number(competition) < 10 ? t.positive('low competition') : Number(competition) < 30 ? t.warning('moderate') : t.muted('crowded')
+
+    parts.push(`  ${percentBar(opp.opportunityScore, 8, scoreColor)} @${opp.author}  ${compactNum(opp.authorFollowers)} followers  ${compLabel}`)
+    parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.replies} replies (${competition}% reply ratio)`)}`)
     parts.push(`    ${opp.content.length > 140 ? opp.content.slice(0, 140) + '...' : opp.content}`)
     parts.push(`    ${t.positive('→')} ${opp.suggestedAngle}`)
     if (opp.tweetUrl) {

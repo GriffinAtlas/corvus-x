@@ -596,10 +596,10 @@ describe('renderHooks', () => {
     expect(output).toContain('Mention your agent pipeline')
   })
 
-  it('renders opportunity score as percentage', () => {
+  it('renders competition level', () => {
     const output = renderHooks(hooks)
-    expect(output).toContain('90%')
-    expect(output).toContain('75%')
+    expect(output).toContain('competition')
+    expect(output).toContain('reply ratio')
   })
 
   it('renders tweet URLs', () => {

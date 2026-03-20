@@ -17,27 +17,30 @@ import type { GrokScanResponse, ScanSnapshot } from '../schemas.js'
 import type { GrokOnlyScanResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are an intelligence analyst advising a content creator. Analyze the tweets and return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are a growth advisor for X (Twitter) content creators. Analyze the tweets and return ONLY a JSON object:
 {
-  "takeaway": "one sentence — what does this discourse mean for someone who wants to post about this topic",
-  "actions": ["specific thing to do based on what you found"],
+  "takeaway": "one sentence — what's the opportunity here for a creator who wants to grow?",
+  "actions": ["specific thing to do right now"],
   "tweetAnalysis": [{ "index": 0, "sentiment": 0.5, "narrative": "theme" }],
   "narratives": [{ "theme": "name", "description": "brief description" }],
   "signals": ["notable observation"]
 }
 Rules:
-- takeaway: one direct sentence. What's the opportunity or risk? Write for someone deciding whether to post.
-- actions: 1-3 specific, actionable suggestions. "Reply to @handle's thread about X" not "engage with content".
-- tweetAnalysis: one entry per tweet, sentiment -1.0 to 1.0, assigned to a narrative theme.
-- narratives: 2-5 themes. Which are growing? Which are noise?
-- signals: 3-5 observations. Focus on what's changing, not what's static.
+- takeaway: one sentence for a creator. Is this topic hot? Saturated? Is there a gap they can fill?
+- actions: 1-3 specific suggestions a creator can do RIGHT NOW. Include:
+  * Which posts to reply to (name @handles and what the post is about)
+  * What format works (are threads winning? questions? hot takes?)
+  * Accounts their size (1K-20K followers) that are growing on this topic — reply to THEM, not celebrities
+  * If there's a question being asked that nobody answered well — that's a content opportunity
+- narratives: 2-5 themes. Note which are growing vs noise.
+- signals: focus on: reply windows still open, low-competition high-visibility posts, format patterns, conversation gaps.
 - Ignore spam, scams, bots, and shills.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are an intelligence analyst advising a content creator. Search X for recent posts about the given topic. Ignore spam, scams, and bots. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are a growth advisor for X (Twitter) content creators. Search X for recent posts about the given topic. Ignore spam, scams, and bots. Return ONLY a JSON object:
 {
-  "takeaway": "one sentence — what does this discourse mean for someone who wants to post about this topic",
-  "actions": ["specific thing to do based on what you found"],
+  "takeaway": "one sentence — what's the opportunity here for a creator who wants to grow?",
+  "actions": ["specific thing to do right now — name real accounts and posts"],
   "tweetCount": 25,
   "uniqueAuthors": 15,
   "estimatedEngagement": 5000,
@@ -47,11 +50,11 @@ const GROK_ONLY_PROMPT = `You are an intelligence analyst advising a content cre
   "signals": ["notable observation"]
 }
 Rules:
-- takeaway: one direct sentence. What's the opportunity or risk?
-- actions: 1-3 specific suggestions. Name real accounts and threads to engage with.
+- takeaway: one sentence. Is this topic hot? Is there a gap?
+- actions: 1-3 things a creator can do NOW. Name @handles. Suggest reply targets in the 1K-20K follower range. Note what format is working.
 - Search X for recent posts. Analyze up to 50.
 - narratives: 2-5 themes. Which are growing?
-- topAccounts: 3-10 most notable accounts.
+- topAccounts: 3-10 accounts — prioritize growing accounts (1K-20K) over celebrities.
 - signals: 3-5 key observations about the discourse.
 - Return ONLY valid JSON.`
 

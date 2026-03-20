@@ -2,7 +2,7 @@ import { parseGrokJson } from '../grok-adapter.js'
 import type { HooksSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are a social media engagement strategist. Given tweets about a topic, identify the best conversations to reply to right now. Return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are a growth strategist finding the best conversations for a creator to reply to RIGHT NOW. Return ONLY a JSON object:
 {
   "opportunities": [{
     "tweetUrl": "https://x.com/user/status/123",
@@ -10,20 +10,23 @@ const SYSTEM_PROMPT = `You are a social media engagement strategist. Given tweet
     "authorFollowers": 5000,
     "content": "tweet text",
     "engagement": { "likes": 50, "retweets": 10, "replies": 3 },
-    "suggestedAngle": "how to approach a reply",
+    "suggestedAngle": "what to say and why it will get noticed",
     "opportunityScore": 0.85
   }]
 }
 Rules:
-- Find 5-10 conversations with high reply opportunity.
-- Prioritize: rising engagement, shallow reply threads, larger authors, recent posts.
-- opportunityScore: 0.0-1.0 composite of reply potential.
-- suggestedAngle: one sentence on what to say, not the actual reply.
+- Find 5-10 conversations worth replying to. A great reply opportunity has:
+  * High likes but LOW replies (= high visibility, low competition)
+  * Posted in the last 1-4 hours (reply window still open)
+  * Author has 1K-50K followers (reachable, not celebrity)
+  * An unanswered question or gap you can fill with expertise
+- opportunityScore: 0.0-1.0. Weight low-reply-to-like ratio highest.
+- suggestedAngle: Be specific. Not "share your thoughts" but "mention your experience building X because the thread is missing a practitioner perspective."
 - Sort by opportunityScore descending.
-- Exclude spam, bot accounts, memecoin promotions, and engagement-bait.
+- Exclude spam, bots, memecoins, engagement-bait.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are a social media engagement strategist. Search X for conversations about the given topic that have high reply opportunity. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are a growth strategist finding conversations for a creator to reply to RIGHT NOW. Search X for the given topic. Return ONLY a JSON object:
 {
   "opportunities": [{
     "tweetUrl": "https://x.com/user/status/123",
@@ -31,18 +34,18 @@ const GROK_ONLY_PROMPT = `You are a social media engagement strategist. Search X
     "authorFollowers": 5000,
     "content": "tweet text",
     "engagement": { "likes": 50, "retweets": 10, "replies": 3 },
-    "suggestedAngle": "how to approach a reply",
+    "suggestedAngle": "what to say and why it will get noticed",
     "opportunityScore": 0.85
   }]
 }
 Rules:
-- Search X for recent, active conversations about the topic.
-- Find 5-10 conversations with high reply opportunity.
-- Prioritize: rising engagement, shallow reply threads, larger authors, posts < 4 hours old.
-- opportunityScore: 0.0-1.0 composite of reply potential.
-- suggestedAngle: one sentence on what to say, not the actual reply.
+- Search X for recent conversations (last 1-4 hours preferred).
+- Find 5-10 posts with high likes but LOW replies (= high visibility, low competition).
+- Prioritize authors with 1K-50K followers (reachable, will notice your reply).
+- Look for unanswered questions or gaps a practitioner could fill.
+- suggestedAngle: specific and actionable. "Mention your experience with X because..."
 - Sort by opportunityScore descending.
-- Exclude spam, bots, memecoin promotions, and engagement-bait.
+- Exclude spam, bots, memecoins, engagement-bait.
 - Return ONLY valid JSON.`
 
 export async function buildHooksSnapshot(
