@@ -77,7 +77,7 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 
 | Command | Description |
 |---|---|
-| `agent <question>` | Autonomous multi-step investigation with brief |
+| `agent <question>` | Deep research via Grok multi-agent (falls back to step-by-step) |
 | `scan <topic>` | Snapshot — narratives, top voices, engagement |
 | `pulse <topic>` | Sentiment pulse — bull/bear signals, momentum |
 | `trace <narrative>` | Map narrative spread — origin, amplifiers, mutations |
@@ -250,7 +250,7 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 | Data | X API v2 (optional) |
 | CLI | Commander |
 | TUI | Ink 6 + React 19 + fullscreen-ink |
-| Testing | Vitest (916 tests) |
+| Testing | Vitest (937 tests) |
 
 ## License
 
