@@ -1,4 +1,4 @@
-import { t, divider, sentimentBar, confidenceBar, box, banner } from './theme.js'
+import { t, divider, labeledDivider, sentimentBar, confidenceBar, box, banner, percentBar } from './theme.js'
 import { formatDiffLines } from '../core/differ.js'
 import type { CommandResult, StructuredCommandResult, GrokCitation } from '../core/types.js'
 import type {
@@ -292,9 +292,9 @@ export function renderProfile(data: ProfileSnapshot): string {
 
   if (data.postFrequency.postsPerWeek > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Posting Cadence')}`)
+    parts.push(`  ${labeledDivider('Posting Cadence')}`)
     parts.push(
-      `    ${data.postFrequency.postsPerWeek} posts/week  Active: ${data.postFrequency.activeDays.join(', ') || 'n/a'}`,
+      `    ${t.accent(String(data.postFrequency.postsPerWeek))} posts/week  Active: ${data.postFrequency.activeDays.join(', ') || 'n/a'}`,
     )
     if (data.postFrequency.peakHours.length > 0) {
       parts.push(
@@ -305,19 +305,20 @@ export function renderProfile(data: ProfileSnapshot): string {
 
   if (data.contentMix.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Content Mix')}`)
+    parts.push(`  ${labeledDivider('Content Mix')}`)
     for (const c of data.contentMix.slice(0, 7)) {
+      const pct = c.percentage / 100
       parts.push(
-        `    ${c.category}  ${c.percentage}%  ${compactNum(c.avgEngagement)} avg engagement`,
+        `    ${c.category.padEnd(16)} ${percentBar(pct, 12, t.accent)} ${String(c.percentage).padStart(3)}%  ${compactNum(c.avgEngagement)} avg eng`,
       )
     }
   }
 
   if (data.topPerformers.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Top Performers')}`)
+    parts.push(`  ${labeledDivider('Top Performers')}`)
     for (const p of data.topPerformers.slice(0, 5)) {
-      parts.push(`    ${compactNum(p.engagement)} eng  ${t.muted(p.why)}`)
+      parts.push(`    ${t.accent(compactNum(p.engagement))} eng  ${t.muted(p.why)}`)
       parts.push(
         `      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`,
       )
@@ -339,12 +340,12 @@ export function renderProfile(data: ProfileSnapshot): string {
   if (algo && algo.grade && algo.grade !== 'N/A') {
     const gradeColor = algo.grade === 'A' ? t.positive : algo.grade === 'B' ? t.positive : algo.grade === 'C' ? t.warning : t.negative
     parts.push('')
-    parts.push(`  ${t.heading('Algorithm Health')}  ${gradeColor(algo.grade)}`)
-    parts.push(`    Reply rate: ${(algo.replyRate * 100).toFixed(0)}%  ${t.muted('(replies worth 27x likes)')}`)
-    parts.push(`    Author reply-back: ${(algo.authorReplyRate * 100).toFixed(0)}%  ${t.muted('(75x weight)')}`)
-    parts.push(`    Conversations: ${(algo.conversationRatio * 100).toFixed(0)}%  ${t.muted('(150x a like)')}`)
+    parts.push(`  ${labeledDivider(`Algorithm Health  ${gradeColor(algo.grade)}`)}`)
+    parts.push(`    Reply rate       ${percentBar(algo.replyRate, 15, t.accent)} ${(algo.replyRate * 100).toFixed(0)}%  ${t.muted('27x likes')}`)
+    parts.push(`    Author replies   ${percentBar(algo.authorReplyRate, 15, t.positive)} ${(algo.authorReplyRate * 100).toFixed(0)}%  ${t.muted('75x weight')}`)
+    parts.push(`    Conversations    ${percentBar(algo.conversationRatio, 15, t.positive)} ${(algo.conversationRatio * 100).toFixed(0)}%  ${t.muted('150x a like')}`)
     if (algo.bookmarkToLikeRatio > 0) {
-      parts.push(`    Bookmark/like ratio: ${(algo.bookmarkToLikeRatio * 100).toFixed(1)}%  ${t.muted('(bookmarks 20x likes)')}`)
+      parts.push(`    Bookmark/like    ${percentBar(algo.bookmarkToLikeRatio, 15)} ${(algo.bookmarkToLikeRatio * 100).toFixed(1)}%  ${t.muted('20x likes')}`)
     }
   }
 
@@ -419,8 +420,8 @@ export function renderHooks(data: HooksSnapshot): string {
 
   for (const opp of data.opportunities) {
     parts.push('')
-    const score = (opp.opportunityScore * 100).toFixed(0)
-    parts.push(`  ${t.heading(`${score}%`)}  @${opp.author}  ${compactNum(opp.authorFollowers)} followers`)
+    const scoreColor = opp.opportunityScore >= 0.7 ? t.positive : opp.opportunityScore >= 0.4 ? t.warning : t.muted
+    parts.push(`  ${percentBar(opp.opportunityScore, 8, scoreColor)} ${scoreColor(`${(opp.opportunityScore * 100).toFixed(0)}%`)}  @${opp.author}  ${compactNum(opp.authorFollowers)} followers`)
     const eng = opp.engagement
     parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.retweets} RTs · ${eng.replies} replies`)}`)
     parts.push(`    ${opp.content.length > 140 ? opp.content.slice(0, 140) + '...' : opp.content}`)
@@ -488,11 +489,10 @@ export function renderTiming(data: TimingSnapshot): string {
 
   if (data.peakWindows.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Peak Windows')}`)
+    parts.push(`  ${labeledDivider('Peak Windows')}`)
     for (const w of data.peakWindows.slice(0, 10)) {
-      const bar = '█'.repeat(Math.round(w.score * 10))
-      const score = (w.score * 100).toFixed(0)
-      parts.push(`    ${w.day.padEnd(10)} ${String(w.hour).padStart(2)}:00 UTC  ${t.positive(bar)} ${score}%`)
+      const barColor = w.score >= 0.8 ? t.positive : w.score >= 0.5 ? t.accent : t.muted
+      parts.push(`    ${w.day.padEnd(10)} ${String(w.hour).padStart(2)}:00  ${percentBar(w.score, 15, barColor)} ${(w.score * 100).toFixed(0)}%`)
     }
   }
 

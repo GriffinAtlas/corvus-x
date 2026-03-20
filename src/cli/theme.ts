@@ -48,6 +48,17 @@ export function divider(width = 45): string {
   return t.muted('─'.repeat(width))
 }
 
+export function labeledDivider(label: string, width = 45): string {
+  const pad = Math.max(0, width - label.length - 4)
+  return t.muted('── ') + t.heading(label) + t.muted(' ' + '─'.repeat(pad))
+}
+
+export function percentBar(value: number, width = 20, color = t.accent): string {
+  const clamped = Math.max(0, Math.min(1, value))
+  const filled = Math.round(clamped * width)
+  return color('█'.repeat(filled)) + t.muted('░'.repeat(width - filled))
+}
+
 const GRADIENT = ['#4A1F8A', '#5C29A8', '#6E33C6', '#7C3AED', '#9F67FF', '#B48AFF']
 
 export function gradient(text: string): string {
