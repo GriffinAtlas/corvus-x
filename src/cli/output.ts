@@ -276,6 +276,10 @@ export function renderTrace(data: TraceSnapshot): string {
   return parts.join('\n')
 }
 
+function isReal(val: string | undefined): boolean {
+  return !!val && val !== 'undefined' && val !== 'none' && val !== 'n/a' && val !== 'unknown'
+}
+
 export function renderProfile(data: ProfileSnapshot): string {
   const parts: string[] = []
 
@@ -286,15 +290,17 @@ export function renderProfile(data: ProfileSnapshot): string {
     parts.push(`  ${t.muted(data.displayName)}`)
   }
 
-  parts.push('')
-  parts.push(`  ${t.heading('Posting Cadence')}`)
-  parts.push(
-    `    ${data.postFrequency.postsPerWeek} posts/week  Active: ${data.postFrequency.activeDays.join(', ') || 'n/a'}`,
-  )
-  if (data.postFrequency.peakHours.length > 0) {
+  if (data.postFrequency.postsPerWeek > 0) {
+    parts.push('')
+    parts.push(`  ${t.heading('Posting Cadence')}`)
     parts.push(
-      `    Peak hours (UTC): ${data.postFrequency.peakHours.map((h) => `${h}:00`).join(', ')}`,
+      `    ${data.postFrequency.postsPerWeek} posts/week  Active: ${data.postFrequency.activeDays.join(', ') || 'n/a'}`,
     )
+    if (data.postFrequency.peakHours.length > 0) {
+      parts.push(
+        `    Peak hours (UTC): ${data.postFrequency.peakHours.map((h) => `${h}:00`).join(', ')}`,
+      )
+    }
   }
 
   if (data.contentMix.length > 0) {
@@ -319,17 +325,20 @@ export function renderProfile(data: ProfileSnapshot): string {
   }
 
   const { tone, vocabulary, emojiUsage, avgLength } = data.voiceTraits
-  if (tone || vocabulary || emojiUsage || avgLength) {
+  const hasVoice = isReal(tone) || isReal(vocabulary) || isReal(emojiUsage) || (avgLength > 0)
+  if (hasVoice) {
     parts.push('')
     parts.push(`  ${t.heading('Voice')}`)
-    if (tone) parts.push(`    Tone: ${tone}`)
-    if (vocabulary) parts.push(`    Vocabulary: ${vocabulary}`)
-    if (emojiUsage) parts.push(`    Emoji: ${emojiUsage}`)
-    if (avgLength) parts.push(`    Avg length: ${avgLength} chars`)
+    if (isReal(tone)) parts.push(`    Tone: ${tone}`)
+    if (isReal(vocabulary)) parts.push(`    Vocabulary: ${vocabulary}`)
+    if (isReal(emojiUsage)) parts.push(`    Emoji: ${emojiUsage}`)
+    if (avgLength > 0) parts.push(`    Avg length: ${avgLength} chars`)
   }
 
-  parts.push('')
-  parts.push(`  Sentiment: ${sentimentColor(data.sentiment)}`)
+  if (data.sentiment !== 0) {
+    parts.push('')
+    parts.push(`  Sentiment: ${sentimentColor(data.sentiment)}`)
+  }
 
   if (data.recommendations && data.recommendations.length > 0) {
     parts.push('')
@@ -337,6 +346,12 @@ export function renderProfile(data: ProfileSnapshot): string {
     for (const r of data.recommendations) {
       parts.push(`    · ${r}`)
     }
+  }
+
+  const hasContent = data.postFrequency.postsPerWeek > 0 || data.contentMix.length > 0 || data.topPerformers.length > 0
+  if (!hasContent) {
+    parts.push('')
+    parts.push(`  ${t.muted('Limited data — this account has few or no recent posts.')}`)
   }
 
   return parts.join('\n')
