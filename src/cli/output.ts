@@ -340,7 +340,7 @@ export function renderProfile(data: ProfileSnapshot): string {
     for (const p of data.topPerformers.slice(0, 5)) {
       parts.push(`    ${t.accent(compactNum(p.engagement))} eng  ${t.muted(p.why)}`)
       parts.push(
-        `      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`,
+        `      ${t.muted(p.content)}`,
       )
     }
   }
@@ -451,7 +451,7 @@ export function renderHooks(data: HooksSnapshot): string {
 
     parts.push(`  ${percentBar(opp.opportunityScore, 8, scoreColor)} @${opp.author}  ${compactNum(opp.authorFollowers)} followers  ${compLabel}`)
     parts.push(`  ${t.muted(`${eng.likes} likes · ${eng.replies} replies (${competition}% reply ratio)`)}`)
-    parts.push(`    ${opp.content.length > 140 ? opp.content.slice(0, 140) + '...' : opp.content}`)
+    parts.push(`    ${opp.content}`)
     parts.push(`    ${t.positive('→')} ${opp.suggestedAngle}`)
     if (opp.tweetUrl) {
       parts.push(`    ${t.muted(opp.tweetUrl)}`)
@@ -472,7 +472,7 @@ export function renderReview(data: ReviewSnapshot): string {
     parts.push(`  ${t.heading('Top Performers')}`)
     for (const p of data.topPosts.slice(0, 5)) {
       parts.push(`    ${t.positive(compactNum(p.engagement) + ' interactions')}  ${t.muted(p.why)}`)
-      parts.push(`      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`)
+      parts.push(`      ${t.muted(p.content)}`)
     }
   }
 
@@ -481,7 +481,7 @@ export function renderReview(data: ReviewSnapshot): string {
     parts.push(`  ${t.heading('Underperformers')}`)
     for (const p of data.underperformers.slice(0, 3)) {
       parts.push(`    ${t.negative(compactNum(p.engagement) + ' interactions')}  ${t.muted(p.why)}`)
-      parts.push(`      ${t.muted(p.content.length > 120 ? p.content.slice(0, 120) + '...' : p.content)}`)
+      parts.push(`      ${t.muted(p.content)}`)
     }
   }
 

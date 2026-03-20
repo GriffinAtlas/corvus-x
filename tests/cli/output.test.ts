@@ -427,15 +427,14 @@ describe('renderProfile', () => {
     expect(output).toContain('35%')
   })
 
-  it('renders top performers with truncation', () => {
-    const longContent = 'A'.repeat(150)
+  it('renders full content without truncation', () => {
+    const longContent = 'A'.repeat(250)
     const longProfile = {
       ...profile,
       topPerformers: [{ url: '', content: longContent, engagement: 100, why: 'reason' }],
     }
     const output = renderProfile(longProfile)
-    expect(output).toContain('A'.repeat(120) + '...')
-    expect(output).not.toContain('A'.repeat(121))
+    expect(output).toContain('A'.repeat(250))
   })
 
   it('renders voice traits', () => {
@@ -616,7 +615,7 @@ describe('renderHooks', () => {
       }],
     }
     const output = renderHooks(longHooks)
-    expect(output).toContain('A'.repeat(140) + '...')
+    expect(output).toContain('A'.repeat(160))
   })
 
   it('handles empty opportunities', () => {

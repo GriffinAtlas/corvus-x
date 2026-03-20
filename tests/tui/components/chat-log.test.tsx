@@ -53,16 +53,16 @@ describe('ChatLog', () => {
     expect(frame.indexOf('scan bitcoin')).toBeLessThan(frame.indexOf('Output'))
   })
 
-  it('truncates result entry to 25 lines', () => {
-    const longOutput = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n')
+  it('truncates result entry to 40 lines', () => {
+    const longOutput = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
       { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
     expect(frame).toContain('line 1')
-    expect(frame).toContain('line 25')
-    expect(frame).not.toContain('line 26')
+    expect(frame).toContain('line 40')
+    expect(frame).not.toContain('line 41')
     expect(frame).toContain('15 more lines')
     expect(frame).toContain('/view 1')
   })
@@ -90,16 +90,16 @@ describe('ChatLog', () => {
     expect(frame).not.toContain('more lines')
   })
 
-  it('truncates prose entry to 50 lines', () => {
-    const longText = Array.from({ length: 70 }, (_, i) => `paragraph ${i + 1}`).join('\n')
+  it('truncates prose entry to 60 lines', () => {
+    const longText = Array.from({ length: 80 }, (_, i) => `paragraph ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
       { type: 'prose', text: longText, cost: 0.002 },
     ]
     const { lastFrame } = render(<ChatLog entries={entries} />)
     const frame = lastFrame()!
     expect(frame).toContain('paragraph 1')
-    expect(frame).toContain('paragraph 50')
-    expect(frame).not.toContain('paragraph 51')
+    expect(frame).toContain('paragraph 60')
+    expect(frame).not.toContain('paragraph 61')
     expect(frame).toContain('20 more lines')
     expect(frame).toContain('/view 1')
   })
@@ -116,7 +116,7 @@ describe('ChatLog', () => {
   })
 
   it('truncation footer uses correct /view index when startIndex is non-zero', () => {
-    const longOutput = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n')
+    const longOutput = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`).join('\n')
     const entries: ChatEntry[] = [
       { type: 'result', command: 'scan', topic: 'btc', rendered: longOutput, cost: 0.003, elapsed: 1200 },
     ]
