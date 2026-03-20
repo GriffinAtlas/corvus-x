@@ -171,6 +171,28 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         setPhaseLabel(`drafting post about "${args.topic}"...`)
         await runStructured(dispatch, deps, 'draft', args.topic, {},
           () => buildDraftSnapshot(deps, args.topic, {}), renderDraft, startTime, baseDir)
+      } else if (command === 'grow') {
+        setPhaseLabel(`growing "${args.topic}" — hooks...`)
+        const hooks = await buildHooksSnapshot(deps, args.topic, 30)
+        dispatch({ type: 'add-cost', cost: hooks.cost })
+        setPhaseLabel(`growing "${args.topic}" — drafting...`)
+        const draft = await buildDraftSnapshot(deps, args.topic, {})
+        dispatch({ type: 'add-cost', cost: draft.cost })
+        setPhaseLabel(`growing "${args.topic}" — timing...`)
+        const handle = new AuthManager(baseDir).getXHandle()
+        const timing = await buildTimingSnapshot(deps, { handle: handle ?? undefined, topic: args.topic })
+        dispatch({ type: 'add-cost', cost: timing.cost })
+        dispatch({ type: 'set-grok-status', status: 'connected' })
+        const combined = [renderHooks(hooks.data), '', renderDraft(draft.data), '', renderTiming(timing.data)].join('\n')
+        dispatch({
+          type: 'add-result',
+          entry: {
+            type: 'result', command: 'grow', topic: args.topic,
+            rendered: combined,
+            cost: hooks.cost + draft.cost + timing.cost,
+            elapsed: Date.now() - startTime,
+          },
+        })
       } else if (command === 'hooks') {
         setPhaseLabel(`finding hooks for "${args.topic}"...`)
         await runStructured(dispatch, deps, 'hooks', args.topic, HOOKS_MATCH_KEYS,
