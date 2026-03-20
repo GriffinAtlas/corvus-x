@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) — investigate discourse and grow your presence, all from the terminal. It uses Grok's native `x_search/web_search` tool via the OpenAI SDK and X API v2 for direct data access.
+Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) — investigate discourse and grow your presence, all from the terminal. It uses Grok's Responses API (`client.responses.create()`) with `x_search` and `web_search` tools via the OpenAI SDK, and X API v2 for direct data access.
 
 **Author:** Roger Griffin (roger@griffinatlas.us)
 **Repo:** github.com/GriffinAtlas/corvus-x
@@ -11,9 +11,10 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) �
 
 - TypeScript (strict, ES2022, ESM with `"type": "module"`)
 - Node.js >= 18
-- Grok API at `https://api.x.ai/v1` via OpenAI SDK (model: `grok-4-1-fast`)
+- Grok Responses API at `https://api.x.ai/v1` via OpenAI SDK (model: `grok-4-1-fast`)
 - X API v2 at `https://api.x.com/2` via native `fetch`
 - Commander (CLI), Vitest (tests), ESLint + Prettier (formatting)
+- Ink 6 + React 19 + fullscreen-ink (TUI)
 - No semicolons, single quotes, trailing commas, printWidth 100
 
 ## Commands
@@ -21,7 +22,7 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) �
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (912 tests)
+npm test                     # vitest run (916 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -29,56 +30,46 @@ npm run format               # prettier
 ## Architecture
 
 ```
-bin/corvus.ts                # entrypoint — registers all commands, calls program.parse()
+bin/corvus.ts                # entrypoint — registers commands, launches fullscreen TUI
 bin/corvus-mcp.ts            # standalone MCP server entrypoint (stdio)
 src/
   cli/
-    commands/                # agent, ask, scan, trace, pulse, profile, hooks, draft, review, timing, watch, auth, history, export
+    commands/                # 16 commands: agent, ask, scan, trace, pulse, profile, hooks, draft, grow, review, timing, watch, auth, history, export
     run-command.ts           # shared runner — runCommand() for prose, runStructuredCommand() for data-first
-    output.ts                # formatOutput() for prose, formatStructuredOutput() with per-command renderers
-    progress.ts              # StepProgress — multi-line in-place step tracker for agent runs
-    theme.ts                 # Color palette (t.*), TTY detection, visual primitives
-    repl.ts                  # interactive session with readline (deprecated — use TUI)
+    output.ts                # renderers with percent bars, labeled dividers, sparklines
+    theme.ts                 # gradient(), percentBar(), labeledDivider(), sparkline(), sentimentBar()
+    progress.ts              # StepProgress — animated step tracker for agent runs
   core/
-    agent.ts                 # AgentPlanner, AgentExecutor, AgentSynthesizer — autonomous investigation pipeline
-    grok-adapter.ts          # GrokAdapter class — wraps OpenAI SDK pointed at x.ai, parseGrokJson, retry/timeout
-    x-adapter.ts             # XAdapter class — X API v2 (tweets, users, search, formatTweetsForAnalysis, pagination)
-    builders/                # 8 builders (scan, pulse, trace, profile, hooks, draft, review, timing) + grok-only.ts helper
-    voice.ts                 # VoiceProfileManager — extract/store writing style from user's posts
-    orchestrator.ts          # executeStructuredQuery — shared snapshot orchestration for CLI + TUI
-    cache.ts                 # QueryCache — file-based with SHA-256 keys, TTL, cost ledger
-    schemas.ts               # Snapshot interfaces, match keys, Grok response shapes
-    snapshots.ts             # SnapshotStore — timestamped JSON snapshots with auto-prune
-    metrics.ts               # Pure compute functions — baseMetrics, sentiment, topAccounts, confidence, contradictions
-    validators.ts            # Zod v4 schemas for Grok response types + agent plan/replan
-    differ.ts                # Generic structured diff engine for snapshot comparison
-    types.ts                 # GrokResponse, QueryOptions, CorvusDeps, BuildResult
-  mcp/
-    server.ts                # MCP server — 5 tools (scan/pulse/trace/profile/agent) via McpServer
-  infra/
-    auth.ts                  # AuthManager — stores grokKey, xBearerToken, xHandle. Env vars take precedence.
-    config.ts                # ConfigManager — manages ~/.corvus/ directory
+    agent.ts                 # AgentPlanner, AgentExecutor, AgentSynthesizer
+    grok-adapter.ts          # Grok Responses API — client.responses.create(), x_search/web_search tools
+    x-adapter.ts             # X API v2 with ID validation (/^\d{1,20}$/)
+    builders/                # 8 builders (scan, pulse, trace, profile, hooks, draft, review, timing)
+    voice.ts                 # VoiceProfileManager — voice profile extraction for draft command
+    orchestrator.ts          # executeStructuredQuery — shared snapshot orchestration
+    schemas.ts               # Snapshot types with algorithmScore, match keys
+    validators.ts            # Zod v4 schemas — .nullable() not .optional() for strict output
+    differ.ts, cache.ts, metrics.ts, snapshots.ts, types.ts
+  mcp/server.ts              # MCP server — 5 tools (scan/pulse/trace/profile/agent)
+  infra/auth.ts              # AuthManager — grokKey, xBearerToken, xHandle + env var precedence
   tui/
-    app.tsx                  # TUI root — Ink/React full-screen interactive terminal
-    components/              # welcome-view, welcome-header, status-panel, input-bar, chat-log, etc.
-    hooks/                   # useCommand (execute + dispatch), useSession (state + reducer)
-    router.ts                # parse user input to command + args
-  index.ts                   # public API surface for library consumers
-tests/                       # mirrors src/ structure 1:1
+    app.tsx                  # Fullscreen TUI — withFullScreen() + useScreenSize()
+    components/              # compact-header (pinned), chat-viewport, input-bar, welcome-view
+    hooks/                   # useCommand, useSession
+    router.ts                # input parser (16 commands + slash commands)
+  index.ts                   # public API surface
+tests/                       # 916 tests across 50 files
 ```
 
 ## Key Patterns
 
-- **Dual-mode CLI** — Intel commands (agent, scan, pulse, trace) for investigating X discourse. Growth commands (profile, hooks, draft, review, timing) for growing your X presence.
-- **Data-first pipeline** — structured commands use `runStructuredCommand()`: FETCH → ANALYZE → COMPUTE → SNAPSHOT → DIFF. The `ask` command uses `runCommand()` for prose.
-- **Dual-path builders** — each builder has X API path (rich engagement data) or Grok-only path (x_search/web_search fallback). `CorvusDeps.x` being null triggers fallback.
-- **Agent pipeline** — `corvus agent` uses Grok-as-Planner: PLAN → EXECUTE → REPLAN → SYNTHESIZE. Plans with scan/pulse/trace/profile only.
+- **Dual-mode CLI** — Intel (agent, scan, pulse, trace, watch) + Growth (grow, profile, hooks, draft, review, timing).
+- **Responses API** — `client.responses.create()` with `input[]` (not `messages[]`), `output_text` (not `choices[0].message.content`), tools as `{ type: 'x_search' }`.
+- **Structured output** — `text.format` with extracted `zodResponseFormat()` fields: `{ type: 'json_schema', name, schema, strict: true }`. All schema fields must use `.nullable()` not `.optional()`.
+- **Algorithm scoring** — profile analysis uses X algorithm weights: replies 13.5x, author replies 75x, conversations 150x, bookmarks 10x, likes 0.5x.
+- **Voice profile** — `corvus profile @self` generates voice profile (fire-and-forget). `corvus draft` loads it.
+- **Fullscreen TUI** — `fullscreen-ink` wraps the app in alternate screen buffer with pinned header/footer.
 - **BuildResult<T>** — all builders return `{ data, raw, cost, tweets, scores, newestTweetAt, citations }`.
-- **MCP server** — 5 tools via `McpServer`. Lazy-inits deps on first call.
-- **Voice profile** — `VoiceProfileManager` extracts writing style, stores at `~/.corvus/voice-profile.json`. Used by `draft` command.
 - **Auth** — env vars first (`CORVUS_GROK_KEY`, `CORVUS_X_BEARER_TOKEN`, `CORVUS_X_HANDLE`), falls back to `~/.corvus/credentials.json`.
-- **TUI** — `corvus` (no args) launches full-screen Ink/React terminal. Ink 6 + React 19.
-- **Tests** mock `openai` and `fetch` globally. Never make real API calls.
 
 ## Known Limitations
 

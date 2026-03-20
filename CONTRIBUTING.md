@@ -26,27 +26,29 @@ Always smoke-test after building: `npm run build && node dist/bin/corvus.js --ve
 
 ```
 bin/
-  corvus.ts              # CLI entrypoint — registers commands, launches TUI if no args
+  corvus.ts              # CLI entrypoint — registers commands, launches fullscreen TUI
   corvus-mcp.ts          # standalone MCP server entrypoint (stdio)
 src/
-  cli/commands/           # one file per CLI command (agent, ask, scan, pulse, etc.)
-  cli/run-command.ts      # shared command runner (auth, cache, spinner, errors)
-  cli/output.ts           # output formatters (table, json, csv, md)
+  cli/commands/           # one file per CLI command (16 commands)
+  cli/run-command.ts      # shared command runner (auth, spinner, errors)
+  cli/output.ts           # output renderers with visual bars, labeled dividers
+  cli/theme.ts            # color palette, gradient, sparklines, percent bars
   core/
     agent.ts              # AgentPlanner, AgentExecutor, AgentSynthesizer
-    grok-adapter.ts       # Grok API wrapper (OpenAI SDK → xAI)
-    x-adapter.ts          # X API v2 (tweets, users, search)
-    builders/             # 6 build functions (scan, pulse, trace, gather, read, scope)
+    grok-adapter.ts       # Grok Responses API wrapper (OpenAI SDK → xAI)
+    x-adapter.ts          # X API v2 (tweets, users, search) with ID validation
+    builders/             # 8 builders (scan, pulse, trace, profile, hooks, draft, review, timing)
+    voice.ts              # VoiceProfileManager — extract/store writing style
     cache.ts, differ.ts, metrics.ts, schemas.ts, snapshots.ts
-  tui/                    # Ink 6 + React 19 interactive terminal
-    app.tsx               # root component
-    components/           # UI components (chat-viewport, input-bar, result-card, etc.)
+  tui/                    # Ink 6 + React 19 + fullscreen-ink interactive terminal
+    app.tsx               # root component with fullscreen layout
+    components/           # UI components (compact-header, chat-viewport, input-bar, etc.)
     hooks/                # useCommand, useSession
     router.ts             # input parser
-  mcp/server.ts           # MCP server — 7 tools via McpServer
-  infra/                  # auth and config management
+  mcp/server.ts           # MCP server — 5 tools via McpServer
+  infra/                  # auth (credentials + xHandle) and config management
   index.ts                # public API surface for library consumers
-tests/                    # mirrors src/ — every module has a corresponding test file
+tests/                    # mirrors src/ — 916 tests across 50 files
 ```
 
 ## Conventions
@@ -74,7 +76,7 @@ docs: what changed — context
 
 - Every new feature or fix needs tests
 - Tests use Vitest
-- Mock external APIs (OpenAI, fetch) — never make real API calls in tests
+- Mock external APIs (OpenAI Responses API, fetch) — never make real API calls in tests
 - Test files mirror source structure: `src/core/cache.ts` -> `tests/core/cache.test.ts`
 - TUI component tests use `ink-testing-library`
 - MCP tests use the SDK's `Client` + `InMemoryTransport`
@@ -84,10 +86,20 @@ docs: what changed — context
 
 1. Create `src/cli/commands/<name>.ts` with a `register<Name>Command(program)` export
 2. Use `runCommand()` or `runStructuredCommand()` from `run-command.ts`
-3. Register it in `bin/corvus.ts`
-4. Add tests in `tests/cli/commands/<name>.test.ts`
-5. For structured commands, add a builder in `src/core/builders/`
-6. Document it in `README.md`
+3. If structured, create a builder in `src/core/builders/<name>.ts`
+4. Add the snapshot type to `src/core/schemas.ts` and update the `Snapshot` union
+5. Add a renderer in `src/cli/output.ts`
+6. Register in `bin/corvus.ts`
+7. Add TUI routing in `src/tui/router.ts` and `src/tui/hooks/use-command.ts`
+8. Add tests in `tests/cli/commands/<name>.test.ts` and `tests/core/builders/<name>.test.ts`
+9. Document in `README.md`
+
+### API Layer
+
+- Grok calls go through `src/core/grok-adapter.ts` using `client.responses.create()`
+- Tools are `{ type: 'x_search' }` and `{ type: 'web_search' }` (Responses API)
+- Structured output uses `text.format` with extracted `zodResponseFormat()` fields
+- X API calls go through `src/core/x-adapter.ts` with ID validation (`/^\d{1,20}$/`)
 
 ## Pull Requests
 

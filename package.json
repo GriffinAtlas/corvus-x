@@ -36,7 +36,13 @@
     "ai",
     "intelligence",
     "terminal",
-    "sentiment"
+    "sentiment",
+    "growth",
+    "agent",
+    "mcp",
+    "algorithm",
+    "profile",
+    "tui"
   ],
   "engines": {
     "node": ">=18"
@@ -44,7 +50,9 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
   ],
   "dependencies": {
     "@inkjs/ui": "^2.0.0",

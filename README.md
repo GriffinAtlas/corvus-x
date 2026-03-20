@@ -16,14 +16,15 @@
 
 ---
 
-Corvus is an open-source CLI that does two things: **investigate** what's happening on X, and **help you grow** on X. It uses Grok's native search tools (`x_search`, `web_search`) via the xAI API to plan research, chain commands, detect contradictions, and draft posts grounded in real discourse.
+Corvus is an open-source CLI that does two things: **investigate** what's happening on X, and **help you grow** on X. It uses Grok's Responses API with `x_search` and `web_search` tools to plan research, chain commands, detect contradictions, and draft posts grounded in real discourse.
 
 ```bash
 corvus agent "Who's driving the AI regulation debate in the EU?"
 ```
 
 ```
-agent · investigating...
+▸ corvus agent · Who's driving the AI regulation debate in the EU?
+─────────────────────────────────────────────
 
 [1/5] scanning "AI regulation EU"          ✓ 3.2s
 [2/5] pulsing "AI regulation EU"           ✓ 2.8s
@@ -31,11 +32,9 @@ agent · investigating...
 [4/5] profiling @vestaborgs (lead)         ✓ 2.9s
 [5/5] synthesizing brief                   ✓ 2.1s
 
-┌──────────────────────────────────────────────────────┐
-│ EU AI regulation discourse has shifted hawkish        │
-│ (+0.44) — driven by enforcement deadlines and 3       │
-│ MEPs amplifying compliance urgency narratives.        │
-└──────────────────────────────────────────────────────┘
+╔══════════════════════════════════════════════════════╗
+║  EU AI regulation discourse shifted hawkish (+0.44)  ║
+╚══════════════════════════════════════════════════════╝
 
 5 steps · 15.1s · 98 tweets · 1 account profiled · $0.018
 ```
@@ -44,11 +43,13 @@ agent · investigating...
 
 **It investigates, not just searches.** Corvus plans multi-step research, chains commands, detects contradictions, and computes confidence. Give it a question and it figures out the rest.
 
-**It helps you post, not just consume.** The `draft` command writes posts in your voice. `hooks` finds conversations worth replying to. `review` tells you what worked. `timing` tells you when to post. These aren't analytics dashboards — they're CLI tools that fit into a terminal workflow.
+**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights — replies worth 27x likes, author reply-backs worth 75x, conversations worth 150x. Not vanity metrics.
+
+**It helps you post, not just consume.** `grow` finds conversations, drafts a post in your voice, and tells you when to post — one command, complete daily workflow. `draft` loads your voice profile so posts sound like you, not generic AI.
 
 **It shows you what changed.** Every command stores a snapshot. Run it again and Corvus diffs the results — which accounts entered/left, which narratives grew/shrank, how sentiment shifted.
 
-**It costs almost nothing.** A full agent investigation runs ~$0.01-0.02 via Grok. Individual commands are $0.003-0.005. No monthly subscription.
+**It costs almost nothing.** A full agent investigation runs ~$0.01-0.02 via Grok. The `grow` workflow is ~$0.01-0.02. No monthly subscription.
 
 ## Install
 
@@ -62,7 +63,7 @@ npm install -g corvus-x
 corvus auth setup
 ```
 
-You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's search tools (`x_search`, `web_search`). You'll also be asked for your **X handle** (used by growth commands to identify your account).
+You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's `x_search`. You'll also be asked for your **X handle** (used by growth commands to identify your account).
 
 ```bash
 export CORVUS_GROK_KEY=xai-...
@@ -86,10 +87,11 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 
 | Command | Description |
 |---|---|
-| `profile <@handle>` | Content strategy analysis — yours or anyone's |
+| `grow <topic>` | Daily workflow — hooks + draft + timing in one command |
+| `profile <@handle>` | Algorithm-aware content strategy analysis |
 | `hooks <topic>` | Find conversations to reply to right now |
 | `draft <topic>` | Draft a post or thread in your voice |
-| `review` | What worked, what didn't, patterns, recommendations |
+| `review` | What worked, what didn't, algorithm health |
 | `timing [topic]` | Best times to post based on your audience |
 
 ### Utility
@@ -101,92 +103,45 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 | `history` | Browse stored snapshots |
 | `auth setup` | Configure API keys and handle |
 
-## Intel Commands
+## The Growth Workflow
 
-### `agent` — The flagship
-
-Chains multiple commands, follows leads, cross-references results, and produces a BLUF intelligence brief with confidence scoring and contradiction detection.
+The fastest way to use Corvus for growth:
 
 ```bash
-corvus agent "what's happening with bitcoin sentiment?"
-corvus agent -i "who are the key players in the AI agent space?"
-corvus agent -n 12 --budget 0.25 "trace the OpenAI drama timeline"
+corvus profile @YourHandle          # analyze your account + save voice profile
+corvus grow "your topic"            # find hooks, draft a post, get timing
 ```
 
-### `trace` — Narrative evolution
+`grow` runs three steps:
+1. **Hooks** — finds conversations worth replying to, scored by opportunity
+2. **Draft** — writes a post in your voice (uses your voice profile if available)
+3. **Timing** — when to post for maximum reach
 
-Maps how a narrative spreads and mutates across X.
+Run `corvus profile @YourHandle` once to generate a voice profile. After that, `draft` and `grow` use it automatically.
 
-```bash
-corvus trace "AI will replace software engineers"
+## Algorithm Scoring
+
+Profile analysis scores accounts against the [real X algorithm weights](https://github.com/twitter/the-algorithm):
+
+```
+── Algorithm Health  B ────────────
+    Reply rate       ██████░░░░░░░░░ 42%  27x likes
+    Author replies   ███████████░░░░ 71%  75x weight
+    Conversations    █████░░░░░░░░░░ 31%  150x a like
+    Bookmark/like    ██░░░░░░░░░░░░░ 12%  20x likes
 ```
 
-### `scan` / `pulse` — Topic intelligence
-
-```bash
-corvus scan "quantum computing"        # narratives, voices, engagement
-corvus pulse "bitcoin"                 # sentiment, bull/bear signals
-```
-
-Run the same command again later and Corvus shows the **diff** — what changed since your last check.
-
-## Growth Commands
-
-### `profile` — Content strategy analysis
-
-Analyze any account's content patterns, posting cadence, engagement distribution, and voice traits. Run on yourself for actionable recommendations.
-
-```bash
-corvus profile @RogGriff               # self — includes recommendations
-corvus profile @swyx                   # study someone's strategy
-```
-
-### `hooks` — Find reply opportunities
-
-Finds trending conversations with high engagement potential. Scores each by reply opportunity and suggests an angle.
-
-```bash
-corvus hooks "typescript CLI tools"
-corvus hooks "AI agents"
-```
-
-### `draft` — Voice-matched post generation
-
-Drafts posts grounded in current X discourse. Loads your voice profile if available, otherwise uses a default developer voice.
-
-```bash
-corvus draft "building AI agents in TypeScript"
-corvus draft --thread "why I built Corvus"
-corvus draft --reply-to https://x.com/user/status/123
-```
-
-### `review` — Post performance analysis
-
-Analyzes your recent posts — top/bottom performers, engagement patterns, actionable recommendations. Requires X API token.
-
-```bash
-corvus review                          # last 7 days
-corvus review --days 30                # last month
-```
-
-### `timing` — Optimal posting windows
-
-When to post for maximum reach. Self mode analyzes your engagement patterns. Topic mode analyzes when conversations peak.
-
-```bash
-corvus timing                          # your best posting times
-corvus timing "AI agents"             # when this topic peaks
-```
+Key insight: a reply is worth 27x more than a like. A conversation (reply + author reply) is worth 150x. Most "growth tools" optimize for likes — Corvus optimizes for what the algorithm actually values.
 
 ## Interactive Mode
 
-Run `corvus` with no arguments to launch the interactive TUI:
+Run `corvus` with no arguments to launch the full-screen interactive TUI:
 
 ```bash
 corvus
 ```
 
-Full-screen terminal UI with connection status, command autocomplete, and session history.
+Full-screen terminal app with alternate screen buffer, pinned header with connection status, command autocomplete, session history, and keyboard shortcuts.
 
 ## Snapshot Diffing
 
@@ -226,7 +181,7 @@ All commands support `-f` / `--format`:
 
 | Format | Description |
 |---|---|
-| `table` | Default — clean terminal output |
+| `table` | Default — rich terminal output with bars and charts |
 | `json` | Machine-readable JSON |
 | `csv` | CSV with headers |
 | `md` | Markdown |
@@ -239,7 +194,7 @@ Every command tracks API spend. Use `--cost` on any command to preview pricing.
 |---|---|
 | Single command (scan, pulse, etc.) | $0.003 - 0.005 |
 | Full agent investigation | $0.010 - 0.025 |
-| Draft / hooks / review | $0.003 - 0.008 |
+| `grow` workflow (hooks + draft + timing) | $0.010 - 0.020 |
 | Watch (per cycle) | $0.002 - 0.004 |
 
 Costs logged to `~/.corvus/cost-ledger.json`.
@@ -250,11 +205,11 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 |---|---|
 | Language | TypeScript (ES2022, strict mode) |
 | Runtime | Node.js >= 18 |
-| AI | Grok API via OpenAI SDK (`grok-4-1-fast`) |
+| AI | Grok Responses API via OpenAI SDK |
 | Data | X API v2 (optional) |
 | CLI | Commander |
-| TUI | Ink 6 + React 19 |
-| Testing | Vitest (912 tests) |
+| TUI | Ink 6 + React 19 + fullscreen-ink |
+| Testing | Vitest (916 tests) |
 
 ## License
 
