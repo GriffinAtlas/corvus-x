@@ -96,8 +96,7 @@ async function runMultiAgent(
   console.log(banner('agent', question))
   console.log(`  ${divider()}`)
   console.log('')
-  console.log(t.muted(`  model: ${MULTI_AGENT_MODEL}`))
-  console.log(t.muted('  investigating...\n'))
+  console.log(`  ${t.accent('▸')} ${t.heading('deep research')} ${t.muted(`· ${MULTI_AGENT_MODEL}`)}`)
 
   const result = await agentMulti(grok, question)
   const brief = result.brief
@@ -336,8 +335,8 @@ export function registerAgentCommand(program: Command): void {
             await runMultiAgent(deps.grok, question, options.format)
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
-            console.log(t.warning(`\n  Multi-agent failed: ${msg}`))
-            console.log(t.muted('  Falling back to classic mode...\n'))
+            console.log(t.warning(`\n  ✗ Deep research unavailable: ${msg}`))
+            console.log(`  ${t.accent('▸')} ${t.heading('classic mode')} ${t.muted('· step-by-step orchestration')}\n`)
             await runClassicAgent(deps, question, {
               maxSteps: 6,
               format: options.format,

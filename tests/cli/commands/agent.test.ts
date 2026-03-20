@@ -256,8 +256,8 @@ describe('registerAgentCommand', () => {
     }
 
     const output = logs.join('\n')
-    expect(output).toContain('Multi-agent failed')
-    expect(output).toContain('Falling back')
+    expect(output).toContain('Deep research unavailable')
+    expect(output).toContain('classic mode')
   })
 
   it('--classic flag uses old orchestration pipeline', async () => {
