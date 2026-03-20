@@ -250,6 +250,8 @@ describe('renderCitations', () => {
 
 describe('renderScan', () => {
   const scan: ScanSnapshot = {
+    takeaway: 'AI discourse is heating up with strong bullish momentum',
+    actions: ['Reply to @alice thread on AI growth'],
     metrics: { tweetCount: 42, totalEngagement: 5000, uniqueAuthors: 15, engagementPerTweet: 119 },
     sentiment: { avg: 0.3, positive: 20, neutral: 15, negative: 7 },
     topAccounts: [{ handle: 'alice', postCount: 5, followers: 10000, avgSentiment: 0.6 }],
@@ -257,22 +259,31 @@ describe('renderScan', () => {
     signals: ['Strong bullish momentum'],
   }
 
-  it('includes tweet count and engagement metrics', () => {
+  it('renders takeaway at the top', () => {
     const output = renderScan(scan)
-    expect(output).toContain('42')
-    expect(output).toContain('5,000')
+    expect(output).toContain('AI discourse is heating up')
+  })
+
+  it('renders action items', () => {
+    const output = renderScan(scan)
+    expect(output).toContain('Reply to @alice')
+  })
+
+  it('includes tweet count in details', () => {
+    const output = renderScan(scan)
+    expect(output).toContain('42 tweets')
   })
 
   it('includes top accounts', () => {
     const output = renderScan(scan)
     expect(output).toContain('@alice')
-    expect(output).toContain('5 posts')
+    expect(output).toContain('10K followers')
   })
 
-  it('includes narratives', () => {
+  it('includes narratives with bars', () => {
     const output = renderScan(scan)
     expect(output).toContain('AI boom')
-    expect(output).toContain('AI sector growth')
+    expect(output).toContain('30 tweets')
   })
 
   it('includes signals', () => {
@@ -282,6 +293,8 @@ describe('renderScan', () => {
 
   it('handles empty optional arrays', () => {
     const empty: ScanSnapshot = {
+      takeaway: '',
+      actions: [],
       metrics: { tweetCount: 0, totalEngagement: 0, uniqueAuthors: 0, engagementPerTweet: 0 },
       sentiment: { avg: 0, positive: 0, neutral: 0, negative: 0 },
       topAccounts: [],
@@ -289,15 +302,13 @@ describe('renderScan', () => {
       signals: [],
     }
     expect(() => renderScan(empty)).not.toThrow()
-    const output = renderScan(empty)
-    expect(output).not.toContain('Top Accounts')
-    expect(output).not.toContain('Narratives')
-    expect(output).not.toContain('Signals')
   })
 })
 
 describe('renderPulse', () => {
   const pulse: PulseSnapshot = {
+    takeaway: 'Sentiment is contested — bulls and bears are evenly matched',
+    actions: ['Post a balanced analysis to stand out from the noise'],
     metrics: { tweetCount: 30, totalEngagement: 3000, uniqueAuthors: 10, engagementPerTweet: 100 },
     sentiment: { avg: -0.2, positive: 8, neutral: 12, negative: 10 },
     bullSignals: ['ETF inflows rising'],
@@ -810,6 +821,8 @@ describe('formatStructuredOutput', () => {
       command: 'scan',
       topic: 'bitcoin',
       data: {
+        takeaway: 'test takeaway',
+        actions: [],
         metrics: { tweetCount: 10, totalEngagement: 500, uniqueAuthors: 5, engagementPerTweet: 50 },
         sentiment: { avg: 0.3, positive: 5, neutral: 3, negative: 2 },
         topAccounts: [],

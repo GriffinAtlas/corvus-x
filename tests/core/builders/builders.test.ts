@@ -163,6 +163,8 @@ describe('computeGrokOnlyNarratives', () => {
 
 describe('buildScanSnapshot — X API path', () => {
   const scanGrokResponse = {
+    takeaway: 'Tech discussion is dominant',
+    actions: ['Engage with tech threads'],
     tweetAnalysis: [
       { index: 0, sentiment: 0.5, narrative: 'tech' },
       { index: 1, sentiment: -0.2, narrative: 'market' },
@@ -234,6 +236,8 @@ describe('buildScanSnapshot — X API path', () => {
 
 describe('buildScanSnapshot — Grok-only path', () => {
   const grokOnlyScanResponse = {
+    takeaway: 'Grok-only takeaway',
+    actions: ['Grok-only action'],
     tweetCount: 25,
     uniqueAuthors: 15,
     estimatedEngagement: 5000,
@@ -281,6 +285,8 @@ describe('buildScanSnapshot — Grok-only path', () => {
 
 describe('buildPulseSnapshot — X API path', () => {
   const pulseGrokResponse = {
+    takeaway: 'Mixed signals',
+    actions: ['Wait for clarity'],
     tweetAnalysis: [
       { index: 0, sentiment: 0.5, narrative: 'bullish' },
       { index: 1, sentiment: -0.3, narrative: 'bearish' },
@@ -326,6 +332,8 @@ describe('buildPulseSnapshot — X API path', () => {
 describe('buildPulseSnapshot — Grok-only path', () => {
   it('returns correct shape with keyVoices from Grok response', async () => {
     const grokOnlyPulseResponse = {
+      takeaway: 'Grok-only pulse',
+      actions: [],
       tweetCount: 20,
       uniqueAuthors: 10,
       estimatedEngagement: 3000,

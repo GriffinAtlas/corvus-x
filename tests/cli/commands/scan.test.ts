@@ -72,7 +72,7 @@ function xSearchResponse(tweetCount = 2) {
 
 function grokScanResponse() {
   const json = JSON.stringify({
-    tweetAnalysis: [{ index: 0, sentiment: 0.5, narrative: 'theme1' }],
+    takeaway: "test takeaway", actions: ["test action"], tweetAnalysis: [{ index: 0, sentiment: 0.5, narrative: "theme1" }],
     narratives: [{ theme: 'theme1', description: 'desc' }],
     signals: ['signal 1'],
   })
@@ -86,6 +86,8 @@ function grokScanResponse() {
 
 function grokOnlyScanResponse() {
   const json = JSON.stringify({
+    takeaway: 'grok-only takeaway',
+    actions: ['grok-only action'],
     tweetCount: 10,
     uniqueAuthors: 5,
     estimatedEngagement: 500,
@@ -166,7 +168,7 @@ describe('registerScanCommand', () => {
 
     await program.parseAsync(['node', 'corvus', 'scan', 'AI', 'agents'])
     const output = logs.join('\n')
-    expect(output).toContain('Tweets:')
+    expect(output).toContain('tweets')
     expect(output).toContain('Sentiment:')
   })
 
@@ -213,6 +215,6 @@ describe('registerScanCommand', () => {
     expect(mockFetch).not.toHaveBeenCalled()
     expect(mockQuery).toHaveBeenCalledTimes(1)
     const output = logs.join('\n')
-    expect(output).toContain('Tweets:')
+    expect(output).toContain('tweets')
   })
 })

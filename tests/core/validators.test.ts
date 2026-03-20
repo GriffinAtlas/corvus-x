@@ -10,7 +10,7 @@ import {
 describe('GrokScanResponseSchema', () => {
   it('accepts valid scan response', () => {
     const valid = {
-      tweetAnalysis: [{ index: 0, sentiment: 0.5, narrative: 'theme1' }],
+      takeaway: "test takeaway", actions: ["test action"], tweetAnalysis: [{ index: 0, sentiment: 0.5, narrative: "theme1" }],
       narratives: [{ theme: 'theme1', description: 'desc' }],
       signals: ['signal 1'],
     }
@@ -24,6 +24,7 @@ describe('GrokScanResponseSchema', () => {
 
   it('rejects sentiment outside -1 to 1', () => {
     const invalid = {
+      takeaway: 'test', actions: [],
       tweetAnalysis: [{ index: 0, sentiment: 5, narrative: 'x' }],
       narratives: [],
       signals: [],
@@ -38,6 +39,7 @@ describe('GrokScanResponseSchema', () => {
 describe('GrokPulseResponseSchema', () => {
   it('accepts valid pulse response', () => {
     const valid = {
+      takeaway: 'test', actions: [],
       tweetAnalysis: [{ index: 0, sentiment: -0.3, narrative: 'bearish' }],
       bullSignals: ['signal 1'],
       bearSignals: ['signal 2'],
@@ -147,7 +149,7 @@ describe('GrokScanResponseSchema rejection', () => {
   })
 
   it('accepts empty arrays', () => {
-    const valid = { tweetAnalysis: [], narratives: [], signals: [] }
+    const valid = { takeaway: '', actions: [], tweetAnalysis: [], narratives: [], signals: [] }
     expect(() => GrokScanResponseSchema.parse(valid)).not.toThrow()
   })
 })

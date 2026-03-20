@@ -12,12 +12,16 @@ const GrokNarrativeSchema = z.object({
 })
 
 export const GrokScanResponseSchema = z.object({
+  takeaway: z.string(),
+  actions: z.array(z.string()),
   tweetAnalysis: z.array(GrokTweetScoreSchema),
   narratives: z.array(GrokNarrativeSchema),
   signals: z.array(z.string()),
 })
 
 export const GrokPulseResponseSchema = z.object({
+  takeaway: z.string(),
+  actions: z.array(z.string()),
   tweetAnalysis: z.array(GrokTweetScoreSchema),
   bullSignals: z.array(z.string()),
   bearSignals: z.array(z.string()),

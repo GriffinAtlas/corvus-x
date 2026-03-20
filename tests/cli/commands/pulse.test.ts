@@ -72,6 +72,8 @@ function xSearchResponse(tweetCount = 2) {
 
 function grokPulseResponse() {
   const json = JSON.stringify({
+    takeaway: 'test pulse takeaway',
+    actions: ['test pulse action'],
     tweetAnalysis: [{ index: 0, sentiment: 0.5, narrative: 'theme' }],
     bullSignals: ['bull 1'],
     bearSignals: ['bear 1'],
@@ -86,6 +88,8 @@ function grokPulseResponse() {
 
 function grokOnlyPulseResponse() {
   const json = JSON.stringify({
+    takeaway: 'grok-only pulse takeaway',
+    actions: ['grok-only pulse action'],
     tweetCount: 10,
     uniqueAuthors: 5,
     estimatedEngagement: 500,

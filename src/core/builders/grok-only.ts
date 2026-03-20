@@ -1,6 +1,8 @@
 import type { BaseMetrics, SentimentBreakdown } from '../schemas.js'
 
 export interface GrokOnlyScanResponse {
+  takeaway: string
+  actions: string[]
   tweetCount: number
   uniqueAuthors: number
   estimatedEngagement: number
@@ -11,6 +13,8 @@ export interface GrokOnlyScanResponse {
 }
 
 export interface GrokOnlyPulseResponse {
+  takeaway: string
+  actions: string[]
   tweetCount: number
   uniqueAuthors: number
   estimatedEngagement: number

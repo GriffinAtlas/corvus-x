@@ -14,12 +14,16 @@ export interface GrokNarrative {
 }
 
 export interface GrokScanResponse {
+  takeaway: string
+  actions: string[]
   tweetAnalysis: GrokTweetScore[]
   narratives: GrokNarrative[]
   signals: string[]
 }
 
 export interface GrokPulseResponse {
+  takeaway: string
+  actions: string[]
   tweetAnalysis: GrokTweetScore[]
   bullSignals: string[]
   bearSignals: string[]
@@ -72,6 +76,8 @@ export interface BaseMetrics {
 }
 
 export interface ScanSnapshot {
+  takeaway: string
+  actions: string[]
   metrics: BaseMetrics
   sentiment: SentimentBreakdown
   topAccounts: AccountEntry[]
@@ -80,6 +86,8 @@ export interface ScanSnapshot {
 }
 
 export interface PulseSnapshot {
+  takeaway: string
+  actions: string[]
   metrics: BaseMetrics
   sentiment: SentimentBreakdown
   bullSignals: string[]

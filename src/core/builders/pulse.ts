@@ -7,19 +7,20 @@ import type { GrokPulseResponse, PulseSnapshot } from '../schemas.js'
 import type { GrokOnlyPulseResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are an intelligence analyst reading market/social pulse. Analyze the tweets below and return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are a sentiment analyst advising a content creator. Analyze the tweets and return ONLY a JSON object:
 {
+  "takeaway": "one sentence — is sentiment bullish, bearish, or contested? What should someone posting about this know?",
+  "actions": ["specific suggestion based on the sentiment"],
   "tweetAnalysis": [{ "index": 0, "sentiment": 0.5, "narrative": "theme" }],
   "bullSignals": ["positive signal"],
   "bearSignals": ["negative signal"]
 }
 Rules:
-- One entry per tweet in tweetAnalysis, referenced by index.
-- sentiment: -1.0 to 1.0.
-- narrative: assign each tweet to a theme.
-- bullSignals: 2-5 reasons for optimism found in the discourse.
-- bearSignals: 2-5 reasons for concern found in the discourse.
-- Ignore spam, bot activity, and promotional shills when assessing sentiment.
+- takeaway: one direct sentence. Is momentum shifting? Is there a contrarian opportunity?
+- actions: 1-2 specific suggestions. "Post a contrarian take on X because..." or "Avoid this topic, it's all noise."
+- bullSignals: 2-5 reasons for optimism.
+- bearSignals: 2-5 reasons for concern.
+- Ignore spam, bots, and shills.
 - Return ONLY valid JSON.`
 
 const GROK_ONLY_PROMPT = `You are an intelligence analyst reading market/social pulse. Search X for recent posts about the given topic, then analyze sentiment. Ignore spam and bot activity. Return ONLY a JSON object:
@@ -74,7 +75,7 @@ async function buildPulseFromXApi(
   const keyVoices = computeKeyVoices(tweets, grok.tweetAnalysis, users)
 
   return {
-    data: { metrics, sentiment, bullSignals: grok.bullSignals, bearSignals: grok.bearSignals, keyVoices },
+    data: { takeaway: grok.takeaway ?? '', actions: grok.actions ?? [], metrics, sentiment, bullSignals: grok.bullSignals, bearSignals: grok.bearSignals, keyVoices },
     raw: response.text,
     cost: response.usage.costUsd,
     tweets,
@@ -99,6 +100,8 @@ async function buildPulseFromGrok(
 
   return {
     data: {
+      takeaway: grok.takeaway ?? '',
+      actions: grok.actions ?? [],
       metrics,
       sentiment,
       bullSignals: grok.bullSignals,

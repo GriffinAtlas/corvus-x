@@ -17,22 +17,27 @@ import type { GrokScanResponse, ScanSnapshot } from '../schemas.js'
 import type { GrokOnlyScanResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are an intelligence analyst. Analyze the tweets below and return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are an intelligence analyst advising a content creator. Analyze the tweets and return ONLY a JSON object:
 {
+  "takeaway": "one sentence — what does this discourse mean for someone who wants to post about this topic",
+  "actions": ["specific thing to do based on what you found"],
   "tweetAnalysis": [{ "index": 0, "sentiment": 0.5, "narrative": "theme" }],
   "narratives": [{ "theme": "name", "description": "brief description" }],
   "signals": ["notable observation"]
 }
 Rules:
-- One entry per tweet in tweetAnalysis, referenced by index.
-- sentiment: -1.0 (very negative) to 1.0 (very positive).
-- narrative: assign each tweet to one of 2-5 themes you identify.
-- signals: 3-5 key observations about the discourse.
-- Ignore spam, scam promotions, bot activity, and memecoin shills. Focus on genuine discourse.
+- takeaway: one direct sentence. What's the opportunity or risk? Write for someone deciding whether to post.
+- actions: 1-3 specific, actionable suggestions. "Reply to @handle's thread about X" not "engage with content".
+- tweetAnalysis: one entry per tweet, sentiment -1.0 to 1.0, assigned to a narrative theme.
+- narratives: 2-5 themes. Which are growing? Which are noise?
+- signals: 3-5 observations. Focus on what's changing, not what's static.
+- Ignore spam, scams, bots, and shills.
 - Return ONLY valid JSON.`
 
-const GROK_ONLY_PROMPT = `You are an intelligence analyst. Search X for recent posts about the given topic, then analyze what you find. Ignore spam, scams, and bot activity. Return ONLY a JSON object:
+const GROK_ONLY_PROMPT = `You are an intelligence analyst advising a content creator. Search X for recent posts about the given topic. Ignore spam, scams, and bots. Return ONLY a JSON object:
 {
+  "takeaway": "one sentence — what does this discourse mean for someone who wants to post about this topic",
+  "actions": ["specific thing to do based on what you found"],
   "tweetCount": 25,
   "uniqueAuthors": 15,
   "estimatedEngagement": 5000,
@@ -42,11 +47,11 @@ const GROK_ONLY_PROMPT = `You are an intelligence analyst. Search X for recent p
   "signals": ["notable observation"]
 }
 Rules:
-- Search X for recent posts. Analyze up to 50 posts.
-- tweetCount/uniqueAuthors/estimatedEngagement: your best estimates from what you found.
-- tweetAnalysis: one entry per post you analyzed.
-- narratives: 2-5 key themes with descriptions.
-- topAccounts: 3-10 most notable accounts in the conversation.
+- takeaway: one direct sentence. What's the opportunity or risk?
+- actions: 1-3 specific suggestions. Name real accounts and threads to engage with.
+- Search X for recent posts. Analyze up to 50.
+- narratives: 2-5 themes. Which are growing?
+- topAccounts: 3-10 most notable accounts.
 - signals: 3-5 key observations about the discourse.
 - Return ONLY valid JSON.`
 
@@ -84,7 +89,7 @@ async function buildScanFromXApi(
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
   return {
-    data: { metrics, sentiment, topAccounts, narratives, signals: grok.signals },
+    data: { takeaway: grok.takeaway ?? '', actions: grok.actions ?? [], metrics, sentiment, topAccounts, narratives, signals: grok.signals },
     raw: response.text,
     cost: response.usage.costUsd,
     tweets,
@@ -114,6 +119,8 @@ async function buildScanFromGrok(
 
   return {
     data: {
+      takeaway: grok.takeaway ?? '',
+      actions: grok.actions ?? [],
       metrics,
       sentiment,
       topAccounts: (grok.topAccounts ?? []).slice(0, 10),

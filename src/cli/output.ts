@@ -151,39 +151,51 @@ function sentimentColor(val: number): string {
 }
 
 export function renderScan(data: ScanSnapshot): string {
-  const { metrics, sentiment, topAccounts, narratives, signals } = data
+  const { takeaway, actions, metrics, sentiment, topAccounts, narratives, signals } = data
   const parts: string[] = []
 
-  parts.push(
-    `  Tweets: ${metrics.tweetCount.toLocaleString()}  Engagement: ${metrics.totalEngagement.toLocaleString()}  Authors: ${metrics.uniqueAuthors}  Avg: ${metrics.engagementPerTweet}/tweet`,
-  )
-  parts.push('')
-  parts.push(
-    `  Sentiment: ${sentiment.avg} avg  (${t.positive(`+${sentiment.positive}`)} / ${t.muted(String(sentiment.neutral))} / ${t.negative(`-${sentiment.negative}`)})`,
-  )
-
-  if (topAccounts.length > 0) {
+  if (takeaway) {
+    parts.push(`  ${t.heading(takeaway)}`)
     parts.push('')
-    parts.push(`  ${t.heading('Top Accounts')}`)
-    for (const a of topAccounts.slice(0, 5)) {
-      parts.push(
-        `    @${a.handle}  ${a.postCount} posts  ${compactNum(a.followers)} followers  ${sentimentColor(a.avgSentiment)}`,
-      )
-    }
   }
+
+  if (actions.length > 0) {
+    for (const a of actions) {
+      parts.push(`  ${t.positive('→')} ${a}`)
+    }
+    parts.push('')
+  }
+
+  parts.push(`  ${labeledDivider('Details')}`)
+  parts.push(
+    `  ${t.muted(`${metrics.tweetCount} tweets · ${metrics.uniqueAuthors} authors · ${compactNum(metrics.totalEngagement)} engagement`)}`,
+  )
+  parts.push(
+    `  Sentiment: ${sentimentBar(sentiment.avg, 15)}  ${sentimentColor(sentiment.avg)}`,
+  )
 
   if (narratives.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Narratives')}`)
+    parts.push(`  ${labeledDivider('Narratives')}`)
     for (const n of narratives.slice(0, 5)) {
-      parts.push(`    ${n.theme}  ${n.tweetCount} tweets  ${sentimentColor(n.avgSentiment)}`)
-      parts.push(`      ${t.muted(n.description)}`)
+      const pct = metrics.tweetCount > 0 ? n.tweetCount / metrics.tweetCount : 0
+      parts.push(`    ${n.theme.padEnd(22)} ${percentBar(pct, 10, t.accent)} ${n.tweetCount} tweets  ${sentimentColor(n.avgSentiment)}`)
+    }
+  }
+
+  if (topAccounts.length > 0) {
+    parts.push('')
+    parts.push(`  ${labeledDivider('Key Voices')}`)
+    for (const a of topAccounts.slice(0, 5)) {
+      parts.push(
+        `    @${a.handle}  ${compactNum(a.followers)} followers  ${sentimentColor(a.avgSentiment)}`,
+      )
     }
   }
 
   if (signals.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Signals')}`)
+    parts.push(`  ${labeledDivider('Signals')}`)
     for (const s of signals) {
       parts.push(`    · ${s}`)
     }
@@ -193,15 +205,24 @@ export function renderScan(data: ScanSnapshot): string {
 }
 
 export function renderPulse(data: PulseSnapshot): string {
-  const { metrics, sentiment, bullSignals, bearSignals, keyVoices } = data
+  const { takeaway, actions, metrics, sentiment, bullSignals, bearSignals, keyVoices } = data
   const parts: string[] = []
 
+  if (takeaway) {
+    parts.push(`  ${t.heading(takeaway)}`)
+    parts.push('')
+  }
+
+  if (actions.length > 0) {
+    for (const a of actions) {
+      parts.push(`  ${t.positive('→')} ${a}`)
+    }
+    parts.push('')
+  }
+
+  parts.push(`  ${labeledDivider('Sentiment')}`)
   parts.push(
-    `  Tweets: ${metrics.tweetCount.toLocaleString()}  Engagement: ${metrics.totalEngagement.toLocaleString()}  Authors: ${metrics.uniqueAuthors}`,
-  )
-  parts.push('')
-  parts.push(
-    `  Sentiment: ${sentiment.avg} avg  (${t.positive(`+${sentiment.positive}`)} / ${t.muted(String(sentiment.neutral))} / ${t.negative(`-${sentiment.negative}`)})`,
+    `  ${sentimentBar(sentiment.avg, 20)}  ${sentimentColor(sentiment.avg)}  ${t.muted(`(${metrics.tweetCount} tweets, ${metrics.uniqueAuthors} authors)`)}`,
   )
 
   if (bullSignals.length > 0) {
