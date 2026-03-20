@@ -23,13 +23,13 @@ export class SnapshotStore {
     scores?: GrokTweetScore[],
   ): StoredSnapshot<T> {
     const dir = this.topicDir(command, topic)
-    fs.mkdirSync(dir, { recursive: true })
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
 
     const snapshot: StoredSnapshot<T> = {
       command,
       topic,
       data,
-      raw,
+      raw: raw.length > 65536 ? raw.slice(0, 65536) : raw,
       timestamp: Date.now(),
       cost,
       ...(tweets?.length ? { tweets } : {}),

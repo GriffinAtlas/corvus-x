@@ -52,7 +52,7 @@ export class VoiceProfileManager {
   }
 
   save(profile: VoiceProfile): void {
-    fs.mkdirSync(this.baseDir, { recursive: true })
+    fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 })
     fs.writeFileSync(this.profilePath, JSON.stringify(profile, null, 2), { mode: 0o600 })
   }
 

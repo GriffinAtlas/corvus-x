@@ -10,13 +10,13 @@ Add brief editorial context when useful ("worth watching", "contrarian signal").
 Filter out spam, scam promotions, memecoin shills, and bot activity — focus on genuine discourse.
 Do not use emoji. Do not use headers or markdown formatting.`
 
-function isValidCalendarDate(dateStr: string): boolean {
+export function isValidCalendarDate(dateStr: string): boolean {
   const [year, month, day] = dateStr.split('-').map(Number)
   const date = new Date(year, month - 1, day)
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
 }
 
-function validateDateRange(from?: string, to?: string): void {
+export function validateDateRange(from?: string, to?: string): void {
   const isoDate = /^\d{4}-\d{2}-\d{2}$/
   if (from) {
     if (!isoDate.test(from)) throw new Error(`Invalid --from date: ${from} (expected YYYY-MM-DD)`)

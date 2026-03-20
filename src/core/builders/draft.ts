@@ -78,7 +78,13 @@ export async function buildDraftSnapshot(
   let userPrompt = `Draft a post about: ${topic}${voiceContext}`
   if (options.hooksContext) userPrompt += `\n\nHere are conversations happening right now on this topic that you should reference or respond to:\n${options.hooksContext}`
   if (options.thread) userPrompt += '\n\nFormat as a thread (multiple posts).'
-  if (options.replyTo) userPrompt += `\n\nThis is a reply to: ${options.replyTo}`
+  if (options.replyTo) {
+    const replyUrl = options.replyTo.slice(0, 200)
+    if (!/^https:\/\/(x\.com|twitter\.com)\//.test(replyUrl)) {
+      throw new Error('--reply-to must be an X/Twitter URL (https://x.com/... or https://twitter.com/...)')
+    }
+    userPrompt += `\n\nThis is a reply to: ${replyUrl}`
+  }
 
   const response = await deps.grok.query(userPrompt, {
     systemPrompt,

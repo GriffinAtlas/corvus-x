@@ -146,6 +146,7 @@ export function createServer(): McpServer {
       inputSchema: z.object({
         username: z
           .string()
+          .regex(/^@?[A-Za-z0-9_]{1,15}$/, 'Invalid X username')
           .describe('X username (with or without @)'),
         postCount: z
           .number()

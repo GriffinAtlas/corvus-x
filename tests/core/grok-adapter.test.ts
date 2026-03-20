@@ -514,24 +514,14 @@ describe('parseGrokJson', () => {
     expect(() => parseGrokJson('')).toThrow(GrokParseError)
   })
 
-  it('GrokParseError includes rawPreview', () => {
+  it('GrokParseError message does not leak raw response content', () => {
     try {
       parseGrokJson('definitely not json {broken')
       expect.fail('should have thrown')
     } catch (err) {
       expect(err).toBeInstanceOf(GrokParseError)
-      expect((err as GrokParseError).rawPreview).toContain('definitely not json')
-    }
-  })
-
-  it('GrokParseError truncates raw preview at 300 chars', () => {
-    const longRaw = 'A'.repeat(400) + '{"key": bad}'
-    try {
-      parseGrokJson(longRaw)
-      expect.fail('should have thrown')
-    } catch (err) {
-      expect(err).toBeInstanceOf(GrokParseError)
-      expect((err as GrokParseError).rawPreview.length).toBeLessThanOrEqual(303) // 300 + '...'
+      expect((err as GrokParseError).message).toContain('Failed to parse Grok JSON')
+      expect((err as GrokParseError).message).not.toContain('definitely not json')
     }
   })
 
@@ -592,15 +582,15 @@ describe('parseGrokJson', () => {
     expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
   })
 
-  it('GrokParseError message includes both raw and cleaned preview', () => {
+  it('GrokParseError message contains syntax error detail only', () => {
     try {
       parseGrokJson('preamble {"bad": }')
       expect.fail('should have thrown')
     } catch (err) {
       expect(err).toBeInstanceOf(GrokParseError)
       const msg = (err as GrokParseError).message
-      expect(msg).toContain('Raw')
-      expect(msg).toContain('Cleaned')
+      expect(msg).toContain('Failed to parse Grok JSON')
+      expect(msg).not.toContain('preamble')
     }
   })
 })

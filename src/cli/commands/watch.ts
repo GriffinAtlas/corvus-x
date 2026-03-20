@@ -3,6 +3,7 @@ import { t } from '../theme.js'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
 import { formatOutput } from '../output.js'
+import { validateDateRange } from './ask.js'
 import type { GrokAdapter } from '../../core/grok-adapter.js'
 import type { CommandResult, QueryOptions } from '../../core/types.js'
 
@@ -117,7 +118,7 @@ export class Watcher {
 
       this.cycles++
       this.totalCost += response.usage.costUsd
-      this.previousSnapshot = response.text
+      this.previousSnapshot = response.text.slice(-4000)
       this.consecutiveErrors = 0
 
       this.options.onUpdate({
@@ -162,6 +163,7 @@ export function registerWatchCommand(program: Command): void {
         },
       ) => {
         const topic = topicParts.join(' ')
+        validateDateRange(options.from, options.to)
         const intervalSec = Math.max(parseInt(options.interval, 10) || 60, 10)
         const maxCycles = Math.max(parseInt(options.max, 10) || 0, 0)
         const auth = new AuthManager(ConfigManager.defaultDir())

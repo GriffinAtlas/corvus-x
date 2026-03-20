@@ -30,17 +30,13 @@ const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503])
 const TRANSIENT_NETWORK_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'])
 
 export class GrokParseError extends Error {
-  rawPreview: string
   constructor(raw: string, cleaned: string, cause: SyntaxError) {
+    super(`Failed to parse Grok JSON: ${cause.message}`)
+    this.name = 'GrokParseError'
     const rawPreview = raw.length > 300 ? raw.slice(0, 300) + '...' : raw
     const cleanedPreview = cleaned.length > 300 ? cleaned.slice(0, 300) + '...' : cleaned
-    super(
-      `Failed to parse Grok JSON: ${cause.message}\n` +
-        `Raw (first 300): ${rawPreview}\n` +
-        `Cleaned (first 300): ${cleanedPreview}`,
-    )
-    this.name = 'GrokParseError'
-    this.rawPreview = rawPreview
+    console.error(`[GrokParseError] Raw (first 300): ${rawPreview}`)
+    console.error(`[GrokParseError] Cleaned (first 300): ${cleanedPreview}`)
   }
 }
 
