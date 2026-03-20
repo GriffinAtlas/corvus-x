@@ -338,7 +338,7 @@ export function renderProfile(data: ProfileSnapshot): string {
 
   const algo = data.algorithmScore
   if (algo && algo.grade && algo.grade !== 'N/A') {
-    const gradeColor = algo.grade === 'A' ? t.positive : algo.grade === 'B' ? t.positive : algo.grade === 'C' ? t.warning : t.negative
+    const gradeColor = algo.grade <= 'B' ? t.positive : algo.grade === 'C' ? t.warning : t.negative
     parts.push('')
     parts.push(`  ${labeledDivider(`Algorithm Health  ${gradeColor(algo.grade)}`)}`)
     parts.push(`    Reply rate       ${percentBar(algo.replyRate, 15, t.accent)} ${(algo.replyRate * 100).toFixed(0)}%  ${t.muted('27x likes')}`)

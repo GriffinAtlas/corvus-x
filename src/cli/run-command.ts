@@ -17,7 +17,7 @@ import type {
 import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
 
-function initDeps(): CorvusDeps {
+export function initDeps(): CorvusDeps {
   const auth = new AuthManager(ConfigManager.defaultDir())
   const grokKey = auth.getGrokKey()
   if (!grokKey) {

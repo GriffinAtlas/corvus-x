@@ -37,13 +37,6 @@ export function sentimentBar(val: number, width = 20): string {
   }
 }
 
-export function confidenceBar(val: number, width = 20): string {
-  const clamped = Math.max(0, Math.min(1, val))
-  const filled = Math.round(clamped * width)
-  const empty = width - filled
-  return t.positive('█'.repeat(filled)) + t.muted('░'.repeat(empty))
-}
-
 export function divider(width = 45): string {
   return t.muted('─'.repeat(width))
 }
@@ -58,6 +51,8 @@ export function percentBar(value: number, width = 20, color = t.accent): string 
   const filled = Math.round(clamped * width)
   return color('█'.repeat(filled)) + t.muted('░'.repeat(width - filled))
 }
+
+export const confidenceBar = (val: number, width = 20) => percentBar(val, width, t.positive)
 
 const GRADIENT = ['#4A1F8A', '#5C29A8', '#6E33C6', '#7C3AED', '#9F67FF', '#B48AFF']
 

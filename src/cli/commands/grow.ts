@@ -1,17 +1,13 @@
 import { Command } from 'commander'
 import ora from 'ora'
 import { t, divider, banner } from '../theme.js'
-import { renderHooks } from '../output.js'
-import { renderDraft } from '../output.js'
-import { renderTiming } from '../output.js'
+import { initDeps } from '../run-command.js'
+import { renderHooks, renderDraft, renderTiming } from '../output.js'
 import { buildHooksSnapshot } from '../../core/builders/hooks.js'
 import { buildDraftSnapshot } from '../../core/builders/draft.js'
 import { buildTimingSnapshot } from '../../core/builders/timing.js'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
-import { GrokAdapter } from '../../core/grok-adapter.js'
-import { XAdapter } from '../../core/x-adapter.js'
-import type { CorvusDeps } from '../../core/types.js'
 
 export function registerGrowCommand(program: Command): void {
   program
@@ -32,18 +28,7 @@ export function registerGrowCommand(program: Command): void {
           return
         }
 
-        const auth = new AuthManager(ConfigManager.defaultDir())
-        const grokKey = auth.getGrokKey()
-        if (!grokKey) {
-          console.log(t.error('\n  No Grok API key found. Run: corvus auth setup\n'))
-          process.exit(1)
-        }
-        const xToken = auth.getXToken()
-        const deps: CorvusDeps = {
-          grok: new GrokAdapter(grokKey),
-          x: xToken ? new XAdapter(xToken) : null,
-        }
-
+        const deps = initDeps()
         let totalCost = 0
 
         console.log(banner('grow', topic))
@@ -51,42 +36,59 @@ export function registerGrowCommand(program: Command): void {
         console.log()
 
         // Step 1: Hooks
-        const hookSpinner = ora({ text: 'finding conversations to reply to...', indent: 2 }).start()
-        const hooks = await buildHooksSnapshot(deps, topic, 30)
-        hookSpinner.stop()
-        totalCost += hooks.cost
+        let hookSpinner = ora({ text: 'finding conversations to reply to...', indent: 2 }).start()
+        try {
+          const hooks = await buildHooksSnapshot(deps, topic, 30)
+          hookSpinner.stop()
+          totalCost += hooks.cost
 
-        if (hooks.data.opportunities.length > 0) {
-          console.log(`  ${t.heading('Reply Opportunities')}`)
-          console.log(renderHooks(hooks.data))
-        } else {
-          console.log(`  ${t.muted('No reply opportunities found right now.')}`)
+          if (hooks.data.opportunities.length > 0) {
+            console.log(`  ${t.heading('Reply Opportunities')}`)
+            console.log(renderHooks(hooks.data))
+          } else {
+            console.log(`  ${t.muted('No reply opportunities found right now.')}`)
+          }
+          console.log()
+        } catch (err) {
+          hookSpinner.stop()
+          console.log(`  ${t.warning('Hooks skipped:')} ${err instanceof Error ? err.message : String(err)}`)
+          console.log()
         }
-        console.log()
 
         // Step 2: Draft
-        const draftSpinner = ora({ text: 'drafting a post...', indent: 2 }).start()
-        const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread })
-        draftSpinner.stop()
-        totalCost += draft.cost
+        let draftSpinner = ora({ text: 'drafting a post...', indent: 2 }).start()
+        try {
+          const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread })
+          draftSpinner.stop()
+          totalCost += draft.cost
 
-        console.log(`  ${t.heading('Your Draft')}`)
-        console.log(renderDraft(draft.data))
-        console.log()
+          console.log(`  ${t.heading('Your Draft')}`)
+          console.log(renderDraft(draft.data))
+          console.log()
+        } catch (err) {
+          draftSpinner.stop()
+          console.log(`  ${t.warning('Draft skipped:')} ${err instanceof Error ? err.message : String(err)}`)
+          console.log()
+        }
 
         // Step 3: Timing
-        const handle = auth.getXHandle()
-        const timingSpinner = ora({ text: 'analyzing best posting times...', indent: 2 }).start()
-        const timing = await buildTimingSnapshot(deps, {
-          handle: handle ?? undefined,
-          topic,
-        })
-        timingSpinner.stop()
-        totalCost += timing.cost
+        const handle = new AuthManager(ConfigManager.defaultDir()).getXHandle()
+        let timingSpinner = ora({ text: 'analyzing best posting times...', indent: 2 }).start()
+        try {
+          const timing = await buildTimingSnapshot(deps, {
+            handle: handle ?? undefined,
+            topic,
+          })
+          timingSpinner.stop()
+          totalCost += timing.cost
 
-        if (timing.data.peakWindows.length > 0) {
-          console.log(`  ${t.heading('When to Post')}`)
-          console.log(renderTiming(timing.data))
+          if (timing.data.peakWindows.length > 0) {
+            console.log(`  ${t.heading('When to Post')}`)
+            console.log(renderTiming(timing.data))
+          }
+        } catch (err) {
+          timingSpinner.stop()
+          console.log(`  ${t.warning('Timing skipped:')} ${err instanceof Error ? err.message : String(err)}`)
         }
 
         console.log()
