@@ -29,7 +29,7 @@ describe('App', () => {
   it('renders quick start tips', () => {
     const { lastFrame } = render(<App version="0.2.0" init={testInit} />)
     const frame = lastFrame()!
-    expect(frame).toContain('Quick start')
+    expect(frame).toContain('Try')
     expect(frame).toContain('scan')
   })
 

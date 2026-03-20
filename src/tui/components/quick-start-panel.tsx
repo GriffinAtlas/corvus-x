@@ -7,13 +7,10 @@ interface Props {
 }
 
 const TIPS = [
-  { cmd: 'scan "AI agents"', desc: 'snapshot X discourse' },
-  { cmd: 'pulse bitcoin', desc: 'sentiment analysis' },
-  { cmd: 'trace "lab leak"', desc: 'narrative spread' },
-  { cmd: 'hooks "typescript"', desc: 'find reply opportunities' },
-  { cmd: 'draft "AI agents"', desc: 'draft a post in your voice' },
-  { cmd: 'profile @username', desc: 'content strategy analysis' },
-  { cmd: 'review', desc: 'what worked this week' },
+  { cmd: 'grow "topic"', desc: 'daily workflow — hooks + draft + timing' },
+  { cmd: 'scan "topic"', desc: 'what\'s being said + what to do' },
+  { cmd: 'agent "question"', desc: 'deep research — Grok investigates' },
+  { cmd: 'profile @handle', desc: 'algorithm score + strategy' },
 ]
 
 function truncate(text: string, maxLen: number): string {
@@ -21,34 +18,32 @@ function truncate(text: string, maxLen: number): string {
 }
 
 export function QuickStartPanel({ recentTopics }: Props) {
-  const showRecent = recentTopics.length > 0
-
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="#4A1F8A"
-      paddingX={1}
-    >
-      <Text bold dimColor>{showRecent ? 'Recent activity' : 'Quick start'}</Text>
-      {showRecent ? (
-        recentTopics.map((t, i) => (
-          <Box key={i}>
-            <Text color="#7C3AED">{t.command.padEnd(8)}</Text>
-            <Text>{truncate(t.topic, 35).padEnd(38)}</Text>
-            <Text dimColor>{relativeTime(t.latest)}</Text>
-          </Box>
-        ))
-      ) : (
-        TIPS.map((tip, i) => (
-          <Box key={i}>
-            <Text color="#7C3AED" bold>{tip.cmd.padEnd(26)}</Text>
-            <Text dimColor>{tip.desc}</Text>
-          </Box>
-        ))
+    <Box flexDirection="column" borderStyle="round" borderColor="#4A1F8A" paddingX={1}>
+      <Text bold dimColor>Try</Text>
+      {TIPS.map((tip, i) => (
+        <Box key={`tip-${i}`}>
+          <Text color="#7C3AED" bold>{tip.cmd.padEnd(22)}</Text>
+          <Text dimColor>{tip.desc}</Text>
+        </Box>
+      ))}
+
+      {recentTopics.length > 0 && (
+        <>
+          <Text> </Text>
+          <Text bold dimColor>Recent</Text>
+          {recentTopics.slice(0, 3).map((t, i) => (
+            <Box key={`recent-${i}`}>
+              <Text color="#7C3AED">{t.command.padEnd(8)}</Text>
+              <Text>{truncate(t.topic, 30).padEnd(33)}</Text>
+              <Text dimColor>{relativeTime(t.latest)}</Text>
+            </Box>
+          ))}
+        </>
       )}
+
       <Text> </Text>
-      <Text dimColor>/help  /cost  /clear  /exit</Text>
+      <Text dimColor>Just type a question — Corvus will figure out the rest.</Text>
     </Box>
   )
 }

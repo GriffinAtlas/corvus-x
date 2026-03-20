@@ -17,7 +17,7 @@ describe('WelcomeView', () => {
     expect(frame.includes('██████') || frame.includes('╔═╗╔═╗')).toBe(true)
     expect(frame).toContain('●')
     expect(frame).toContain('Grok')
-    expect(frame).toContain('Quick start')
+    expect(frame).toContain('Try')
   })
 
   it('renders setup notice when no key', () => {
@@ -47,7 +47,7 @@ describe('WelcomeView', () => {
       />,
     )
     const frame = lastFrame()!
-    expect(frame).toContain('Recent activity')
+    expect(frame).toContain('Recent')
     expect(frame).toContain('AI regulation')
   })
 })
