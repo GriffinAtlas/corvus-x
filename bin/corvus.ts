@@ -33,6 +33,7 @@ import { registerHooksCommand } from '../src/cli/commands/hooks.js'
 import { registerDraftCommand } from '../src/cli/commands/draft.js'
 import { registerReviewCommand } from '../src/cli/commands/review.js'
 import { registerTimingCommand } from '../src/cli/commands/timing.js'
+import { registerGrowCommand } from '../src/cli/commands/grow.js'
 
 const program = new Command()
 
@@ -63,6 +64,7 @@ registerHooksCommand(program)
 registerDraftCommand(program)
 registerReviewCommand(program)
 registerTimingCommand(program)
+registerGrowCommand(program)
 
 // Monitoring
 registerWatchCommand(program)

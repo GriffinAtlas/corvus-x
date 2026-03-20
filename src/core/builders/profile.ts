@@ -1,5 +1,7 @@
 import { parseGrokJson } from '../grok-adapter.js'
 import { GrokProfileResponseSchema } from '../validators.js'
+import { VoiceProfileManager } from '../voice.js'
+import { ConfigManager } from '../../infra/config.js'
 import type { ProfileSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -106,6 +108,14 @@ async function buildProfileFromXApi(
   )
 
   const grok = parseGrokJson<ProfileSnapshot>(response.text)
+
+  if (isSelf && tweets.length > 0) {
+    const voiceManager = new VoiceProfileManager(ConfigManager.defaultDir())
+    const existing = voiceManager.load()
+    if (!existing || voiceManager.isStale(existing)) {
+      voiceManager.generate(deps.grok, handle, tweets).catch(() => {})
+    }
+  }
 
   return {
     data: {
