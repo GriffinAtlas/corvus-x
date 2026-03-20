@@ -151,6 +151,7 @@ export interface DraftSnapshot {
   thread?: string[]
   angles: string[]
   hashtags: string[]
+  why: string
   contextUsed: boolean
   replyTo?: string
   fetchedAt: string

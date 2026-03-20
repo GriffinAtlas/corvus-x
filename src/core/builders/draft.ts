@@ -4,35 +4,38 @@ import { ConfigManager } from '../../infra/config.js'
 import type { DraftSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
-const SYSTEM_PROMPT = `You are a ghostwriter drafting a social media post. Match the author's voice exactly. Return ONLY a JSON object:
+const SYSTEM_PROMPT = `You are a growth-focused ghostwriter. Draft a post that will get engagement. Match the author's voice. Return ONLY a JSON object:
 {
-  "post": "the drafted post text",
+  "post": "ready-to-publish post",
   "thread": ["post 1", "post 2"],
-  "angles": ["talking point 1"],
-  "hashtags": ["#relevant"]
+  "angles": ["alternative take 1"],
+  "hashtags": ["#relevant"],
+  "why": "why this post should work"
 }
 Rules:
-- post: a single ready-to-publish post (under 280 chars).
-- thread: only if asked for a thread. Array of posts, each under 280 chars.
-- angles: 2-3 alternative talking points the author could use.
-- hashtags: 1-3 relevant hashtags. Empty array if not appropriate for the voice.
-- Ground the post in current X discourse.
-- Reference real conversations, people, events. Never fabricate.
+- post: under 280 chars. Must have a HOOK in the first line that makes people stop scrolling.
+- Strong hooks: bold claim, surprising number, contrarian take, direct question, personal story opening.
+- Weak hooks: "I think...", "Just wanted to share...", "Thread on..."
+- Search X for what's being discussed NOW on this topic. Reference real conversations and people.
+- thread: only if asked. Each post under 280 chars. First post is the hook.
+- angles: 2-3 alternative versions with different hooks.
+- why: one sentence on why this post should get engagement (what gap does it fill, what emotion does it trigger).
 - Return ONLY valid JSON.`
 
-const NO_VOICE_PROMPT = `You are a ghostwriter drafting a social media post. Write in a sharp, concise, developer-friendly voice. Return ONLY a JSON object:
+const NO_VOICE_PROMPT = `You are a growth-focused ghostwriter. Write in a sharp, developer-friendly voice. Return ONLY a JSON object:
 {
-  "post": "the drafted post text",
+  "post": "ready-to-publish post",
   "thread": ["post 1", "post 2"],
-  "angles": ["talking point 1"],
-  "hashtags": ["#relevant"]
+  "angles": ["alternative take 1"],
+  "hashtags": ["#relevant"],
+  "why": "why this post should work"
 }
 Rules:
-- post: a single ready-to-publish post (under 280 chars).
-- thread: only if asked for a thread.
-- angles: 2-3 alternative talking points.
-- hashtags: 1-3 relevant hashtags or empty array.
-- Reference real current discourse.
+- post: under 280 chars. First line must be a HOOK — bold claim, number, question, or contrarian take.
+- Search X for what's trending on this topic. Reference real conversations.
+- thread: only if asked.
+- angles: 2-3 alternatives with different hooks.
+- why: why this should get engagement.
 - Return ONLY valid JSON.`
 
 interface GrokDraftResponse {
@@ -40,12 +43,13 @@ interface GrokDraftResponse {
   thread?: string[]
   angles: string[]
   hashtags: string[]
+  why: string
 }
 
 export async function buildDraftSnapshot(
   deps: CorvusDeps,
   topic: string,
-  options: { thread?: boolean; replyTo?: string; noContext?: boolean },
+  options: { thread?: boolean; replyTo?: string; noContext?: boolean; hooksContext?: string },
 ): Promise<BuildResult<DraftSnapshot>> {
   const voiceManager = new VoiceProfileManager(ConfigManager.defaultDir())
   const voiceProfile = voiceManager.load()
@@ -63,6 +67,7 @@ export async function buildDraftSnapshot(
   const systemPrompt = hasVoice ? SYSTEM_PROMPT : NO_VOICE_PROMPT
 
   let userPrompt = `Draft a post about: ${topic}${voiceContext}`
+  if (options.hooksContext) userPrompt += `\n\nHere are conversations happening right now on this topic that you should reference or respond to:\n${options.hooksContext}`
   if (options.thread) userPrompt += '\n\nFormat as a thread (multiple posts).'
   if (options.replyTo) userPrompt += `\n\nThis is a reply to: ${options.replyTo}`
 
@@ -81,6 +86,7 @@ export async function buildDraftSnapshot(
       thread: options.thread ? grok.thread : undefined,
       angles: grok.angles ?? [],
       hashtags: grok.hashtags ?? [],
+      why: grok.why ?? '',
       contextUsed: !options.noContext,
       replyTo: options.replyTo,
       fetchedAt: new Date().toISOString(),

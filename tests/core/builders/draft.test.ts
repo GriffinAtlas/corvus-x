@@ -9,6 +9,7 @@ const draftGrokResponse = {
   thread: ['1/3 TypeScript agents...', '2/3 The key insight...', '3/3 Try it yourself...'],
   angles: ['Focus on the architecture', 'Lead with the cost savings'],
   hashtags: ['#TypeScript', '#AIAgents'],
+  why: 'Bold claim + personal experience hook — fills a gap in the current thread-heavy discourse',
 }
 
 function makeDeps(grokResponse: unknown): CorvusDeps {

@@ -34,6 +34,7 @@ export function registerGrowCommand(program: Command): void {
         console.log(`  ${divider()}`)
         console.log()
 
+        let hooksContext = ''
         const hookSpinner = ora({ text: 'finding conversations to reply to...', indent: 2 }).start()
         try {
           const hooks = await buildHooksSnapshot(deps, topic, 30)
@@ -43,6 +44,10 @@ export function registerGrowCommand(program: Command): void {
           if (hooks.data.opportunities.length > 0) {
             console.log(`  ${t.heading('Reply Opportunities')}`)
             console.log(renderHooks(hooks.data))
+            hooksContext = hooks.data.opportunities
+              .slice(0, 3)
+              .map((o) => `@${o.author} (${o.authorFollowers} followers): "${o.content}" — ${o.suggestedAngle}`)
+              .join('\n')
           } else {
             console.log(`  ${t.muted('No reply opportunities found right now.')}`)
           }
@@ -55,7 +60,7 @@ export function registerGrowCommand(program: Command): void {
 
         const draftSpinner = ora({ text: 'drafting a post...', indent: 2 }).start()
         try {
-          const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread })
+          const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread, hooksContext: hooksContext || undefined })
           draftSpinner.stop()
           totalCost += draft.cost
 

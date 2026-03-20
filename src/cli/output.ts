@@ -394,21 +394,25 @@ export function renderProfile(data: ProfileSnapshot): string {
 export function renderDraft(data: DraftSnapshot): string {
   const parts: string[] = []
 
-  parts.push(`  ${t.heading('Draft')} ${t.muted(`· ${data.topic}`)}`)
-  parts.push('')
+  if (data.why) {
+    parts.push(`  ${t.muted(data.why)}`)
+    parts.push('')
+  }
+
+  parts.push(`  ${t.heading('Post')}`)
   parts.push(`  ${data.post}`)
 
   if (data.thread && data.thread.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Thread')}`)
+    parts.push(`  ${labeledDivider('Thread')}`)
     for (let i = 0; i < data.thread.length; i++) {
-      parts.push(`    ${i + 1}/${data.thread.length}  ${data.thread[i]}`)
+      parts.push(`    ${t.accent(`${i + 1}/${data.thread.length}`)}  ${data.thread[i]}`)
     }
   }
 
   if (data.angles.length > 0) {
     parts.push('')
-    parts.push(`  ${t.heading('Alternative Angles')}`)
+    parts.push(`  ${labeledDivider('Other angles you could take')}`)
     for (const a of data.angles) {
       parts.push(`    · ${a}`)
     }
