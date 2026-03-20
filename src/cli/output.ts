@@ -337,7 +337,7 @@ export function renderProfile(data: ProfileSnapshot): string {
   }
 
   const algo = data.algorithmScore
-  if (algo && algo.grade && algo.grade !== 'N/A') {
+  if (algo.grade !== 'N/A') {
     const gradeColor = algo.grade <= 'B' ? t.positive : algo.grade === 'C' ? t.warning : t.negative
     parts.push('')
     parts.push(`  ${labeledDivider(`Algorithm Health  ${gradeColor(algo.grade)}`)}`)

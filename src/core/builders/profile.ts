@@ -109,7 +109,6 @@ async function buildProfileFromXApi(
 
   const grok = parseGrokJson<ProfileSnapshot>(response.text)
 
-  // Compute real replyRate from actual tweet data — override Grok's estimate
   const realReplyRate = tweets.length > 0
     ? tweets.filter((tw) => tw.metrics.replies > 0).length / tweets.length
     : 0

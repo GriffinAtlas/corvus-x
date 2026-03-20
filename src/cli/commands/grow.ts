@@ -34,8 +34,7 @@ export function registerGrowCommand(program: Command): void {
         console.log(`  ${divider()}`)
         console.log()
 
-        // Step 1: Hooks
-        let hookSpinner = ora({ text: 'finding conversations to reply to...', indent: 2 }).start()
+        const hookSpinner = ora({ text: 'finding conversations to reply to...', indent: 2 }).start()
         try {
           const hooks = await buildHooksSnapshot(deps, topic, 30)
           hookSpinner.stop()
@@ -54,8 +53,7 @@ export function registerGrowCommand(program: Command): void {
           console.log()
         }
 
-        // Step 2: Draft
-        let draftSpinner = ora({ text: 'drafting a post...', indent: 2 }).start()
+        const draftSpinner = ora({ text: 'drafting a post...', indent: 2 }).start()
         try {
           const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread })
           draftSpinner.stop()
@@ -70,9 +68,8 @@ export function registerGrowCommand(program: Command): void {
           console.log()
         }
 
-        // Step 3: Timing
         const handle = new AuthManager(ConfigManager.defaultDir()).getXHandle()
-        let timingSpinner = ora({ text: 'analyzing best posting times...', indent: 2 }).start()
+        const timingSpinner = ora({ text: 'analyzing best posting times...', indent: 2 }).start()
         try {
           const timing = await buildTimingSnapshot(deps, {
             handle: handle ?? undefined,
