@@ -1,5 +1,6 @@
 import React, { useReducer, useRef, useState, useEffect } from 'react'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
+import { useScreenSize } from 'fullscreen-ink'
 import { WelcomeView } from './components/welcome-view.js'
 import { CompactHeader } from './components/compact-header.js'
 import { ChatViewport } from './components/chat-viewport.js'
@@ -72,8 +73,7 @@ export function App({ version, init }: Props) {
 
   const [scrollOffset, setScrollOffset] = useState(0)
   const userScrolled = useRef(false)
-  const { stdout } = useStdout()
-  const terminalHeight = stdout?.rows ?? 24
+  const { height: terminalHeight } = useScreenSize()
 
   // Auto-snap to bottom on new entries — only when user hasn't scrolled away
   const historyLength = session.history.length
@@ -121,7 +121,8 @@ export function App({ version, init }: Props) {
   return (
     <SessionContext value={session}>
       <DispatchContext value={dispatch}>
-        <Box flexDirection="column">
+        <Box flexDirection="column" height={terminalHeight}>
+          {/* Pinned header */}
           <CompactHeader
             version={version}
             grokStatus={session.grokStatus}
@@ -129,22 +130,28 @@ export function App({ version, init }: Props) {
             totalCost={session.totalCost}
             queryCount={session.queryCount}
           />
-          {session.history.length === 0 ? (
-            <WelcomeView
-              version={version}
-              grokStatus={session.grokStatus}
-              xApiStatus={session.xApiStatus}
-              totalCost={session.totalCost}
-              queryCount={session.queryCount}
-              recentTopics={recentTopics}
-            />
-          ) : (
-            <ChatViewport
-              entries={session.history}
-              scrollOffset={scrollOffset}
-              viewportHeight={terminalHeight - 6}
-            />
-          )}
+
+          {/* Content area — fills all available space */}
+          <Box flexDirection="column" flexGrow={1}>
+            {session.history.length === 0 ? (
+              <WelcomeView
+                version={version}
+                grokStatus={session.grokStatus}
+                xApiStatus={session.xApiStatus}
+                totalCost={session.totalCost}
+                queryCount={session.queryCount}
+                recentTopics={recentTopics}
+              />
+            ) : (
+              <ChatViewport
+                entries={session.history}
+                scrollOffset={scrollOffset}
+                viewportHeight={terminalHeight - 4}
+              />
+            )}
+          </Box>
+
+          {/* Pinned footer */}
           <InputBar onSubmit={execute} isLoading={isLoading} phaseLabel={phaseLabel} />
           <ShortcutBar />
         </Box>
