@@ -51,15 +51,16 @@ export async function buildDraftSnapshot(
   const voiceProfile = voiceManager.load()
 
   let voiceContext = ''
-  if (voiceProfile) {
-    const traits = voiceProfile.traits
+  const hasVoice = voiceProfile?.traits?.tone
+  if (hasVoice) {
+    const traits = voiceProfile!.traits
     voiceContext = `\n\nAuthor voice profile:\n- Tone: ${traits.tone}\n- Vocabulary: ${traits.vocabulary}\n- Sentence style: ${traits.sentenceStyle}\n- Emoji: ${traits.emojiUsage}\n- Humor: ${traits.humor}\n- Avg post length: ${traits.avgPostLength} chars`
-    if (voiceProfile.examplePosts.length > 0) {
-      voiceContext += `\n\nExample posts by this author:\n${voiceProfile.examplePosts.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+    if (voiceProfile!.examplePosts?.length > 0) {
+      voiceContext += `\n\nExample posts by this author:\n${voiceProfile!.examplePosts.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
     }
   }
 
-  const systemPrompt = voiceProfile ? SYSTEM_PROMPT : NO_VOICE_PROMPT
+  const systemPrompt = hasVoice ? SYSTEM_PROMPT : NO_VOICE_PROMPT
 
   let userPrompt = `Draft a post about: ${topic}${voiceContext}`
   if (options.thread) userPrompt += '\n\nFormat as a thread (multiple posts).'
