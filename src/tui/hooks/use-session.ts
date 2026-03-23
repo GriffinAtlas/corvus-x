@@ -14,9 +14,9 @@ export interface ContextEntry {
 
 export type ChatEntry =
   | { type: 'user'; text: string }
-  | { type: 'result'; refId: string; command: string; topic: string; rendered: string;
+  | { type: 'result'; refId?: string; command: string; topic: string; rendered: string;
       cost: number; elapsed: number; expanded?: boolean }
-  | { type: 'prose'; refId: string; text: string; cost: number; expanded?: boolean }
+  | { type: 'prose'; refId?: string; text: string; cost: number; expanded?: boolean }
   | { type: 'error'; message: string }
   | { type: 'system'; message: string }
 
@@ -53,7 +53,7 @@ export const initialSession: Session = {
   contextMap: {},
 }
 
-function normalizeTopic(topic: string): string {
+export function normalizeTopic(topic: string): string {
   return topic.toLowerCase().trim()
 }
 

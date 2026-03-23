@@ -5,8 +5,10 @@ import type {
   TraceSnapshot,
   ProfileSnapshot,
   HooksSnapshot,
+  DraftSnapshot,
   ReviewSnapshot,
   TimingSnapshot,
+  Snapshot,
 } from './schemas.js'
 
 const MAX_CONTEXT_LENGTH = 2000
@@ -68,15 +70,27 @@ function summarizeTiming(snapshot: TimingSnapshot): string {
   return `[timing] Peak windows: ${windowStrs.join(', ')}`
 }
 
+function summarizeDraft(snapshot: DraftSnapshot): string {
+  const parts = [`Topic: ${snapshot.topic}`]
+  parts.push(`Post: ${snapshot.post.slice(0, 120)}${snapshot.post.length > 120 ? '...' : ''}`)
+  if (snapshot.angles.length > 0) parts.push(`Angles: ${snapshot.angles.slice(0, 2).join('; ')}`)
+  return `[draft] ${parts.join(' | ')}`
+}
+
+const summarizers: Record<string, (snap: Snapshot) => string> = {
+  scan: (s) => summarizeScan(s as ScanSnapshot),
+  pulse: (s) => summarizePulse(s as PulseSnapshot),
+  trace: (s) => summarizeTrace(s as TraceSnapshot),
+  profile: (s) => summarizeProfile(s as ProfileSnapshot),
+  hooks: (s) => summarizeHooks(s as HooksSnapshot),
+  review: (s) => summarizeReview(s as ReviewSnapshot),
+  timing: (s) => summarizeTiming(s as TimingSnapshot),
+  draft: (s) => summarizeDraft(s as DraftSnapshot),
+}
+
 function summarizeEntry(entry: ContextEntry): string {
-  const snap = entry.snapshot
-  if ('takeaway' in snap && 'signals' in snap) return summarizeScan(snap as ScanSnapshot)
-  if ('takeaway' in snap && 'bullSignals' in snap) return summarizePulse(snap as PulseSnapshot)
-  if ('origin' in snap && 'mutations' in snap) return summarizeTrace(snap as TraceSnapshot)
-  if ('handle' in snap && 'algorithmScore' in snap) return summarizeProfile(snap as ProfileSnapshot)
-  if ('opportunities' in snap) return summarizeHooks(snap as HooksSnapshot)
-  if ('patterns' in snap && 'underperformers' in snap) return summarizeReview(snap as ReviewSnapshot)
-  if ('peakWindows' in snap) return summarizeTiming(snap as TimingSnapshot)
+  const fn = summarizers[entry.command]
+  if (fn) return fn(entry.snapshot)
   return `[${entry.command}] (data available)`
 }
 

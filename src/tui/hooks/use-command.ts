@@ -15,11 +15,13 @@ import { agentMulti, AgentPlanner, AgentExecutor, AgentSynthesizer } from '../..
 import { renderScan, renderPulse, renderTrace, renderProfile, renderDraft, renderHooks, renderReview, renderTiming, renderAgentBrief } from '../../cli/output.js'
 import { buildContextSummary } from '../../core/context.js'
 import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS, HOOKS_MATCH_KEYS, REVIEW_MATCH_KEYS, TIMING_MATCH_KEYS } from '../../core/schemas.js'
+import { XRateLimitError, XApiError } from '../../core/x-adapter.js'
 import type { CorvusDeps } from '../../core/types.js'
 import type { Snapshot, MatchKeys } from '../../core/schemas.js'
 import type { BuildResult } from '../../core/types.js'
 import type { Dispatch } from 'react'
 import type { ChatEntry, SessionAction, Session } from './use-session.js'
+import { normalizeTopic } from './use-session.js'
 
 const HELP_TEXT = `Commands:
   scan <topic>        Snapshot X discourse on a topic
@@ -45,13 +47,11 @@ Context flows between commands on the same topic.
 Run scan first, then draft — the draft will use scan insights.`
 
 function getContextForTopic(session: Session, topic: string): string {
-  const key = topic.toLowerCase().trim()
-  const entries = session.contextMap[key]
+  const entries = session.contextMap[normalizeTopic(topic)]
   if (!entries || entries.length === 0) return ''
   return buildContextSummary(entries)
 }
 
-// Helper to reduce repetition across the structured commands
 async function runStructured<T extends Snapshot>(
   dispatch: Dispatch<SessionAction>,
   deps: CorvusDeps,
@@ -72,7 +72,7 @@ async function runStructured<T extends Snapshot>(
   dispatch({
     type: 'add-result',
     entry: {
-      type: 'result', refId: '', command, topic,
+      type: 'result', command, topic,
       rendered: renderFn(result.data as T),
       cost: result.cost,
       elapsed: Date.now() - startTime,
@@ -85,7 +85,7 @@ async function runStructured<T extends Snapshot>(
   })
 }
 
-export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void, history: ChatEntry[] = [], session?: Session) {
+export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAction>, exit: () => void, session: Session) {
   const [isLoading, setIsLoading] = useState(false)
   const [phaseLabel, setPhaseLabel] = useState<string | null>(null)
 
@@ -119,7 +119,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           exit()
           return
         case 'brief': {
-          const results = history.filter(
+          const results = session.history.filter(
             (e): e is Extract<ChatEntry, { type: 'result' }> => e.type === 'result',
           )
           if (results.length === 0) {
@@ -138,14 +138,14 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         case 'view': {
           // Ref ID mode (e.g., /view scan:1)
           if (parsed.args?.refId) {
-            const idx = history.findIndex(
+            const idx = session.history.findIndex(
               (e) => (e.type === 'result' || e.type === 'prose') && e.refId === parsed.args!.refId,
             )
             if (idx < 0) {
               dispatch({ type: 'add-error', message: `No result with ref ${parsed.args.refId}. Try /brief to see available refs.` })
               return
             }
-            const entry = history[idx]
+            const entry = session.history[idx]
             if ((entry.type === 'result' || entry.type === 'prose') && entry.expanded) {
               dispatch({ type: 'add-error', message: `${parsed.args.refId} is already expanded.` })
               return
@@ -155,11 +155,11 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           }
           // Numeric index mode (e.g., /view 3)
           const index = parseInt(parsed.args?.index ?? '') - 1
-          if (index < 0 || index >= history.length) {
+          if (index < 0 || index >= session.history.length) {
             dispatch({ type: 'add-error', message: `Entry ${index + 1} does not exist.` })
             return
           }
-          const entry = history[index]
+          const entry = session.history[index]
           if (entry.type !== 'result' && entry.type !== 'prose') {
             dispatch({ type: 'add-error', message: `Entry ${index + 1} is not expandable.` })
             return
@@ -196,7 +196,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
     try {
       const { command, args } = parsed
       const baseDir = ConfigManager.defaultDir()
-      const priorContext = session ? getContextForTopic(session, args.topic ?? args.question ?? '') : ''
+      const priorContext = getContextForTopic(session, args.topic ?? args.question ?? '')
 
       if (command === 'ask') {
         setPhaseLabel('thinking...')
@@ -209,7 +209,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         const cleanText = response.text.replace(/\[\[(\d+)\]\]\([^)]+\)/g, '[$1]')
         dispatch({
           type: 'add-result',
-          entry: { type: 'prose', refId: '', text: cleanText, cost: response.usage.costUsd },
+          entry: { type: 'prose', text: cleanText, cost: response.usage.costUsd },
         })
       } else if (command === 'agent') {
         setPhaseLabel(`investigating "${args.question}"...`)
@@ -227,14 +227,15 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           dispatch({
             type: 'add-result',
             entry: {
-              type: 'result', refId: '', command: 'agent', topic: args.question,
+              type: 'result', command: 'agent', topic: args.question,
               rendered,
               cost: result.cost,
               elapsed: result.durationMs,
             },
           })
-        } catch {
-          // Fallback to classic agent pipeline
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg.includes('rate limit') || msg.includes('429') || msg.includes('authentication') || msg.includes('401')) throw err
           setPhaseLabel(`investigating "${args.question}" (classic)...`)
           const planner = new AgentPlanner(deps.grok)
           const { plan, costUsd: planCost } = await planner.plan(args.question)
@@ -275,7 +276,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           dispatch({
             type: 'add-result',
             entry: {
-              type: 'result', refId: '', command: 'agent', topic: args.question,
+              type: 'result', command: 'agent', topic: args.question,
               rendered,
               cost: ctx.totalCost,
               elapsed: Date.now() - startTime,
@@ -299,8 +300,9 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         await runStructured(dispatch, deps, 'draft', args.topic, {},
           () => buildDraftSnapshot(deps, args.topic, { priorContext: priorContext || undefined }), renderDraft, startTime, baseDir)
       } else if (command === 'grow') {
-        // Progressive grow: each step dispatches its own result
         const topic = args.topic
+        // Capture prior context before dispatches (React state updates are async)
+        const draftContext = getContextForTopic(session, topic)
 
         // Step 1: Hooks
         setPhaseLabel(`grow "${topic}" — finding hooks...`)
@@ -309,7 +311,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         dispatch({
           type: 'add-result',
           entry: {
-            type: 'result', refId: '', command: 'hooks', topic,
+            type: 'result', command: 'hooks', topic,
             rendered: renderHooks(hooks.data),
             cost: hooks.cost,
             elapsed: Date.now() - startTime,
@@ -328,13 +330,12 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           .slice(0, 5)
           .map((o) => `@${o.author}: "${o.content}" (${o.engagement.likes} likes, ${o.engagement.replies} replies) — angle: ${o.suggestedAngle}`)
           .join('\n')
-        const draftContext = session ? getContextForTopic(session, topic) : ''
         const draft = await buildDraftSnapshot(deps, topic, { hooksContext, priorContext: draftContext || undefined })
         dispatch({ type: 'add-cost', cost: draft.cost })
         dispatch({
           type: 'add-result',
           entry: {
-            type: 'result', refId: '', command: 'draft', topic,
+            type: 'result', command: 'draft', topic,
             rendered: renderDraft(draft.data),
             cost: draft.cost,
             elapsed: Date.now() - hooksEndTime,
@@ -355,7 +356,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         dispatch({
           type: 'add-result',
           entry: {
-            type: 'result', refId: '', command: 'timing', topic,
+            type: 'result', command: 'timing', topic,
             rendered: renderTiming(timing.data),
             cost: timing.cost,
             elapsed: Date.now() - draftEndTime,
@@ -411,11 +412,14 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      if (message.includes('rate limit') || message.includes('429')) {
-        dispatch({ type: 'add-error', message: `Rate limited. ${message}` })
-      } else if (message.includes('X API')) {
+      if (err instanceof XRateLimitError) {
+        dispatch({ type: 'set-x-status', status: 'error' })
+        dispatch({ type: 'add-error', message: `X rate limited until ${err.resetAt.toISOString()}` })
+      } else if (err instanceof XApiError) {
         dispatch({ type: 'set-x-status', status: 'error' })
         dispatch({ type: 'add-error', message: `X API error: ${message}` })
+      } else if (message.includes('429') || message.toLowerCase().includes('rate limit')) {
+        dispatch({ type: 'add-error', message: `Rate limited. ${message}` })
       } else {
         dispatch({ type: 'set-grok-status', status: 'error' })
         dispatch({ type: 'add-error', message })
@@ -424,7 +428,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       setPhaseLabel(null)
       setIsLoading(false)
     }
-  }, [deps, dispatch, exit, history, session])
+  }, [deps, dispatch, exit, session])
 
   return { execute, isLoading, phaseLabel }
 }

@@ -12,7 +12,7 @@ interface Props {
   index?: number
 }
 
-export function ResultCard({ refId, command, topic, rendered, cost, elapsed, truncated, index }: Props) {
+export function ResultCard({ refId, command, topic, rendered, cost: _cost, elapsed, truncated, index }: Props) {
   const elapsedStr = `${(elapsed / 1000).toFixed(1)}s`
 
   return (

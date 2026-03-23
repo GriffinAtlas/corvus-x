@@ -1,5 +1,5 @@
 import React, { useReducer, useRef, useState, useEffect } from 'react'
-import { Box, Text, useApp, useInput, useStdout } from 'ink'
+import { Box, useApp, useInput, useStdout } from 'ink'
 import { WelcomeView } from './components/welcome-view.js'
 import { CompactHeader } from './components/compact-header.js'
 import { ChatViewport } from './components/chat-viewport.js'
@@ -68,7 +68,7 @@ export function App({ version, init }: Props) {
     xApiStatus,
   })
 
-  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit, session.history, session)
+  const { execute, isLoading, phaseLabel } = useCommand(deps, dispatch, exit, session)
 
   const [scrollOffset, setScrollOffset] = useState(0)
   const userScrolled = useRef(false)

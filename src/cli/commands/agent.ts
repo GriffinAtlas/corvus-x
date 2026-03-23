@@ -157,12 +157,11 @@ async function runClassicAgent(
   console.log(t.muted(`  planning: ${question}`))
   const planner = new AgentPlanner(deps.grok)
   let plan: AgentPlan
-  let planCost: number
 
   const planStart = Date.now()
   const planResult = await planner.plan(question)
   plan = planResult.plan
-  planCost = planResult.costUsd
+  const planCost = planResult.costUsd
   const planDuration = ((Date.now() - planStart) / 1000).toFixed(1)
   console.log(t.muted(`  plan: ${plan.steps.length} steps (${planDuration}s)\n`))
 
