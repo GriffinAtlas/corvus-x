@@ -540,6 +540,7 @@ export interface AgentBriefRenderOptions {
   tweetCount: number
   accountCount: number
   cost: number
+  tokenSummary?: string
   previousSentiment?: number
 }
 
@@ -598,7 +599,7 @@ export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOption
   parts.push(`  ${divider()}`)
   const duration = (opts.durationMs / 1000).toFixed(1)
   parts.push(
-    `  ${t.muted(`${opts.stepCount} steps · ${duration}s · ${opts.tweetCount} tweets · ${opts.accountCount} accounts · $${opts.cost.toFixed(4)}`)}`,
+    `  ${t.muted(`${opts.stepCount} steps · ${duration}s · ${opts.tweetCount} tweets · ${opts.accountCount} accounts${opts.tokenSummary ? ` · ${opts.tokenSummary}` : ''} · $${opts.cost.toFixed(4)}`)}`,
   )
 
   return parts.join('\n')
@@ -642,7 +643,7 @@ export function renderAgentBriefMd(brief: AgentBrief, opts: AgentBriefRenderOpti
 
   parts.push(`---`)
   parts.push(
-    `*Confidence: ${brief.confidence.overall} (${brief.confidence.volume}) | ${opts.stepCount} steps | ${opts.tweetCount} tweets | $${opts.cost.toFixed(4)}*`,
+    `*Confidence: ${brief.confidence.overall} (${brief.confidence.volume}) | ${opts.stepCount} steps | ${opts.tweetCount} tweets${opts.tokenSummary ? ` | ${opts.tokenSummary}` : ''} | $${opts.cost.toFixed(4)}*`,
   )
 
   return parts.join('\n')

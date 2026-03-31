@@ -33,6 +33,10 @@ export {
   computeEngagementScore,
 } from './core/metrics.js'
 
+// Usage & compaction
+export { UsageTracker } from './core/usage.js'
+export { compactResults, estimateTokens, estimateResultTokens, compactSnapshot } from './core/compaction.js'
+
 // Storage & diff
 export { SnapshotStore } from './core/snapshots.js'
 export { diffSnapshots, formatDiffLines } from './core/differ.js'
@@ -75,6 +79,8 @@ export {
   ReplanDecisionSchema,
 } from './core/validators.js'
 
+export type { TokenUsage } from './core/usage.js'
+export type { CompactionConfig } from './core/compaction.js'
 export type { Tweet, XUser } from './core/x-adapter.js'
 export type { DiffLine } from './core/differ.js'
 export type { CacheEntry, CostLedger } from './core/cache.js'

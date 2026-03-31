@@ -5,6 +5,7 @@ import type { GrokAdapter } from '../../src/core/grok-adapter.js'
 import type { CorvusDeps } from '../../src/core/types.js'
 import type { GrokResponse } from '../../src/core/types.js'
 import type { ScanSnapshot, PulseSnapshot, AgentBrief } from '../../src/core/schemas.js'
+import { UsageTracker } from '../../src/core/usage.js'
 
 function makeGrokResponse(text: string, cost = 0.001): GrokResponse {
   return {
@@ -39,6 +40,9 @@ vi.mock('../../src/core/builders/scan.js', () => ({
     } satisfies ScanSnapshot,
     raw: '{}',
     cost: 0.002,
+    inputTokens: 500,
+    outputTokens: 200,
+    toolCalls: 1,
     tweets: Array.from({ length: 10 }, (_, i) => ({
       id: String(i),
       text: `tweet ${i} about ${topic}`,
@@ -67,6 +71,9 @@ vi.mock('../../src/core/builders/pulse.js', () => ({
     } satisfies PulseSnapshot,
     raw: '{}',
     cost: 0.002,
+    inputTokens: 500,
+    outputTokens: 200,
+    toolCalls: 1,
     tweets: Array.from({ length: 10 }, (_, i) => ({
       id: String(100 + i),
       text: `pulse tweet ${i}`,
@@ -100,6 +107,9 @@ vi.mock('../../src/core/builders/profile.js', () => ({
     },
     raw: '{}',
     cost: 0.001,
+    inputTokens: 400,
+    outputTokens: 150,
+    toolCalls: 0,
     tweets: [],
     scores: [],
     newestTweetAt: null,
@@ -309,6 +319,27 @@ describe('AgentExecutor', () => {
     expect(context.results).toHaveLength(1)
     expect(context.results[0].command).toBe('scan')
     expect(context.results[0].cost).toBeGreaterThan(0)
+  })
+
+  it('records token usage from each step', async () => {
+    const plan: AgentPlan = {
+      goal: 'Test',
+      steps: [
+        { command: 'scan', args: { topic: 'bitcoin' }, reasoning: 'Step 1' },
+        { command: 'pulse', args: { topic: 'bitcoin' }, reasoning: 'Step 2' },
+      ],
+    }
+
+    const executor = new AgentExecutor(mockDeps, 'test', plan, defaultOptions)
+    const context = await executor.execute(0)
+
+    expect(context.usage.turnCount).toBe(2)
+    // Mock scan returns inputTokens: 500, outputTokens: 200
+    // Mock pulse returns inputTokens: 500, outputTokens: 200
+    expect(context.usage.totalInputTokens).toBe(1000)
+    expect(context.usage.totalOutputTokens).toBe(400)
+    expect(context.usage.totalTokens).toBe(1400)
+    expect(context.usage.totalToolCalls).toBe(2) // both mocks have toolCalls: 1
   })
 
   it('handles profile steps with username arg', async () => {
@@ -1130,6 +1161,7 @@ describe('AgentSynthesizer citations', () => {
       ],
       totalCost: 0.001,
       leads: [],
+      usage: new UsageTracker(),
     }
 
     const brief = await synthesizer.synthesize(context)
@@ -1157,6 +1189,7 @@ describe('AgentSynthesizer citations', () => {
       ],
       totalCost: 0,
       leads: [],
+      usage: new UsageTracker(),
     }
 
     const brief = await synthesizer.synthesize(context)
@@ -1176,7 +1209,7 @@ describe('AgentSynthesizer onChunk', () => {
     }
 
     const synthesizer = new AgentSynthesizer(mockGrok as any)
-    const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [] }
+    const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [], usage: new UsageTracker() }
 
     await synthesizer.synthesize(context, (_text) => {})
     expect(mockGrok.queryStream).toHaveBeenCalled()
@@ -1194,11 +1227,54 @@ describe('AgentSynthesizer onChunk', () => {
     }
 
     const synthesizer = new AgentSynthesizer(mockGrok as any)
-    const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [] }
+    const context: AgentContext = { goal: 'test', question: 'q', results: [], totalCost: 0, leads: [], usage: new UsageTracker() }
 
     await synthesizer.synthesize(context)
     expect(mockGrok.query).toHaveBeenCalled()
     expect(mockGrok.queryStream).not.toHaveBeenCalled()
+  })
+})
+
+describe('AgentSynthesizer compaction', () => {
+  it('sends compacted text for results exceeding preserveRecent', async () => {
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          signalLine: 'Test',
+          summary: [],
+          contradictions: [],
+          keyAccounts: [],
+          evidence: [],
+        }),
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+    }
+
+    const synthesizer = new AgentSynthesizer(mockGrok as any)
+    const context: AgentContext = {
+      goal: 'test',
+      question: 'what is happening?',
+      results: [
+        { step: { command: 'scan', args: { topic: 'step1' }, reasoning: '' }, command: 'scan', snapshot: { takeaway: 'Step 1 finding', actions: [], metrics: { tweetCount: 10, totalEngagement: 100, uniqueAuthors: 5, engagementPerTweet: 10 }, sentiment: { avg: 0.3, positive: 5, neutral: 3, negative: 2 }, topAccounts: [{ handle: 'alice', postCount: 3, followers: 5000, avgSentiment: 0.5 }], narratives: [{ theme: 'theme1', description: 'desc', tweetCount: 5, avgSentiment: 0.3 }], signals: ['sig1'] } as any, cost: 0.001, durationMs: 100, tweets: [], scores: [], newestTweetAt: null, citations: [] },
+        { step: { command: 'pulse', args: { topic: 'step2' }, reasoning: '' }, command: 'pulse', snapshot: { takeaway: 'Step 2 finding', actions: [], metrics: { tweetCount: 8, totalEngagement: 80, uniqueAuthors: 4, engagementPerTweet: 10 }, sentiment: { avg: -0.1, positive: 2, neutral: 4, negative: 2 }, bullSignals: ['bull1'], bearSignals: ['bear1'], keyVoices: [] } as any, cost: 0.001, durationMs: 100, tweets: [], scores: [], newestTweetAt: null, citations: [] },
+        { step: { command: 'scan', args: { topic: 'step3' }, reasoning: '' }, command: 'scan', snapshot: { takeaway: 'Step 3 finding', actions: [], metrics: { tweetCount: 12, totalEngagement: 120, uniqueAuthors: 6, engagementPerTweet: 10 }, sentiment: { avg: 0.5, positive: 6, neutral: 4, negative: 2 }, topAccounts: [], narratives: [], signals: [] } as any, cost: 0.001, durationMs: 100, tweets: [], scores: [], newestTweetAt: null, citations: [] },
+        { step: { command: 'scan', args: { topic: 'step4' }, reasoning: '' }, command: 'scan', snapshot: { takeaway: 'Step 4 finding', actions: [], metrics: { tweetCount: 15, totalEngagement: 150, uniqueAuthors: 7, engagementPerTweet: 10 }, sentiment: { avg: 0.7, positive: 8, neutral: 5, negative: 2 }, topAccounts: [], narratives: [], signals: [] } as any, cost: 0.001, durationMs: 100, tweets: [], scores: [], newestTweetAt: null, citations: [] },
+      ],
+      totalCost: 0.004,
+      leads: [],
+      usage: new UsageTracker(),
+    }
+
+    await synthesizer.synthesize(context)
+
+    const prompt = mockGrok.query.mock.calls[0][0] as string
+    // First 2 results should be condensed (preserveRecent=2 by default)
+    expect(prompt).toContain('(condensed)')
+    // Last 2 results should be full JSON
+    expect(prompt).toContain('"Step 4 finding"')
+    // The earlier steps condensed note
+    expect(prompt).toContain('earlier steps condensed')
   })
 })
 
@@ -1287,6 +1363,7 @@ describe('AgentSynthesizer mergeContradictions', () => {
       results: [],
       totalCost: 0,
       leads: [],
+      usage: new UsageTracker(),
     }
 
     const brief = await synthesizer.synthesize(context)

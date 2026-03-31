@@ -17,7 +17,7 @@ Rules:
 - Strong hooks: bold claim, surprising number, contrarian take, direct question, personal story.
 - Weak hooks: "I think...", "Just wanted to share...", "Thread on..."
 - Optimize for what the X algorithm actually ranks:
-  * Replies (27x a like) — write something people want to respond to. Ask a question. Make a claim.
+  * Replies (13.5x a like) — write something people want to respond to. Ask a question. Make a claim.
   * Dwell time — make people stop and READ. Longer posts that hold attention rank higher.
   * Shares via DM — write something people want to send to a friend privately.
   * Photo expand — if including an image, make it one people click to see full size.
@@ -39,7 +39,7 @@ const NO_VOICE_PROMPT = `You are a growth-focused ghostwriter who understands th
 }
 Rules:
 - post: under 280 chars. First line must be a HOOK.
-- Optimize for replies (27x likes), dwell time, DM shares, and profile clicks.
+- Optimize for replies (13.5x likes), dwell time, DM shares, and profile clicks.
 - DO NOT use hashtags — they don't affect ranking and look spammy.
 - Search X for what's trending. Reference real conversations.
 - thread: only if asked.
@@ -109,6 +109,9 @@ export async function buildDraftSnapshot(
     },
     raw: response.text,
     cost: response.usage.costUsd,
+    inputTokens: response.usage.inputTokens,
+    outputTokens: response.usage.outputTokens,
+    toolCalls: response.usage.toolCalls,
     tweets: [],
     scores: [],
     newestTweetAt: null,

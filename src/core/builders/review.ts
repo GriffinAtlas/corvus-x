@@ -77,6 +77,9 @@ export async function buildReviewSnapshot(
     },
     raw: response.text,
     cost: response.usage.costUsd,
+    inputTokens: response.usage.inputTokens,
+    outputTokens: response.usage.outputTokens,
+    toolCalls: response.usage.toolCalls,
     tweets: recentTweets,
     scores: [],
     newestTweetAt: recentTweets.length > 0

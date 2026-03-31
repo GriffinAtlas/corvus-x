@@ -63,6 +63,9 @@ export interface BuildResult<T extends Snapshot> {
   data: T
   raw: string
   cost: number
+  inputTokens: number
+  outputTokens: number
+  toolCalls: number
   tweets: Tweet[]
   scores: GrokTweetScore[]
   newestTweetAt: number | null

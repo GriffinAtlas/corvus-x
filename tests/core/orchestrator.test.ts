@@ -15,9 +15,13 @@ const buildResult: BuildResult<ScanSnapshot> = {
   data: scanData,
   raw: '{}',
   cost: 0.003,
+  inputTokens: 100,
+  outputTokens: 50,
+  toolCalls: 0,
   tweets: [],
   scores: [],
   newestTweetAt: null,
+  citations: [],
 }
 
 vi.mock('../../src/core/snapshots.js', () => {

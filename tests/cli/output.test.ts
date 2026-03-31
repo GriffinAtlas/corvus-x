@@ -762,6 +762,16 @@ describe('renderAgentBrief', () => {
     expect(output).not.toContain('Top Voices')
     expect(output).not.toContain('Contradictions')
   })
+
+  it('includes tokenSummary in footer when provided', () => {
+    const output = renderAgentBrief(brief, { ...opts, tokenSummary: '48.2K tokens' })
+    expect(output).toContain('48.2K tokens')
+  })
+
+  it('omits tokenSummary from footer when not provided', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).not.toContain('tokens')
+  })
 })
 
 describe('renderAgentBriefMd', () => {
@@ -798,6 +808,11 @@ describe('renderAgentBriefMd', () => {
     const output = renderAgentBriefMd(brief, opts)
     expect(output).toContain('Confidence: 0.7')
     expect(output).toContain('moderate')
+  })
+
+  it('includes tokenSummary in markdown footer when provided', () => {
+    const output = renderAgentBriefMd(brief, { ...opts, tokenSummary: '12.5K tokens' })
+    expect(output).toContain('12.5K tokens')
   })
 })
 
