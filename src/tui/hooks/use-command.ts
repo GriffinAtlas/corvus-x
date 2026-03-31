@@ -12,6 +12,7 @@ import { buildDraftSnapshot } from '../../core/builders/draft.js'
 import { buildReviewSnapshot } from '../../core/builders/review.js'
 import { buildTimingSnapshot } from '../../core/builders/timing.js'
 import { agentMulti, AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../core/agent.js'
+import { SnapshotStore } from '../../core/snapshots.js'
 import { renderScan, renderPulse, renderTrace, renderProfile, renderDraft, renderHooks, renderReview, renderTiming, renderAgentBrief } from '../../cli/output.js'
 import { buildContextSummary } from '../../core/context.js'
 import { SCAN_MATCH_KEYS, PULSE_MATCH_KEYS, TRACE_MATCH_KEYS, PROFILE_MATCH_KEYS, HOOKS_MATCH_KEYS, REVIEW_MATCH_KEYS, TIMING_MATCH_KEYS } from '../../core/schemas.js'
@@ -239,7 +240,6 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           setPhaseLabel(`investigating "${args.question}" (classic)...`)
           const planner = new AgentPlanner(deps.grok)
           const { plan, costUsd: planCost } = await planner.plan(args.question)
-          dispatch({ type: 'add-cost', cost: planCost })
           dispatch({
             type: 'add-result',
             entry: { type: 'system', message: `Agent plan: ${plan.goal}\n${plan.steps.map((s, i) => `  ${i + 1}. ${s.command} ${s.args.topic ?? s.args.username ?? ''} — ${s.reasoning}`).join('\n')}` },
@@ -263,6 +263,9 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           const ctx = await executor.execute(planCost)
           const synthesizer = new AgentSynthesizer(deps.grok)
           const brief = await synthesizer.synthesize(ctx)
+
+          const agentStore = new SnapshotStore(ConfigManager.defaultDir())
+          agentStore.save('agent', args.question, brief, JSON.stringify(ctx), ctx.totalCost)
 
           dispatch({ type: 'set-grok-status', status: 'connected' })
           dispatch({ type: 'add-cost', cost: ctx.totalCost })

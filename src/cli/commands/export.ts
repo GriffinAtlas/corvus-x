@@ -59,9 +59,10 @@ function exportJson(snapshots: StoredSnapshot[], includeTweets: boolean): void {
 function exportJsonl(snapshots: StoredSnapshot[], includeTweets: boolean): void {
   for (const snap of snapshots) {
     if (includeTweets && snap.tweets?.length) {
+      const scoreMap = new Map((snap.scores ?? []).map((s) => [s.index, s]))
       for (let i = 0; i < snap.tweets.length; i++) {
         const tweet = snap.tweets[i]
-        const score = snap.scores?.[i]
+        const score = scoreMap.get(i)
         const line = {
           type: 'tweet',
           command: snap.command,
@@ -93,9 +94,10 @@ function exportCsv(snapshots: StoredSnapshot[], includeTweets: boolean): void {
     )
     for (const snap of snapshots) {
       const tweets = snap.tweets ?? []
+      const scoreMap = new Map((snap.scores ?? []).map((s) => [s.index, s]))
       for (let i = 0; i < tweets.length; i++) {
         const tweet = tweets[i]
-        const score = snap.scores?.[i]
+        const score = scoreMap.get(i)
         process.stdout.write(
           [
             new Date(snap.timestamp).toISOString(),

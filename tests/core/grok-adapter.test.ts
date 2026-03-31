@@ -538,7 +538,8 @@ describe('parseGrokJson', () => {
 
   it('handles multiple JSON-like objects, takes first', () => {
     const raw = 'Here: {"a": 1} and {"b": 2}'
-    expect(() => parseGrokJson(raw)).toThrow(GrokParseError)
+    const result = parseGrokJson<{ a: number }>(raw)
+    expect(result).toEqual({ a: 1 })
   })
 
   it('matches closing brace to opening brace, ignoring trailing brackets (bug 4)', () => {
@@ -592,6 +593,24 @@ describe('parseGrokJson', () => {
       expect(msg).toContain('Failed to parse Grok JSON')
       expect(msg).not.toContain('preamble')
     }
+  })
+
+  it('extracts first object when trailing prose contains braces', () => {
+    const raw = '{"a": {"b": 1}} some trailing text {"junk": true}'
+    const result = parseGrokJson<{ a: { b: number } }>(raw)
+    expect(result).toEqual({ a: { b: 1 } })
+  })
+
+  it('handles strings containing braces inside JSON', () => {
+    const raw = '{"msg": "use { and } in text", "n": 1}'
+    const result = parseGrokJson<{ msg: string; n: number }>(raw)
+    expect(result).toEqual({ msg: 'use { and } in text', n: 1 })
+  })
+
+  it('handles escaped quotes inside JSON strings', () => {
+    const raw = '{"msg": "he said \\"hello\\"", "n": 1}'
+    const result = parseGrokJson<{ msg: string; n: number }>(raw)
+    expect(result).toEqual({ msg: 'he said "hello"', n: 1 })
   })
 })
 

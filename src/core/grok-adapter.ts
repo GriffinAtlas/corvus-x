@@ -40,6 +40,43 @@ export class GrokParseError extends Error {
   }
 }
 
+function findMatchingClose(text: string, start: number): number {
+  const open = text[start]
+  const close = open === '{' ? '}' : ']'
+  let depth = 0
+  let inString = false
+  let escape = false
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+
+    if (escape) {
+      escape = false
+      continue
+    }
+
+    if (ch === '\\' && inString) {
+      escape = true
+      continue
+    }
+
+    if (ch === '"') {
+      inString = !inString
+      continue
+    }
+
+    if (inString) continue
+
+    if (ch === open) depth++
+    else if (ch === close) {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+
+  return -1
+}
+
 export function parseGrokJson<T>(raw: string): T {
   let cleaned = raw.trim()
 
@@ -56,10 +93,9 @@ export function parseGrokJson<T>(raw: string): T {
     throw new GrokParseError(raw, cleaned, new SyntaxError('No JSON object or array found'))
   }
 
-  const openChar = cleaned[start]
-  const end = openChar === '{' ? cleaned.lastIndexOf('}') : cleaned.lastIndexOf(']')
+  const end = findMatchingClose(cleaned, start)
 
-  if (end < start) {
+  if (end < 0) {
     throw new GrokParseError(raw, cleaned, new SyntaxError('No closing brace/bracket found'))
   }
 
@@ -243,30 +279,32 @@ export class GrokAdapter {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 120_000)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stream: any = await (this.client as any).responses.create({
-      ...createParams,
-      signal: controller.signal,
-    })
-
     let text = ''
     let inputTokens = 0
     let outputTokens = 0
     let toolCallCount = 0
 
-    for await (const event of stream) {
-      if (event.type === 'response.output_text.delta' && event.delta) {
-        text += event.delta
-        onChunk(event.delta)
-      }
-      if (event.type === 'response.completed' && event.response) {
-        inputTokens = event.response.usage?.input_tokens ?? 0
-        outputTokens = event.response.usage?.output_tokens ?? 0
-        toolCallCount = event.response.output?.filter((o: { type: string }) => o.type === 'tool_call')?.length ?? 0
-      }
-    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stream: any = await (this.client as any).responses.create({
+        ...createParams,
+        signal: controller.signal,
+      })
 
-    clearTimeout(timer)
+      for await (const event of stream) {
+        if (event.type === 'response.output_text.delta' && event.delta) {
+          text += event.delta
+          onChunk(event.delta)
+        }
+        if (event.type === 'response.completed' && event.response) {
+          inputTokens = event.response.usage?.input_tokens ?? 0
+          outputTokens = event.response.usage?.output_tokens ?? 0
+          toolCallCount = event.response.output?.filter((o: { type: string }) => o.type === 'tool_call')?.length ?? 0
+        }
+      }
+    } finally {
+      clearTimeout(timer)
+    }
 
     if (inputTokens === 0 && outputTokens === 0) {
       outputTokens = Math.ceil(text.length / 4)

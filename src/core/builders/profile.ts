@@ -18,7 +18,7 @@ const SYSTEM_PROMPT = `You are a content strategy analyst who understands the X 
 Rules:
 - postFrequency: from the posts provided. peakHours in UTC (0-23).
 - contentMix: 3-7 categories with percentage and avg engagement.
-- topPerformers: 3-5 posts with highest ALGORITHMIC value (not just likes). Replies worth 27x likes. Conversations worth 150x likes.
+- topPerformers: 3-5 posts with highest ALGORITHMIC value (not just likes). Replies worth 13.5x likes. Conversations worth 150x likes.
 - voiceTraits: characterize their writing style.
 - algorithmScore: X algorithm analysis based on real weights.
   - replyRate: fraction of posts that received replies (0.0-1.0). The algorithm weights replies at 13.5x.
@@ -47,7 +47,7 @@ Rules:
 - displayName/followers/following: profile stats (best effort).
 - postFrequency: from posts found. peakHours in UTC (0-23).
 - contentMix: 3-7 categories.
-- topPerformers: 3-5 posts with highest ALGORITHMIC value. Replies worth 27x likes.
+- topPerformers: 3-5 posts with highest ALGORITHMIC value. Replies worth 13.5x likes.
 - voiceTraits: characterize their writing style.
 - algorithmScore: X algorithm analysis. replyRate (0-1), authorReplyRate (0-1, how often they reply back), conversationRatio (0-1, posts that became conversations), bookmarkToLikeRatio, grade (A-F based on algorithm health).
 - recommendations: 3-5 suggestions based on algorithm weights. Only when analyzing the user's own account.
@@ -112,8 +112,10 @@ async function buildProfileFromXApi(
   const realReplyRate = tweets.length > 0
     ? tweets.filter((tw) => tw.metrics.replies > 0).length / tweets.length
     : 0
-  const algoScore = grok.algorithmScore ?? { replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' }
-  algoScore.replyRate = Number(realReplyRate.toFixed(2))
+  const algoScore = {
+    ...(grok.algorithmScore ?? { replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' }),
+    replyRate: Number(realReplyRate.toFixed(2)),
+  }
 
   if (isSelf && tweets.length > 0) {
     const voiceManager = new VoiceProfileManager(ConfigManager.defaultDir())
@@ -142,6 +144,9 @@ async function buildProfileFromXApi(
     },
     raw: response.text,
     cost: response.usage.costUsd,
+    inputTokens: response.usage.inputTokens,
+    outputTokens: response.usage.outputTokens,
+    toolCalls: response.usage.toolCalls,
     tweets: [],
     scores: [],
     newestTweetAt: null,
@@ -189,6 +194,9 @@ async function buildProfileFromGrok(
     },
     raw: response.text,
     cost: response.usage.costUsd,
+    inputTokens: response.usage.inputTokens,
+    outputTokens: response.usage.outputTokens,
+    toolCalls: response.usage.toolCalls,
     tweets: [],
     scores: [],
     newestTweetAt: null,

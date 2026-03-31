@@ -12,6 +12,8 @@ import { parseGrokJson } from './grok-adapter.js'
 import { computeConfidence, detectContradictions } from './metrics.js'
 import { SnapshotStore } from './snapshots.js'
 import { ConfigManager } from '../infra/config.js'
+import { compactResults, DEFAULT_COMPACTION } from './compaction.js'
+import { UsageTracker } from './usage.js'
 
 export interface AgentPlan {
   goal: string
@@ -34,6 +36,7 @@ export interface AgentContext {
   results: AgentStepResult[]
   totalCost: number
   leads: string[]
+  usage: UsageTracker
 }
 
 export interface AgentStepResult {
@@ -269,6 +272,7 @@ export class AgentExecutor {
       results: [],
       totalCost: 0,
       leads: [],
+      usage: new UsageTracker(),
     }
   }
 
@@ -334,6 +338,11 @@ export class AgentExecutor {
 
         this.context.results.push(stepResult)
         this.context.totalCost += result.cost
+        this.context.usage.record({
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          toolCalls: result.toolCalls,
+        })
 
         const leadSet = new Set(this.context.leads)
         const newLeads = extractLeads(result.data, leadSet, plannedTargets)
@@ -363,7 +372,9 @@ export class AgentExecutor {
           }
         }
       } catch (err) {
-        const isRateLimit = err instanceof Error && err.message.includes('429')
+        const isRateLimit =
+          (err != null && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 429) ||
+          (err instanceof Error && err.message.includes('429'))
         if (isRateLimit) {
           this.options.onStepSkip?.(i, step, 'rate-limited')
         } else {
@@ -393,6 +404,11 @@ export class AgentExecutor {
     })
 
     this.context.totalCost += response.usage.costUsd
+    this.context.usage.record({
+      inputTokens: response.usage.inputTokens,
+      outputTokens: response.usage.outputTokens,
+      toolCalls: response.usage.toolCalls,
+    })
     this.replanCount++
 
     const decision = parseGrokJson<ReplanDecision>(response.text)
@@ -458,11 +474,15 @@ export class AgentSynthesizer {
     const sampleSize = allTweets.length
     const staleness = newestTweetAt !== null ? Date.now() - newestTweetAt : null
 
-    const resultSummaries = context.results
-      .map((r) => `## ${r.command}\n${JSON.stringify(r.snapshot, null, 2)}`)
-      .join('\n\n')
+    const { summaries: resultSummaries, compactedCount } = compactResults(
+      context.results,
+      DEFAULT_COMPACTION,
+    )
+    const compactNote = compactedCount > 0
+      ? ` (${compactedCount} earlier steps condensed)`
+      : ''
 
-    const prompt = `Question: ${context.question}\n\nInvestigation results (${context.results.length} steps, ${sampleSize} tweets analyzed):\n\n${resultSummaries}`
+    const prompt = `Question: ${context.question}\n\nInvestigation results (${context.results.length} steps, ${sampleSize} tweets analyzed${compactNote}):\n\n${resultSummaries}`
 
     let response
     if (onChunk) {

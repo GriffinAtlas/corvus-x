@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import readline from 'readline'
-import { t, revealCrow, banner, divider } from '../theme.js'
+import { t, revealCrow, banner, divider, agentBanner } from '../theme.js'
 import { AuthManager } from '../../infra/auth.js'
 import { ConfigManager } from '../../infra/config.js'
 import { GrokAdapter, MODEL_PRICING, DEFAULT_MODEL } from '../../core/grok-adapter.js'
@@ -11,7 +11,7 @@ import { AGENT_MATCH_KEYS } from '../../core/schemas.js'
 import { AgentPlanner, AgentExecutor, AgentSynthesizer, agentMulti, MULTI_AGENT_MODEL } from '../../core/agent.js'
 import { StepProgress } from '../progress.js'
 import { renderAgentBrief, renderAgentBriefMd } from '../output.js'
-import type { AgentPlan, AgentStep } from '../../core/agent.js'
+import type { AgentPlan, AgentStep, AgentContext } from '../../core/agent.js'
 import type { AgentBrief } from '../../core/schemas.js'
 import type { OutputFormat } from '../output.js'
 import type { CorvusDeps } from '../../core/types.js'
@@ -152,9 +152,9 @@ async function runClassicAgent(
 ): Promise<void> {
   console.log('')
   await revealCrow()
-  console.log('')
+  console.log(agentBanner(question))
 
-  console.log(t.muted(`  planning: ${question}`))
+  console.log(t.muted(`  planning...`))
   const planner = new AgentPlanner(deps.grok)
   let plan: AgentPlan
 
@@ -206,11 +206,14 @@ async function runClassicAgent(
   }
   process.on('SIGINT', sigintHandler)
 
+  let context: AgentContext
   progress.render()
-  const context = await executor.execute(planCost)
-
-  progress.cleanup()
-  process.removeListener('SIGINT', sigintHandler)
+  try {
+    context = await executor.execute(planCost)
+  } finally {
+    progress.cleanup()
+    process.removeListener('SIGINT', sigintHandler)
+  }
 
   if (aborted || context.results.length === 0) {
     console.log('')
@@ -244,6 +247,7 @@ async function runClassicAgent(
     tweetCount: allTweets,
     accountCount: allAuthors,
     cost: context.totalCost,
+    tokenSummary: context.usage.totalTokens > 0 ? context.usage.toSummary() : undefined,
     previousSentiment: previous ? (previous.data as AgentBrief).sentiment : undefined,
   }
 

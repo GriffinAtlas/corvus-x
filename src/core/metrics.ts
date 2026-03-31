@@ -34,12 +34,11 @@ export function toUserMap(users: XUser[]): Map<string, XUser> {
 }
 
 export function computeNewestTweetAt(tweets: Tweet[]): number | null {
-  return (
-    tweets.reduce((max, t) => {
-      const ts = new Date(t.createdAt).getTime()
-      return Number.isFinite(ts) && ts > max ? ts : max
-    }, 0) || null
-  )
+  const result = tweets.reduce((max, t) => {
+    const ts = new Date(t.createdAt).getTime()
+    return Number.isFinite(ts) && ts > max ? ts : max
+  }, -Infinity)
+  return result === -Infinity ? null : result
 }
 
 export function computeBaseMetrics(tweets: Tweet[]): BaseMetrics {
