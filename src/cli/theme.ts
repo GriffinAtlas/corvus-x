@@ -65,8 +65,19 @@ export function gradient(text: string): string {
 }
 
 export function banner(command: string, topic: string): string {
-  const crow = '▸'
-  return `\n  ${t.accent(crow)} ${gradient('corvus')} ${t.accent(command)} ${t.muted('·')} ${topic}`
+  const crow = isTTY ? '🪶' : '▸'
+  const name = gradient('corvus')
+  const cmd = t.accent(command)
+  const sep = t.muted('·')
+  return `\n  ${crow} ${name} ${cmd} ${sep} ${topic}`
+}
+
+export function agentBanner(question: string): string {
+  const crow = isTTY ? '🪶' : '▸'
+  const name = gradient('corvus agent')
+  const cols = process.stdout.columns ?? 80
+  const line = t.muted('─'.repeat(Math.min(cols - 4, 60)))
+  return `\n  ${crow} ${name}\n  ${line}\n  ${t.heading(question)}\n`
 }
 
 export function resultBox(lines: string[]): string {
@@ -108,38 +119,15 @@ export const LOGO_LARGE_LINES = [
   '  ╚═════╝  ╚═════╝  ╚═╝  ╚═╝   ╚═══╝    ╚═════╝  ╚══════╝',
 ]
 
-export const CROW_SMALL = t.accent(
-  `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄⣀⣀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⡿⠋⠉⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢀⣠⣾⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⢀⣴⣿⣿⣿⠿⠿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⡪⠕⠋⠉⠉⠀⠀⠀⠫⡻⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠷⠤⠀⠀⠀⠀⠀⠀⠀⠀⠀`,
-)
-
-export const CROW_LARGE = t.accent(
-  `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣶⣷⣶⣶⣦⣤⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⠏⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣾⣿⣿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣴⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⢀⣴⣾⣿⣿⣿⠿⠛⢿⣿⣿⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠐⢊⡭⠚⠛⠉⠉⠀⠀⠀⠘⢏⢻⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣱⣵⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`,
-)
-
 export const CROW_SMALL_LINES = [
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄⣀⣀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⡿⠋⠉⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⢀⣠⣾⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⢀⣴⣿⣿⣿⠿⠿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⡪⠕⠋⠉⠉⠀⠀⠀⠫⡻⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠷⠤⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+  '        ▄▀▀▄',
+  '   ▄▄▄▄█░░░█▄',
+  '  █░▒▓████░░░█',
+  '   ▀▓███●▀▀▀▀',
+  '     ▀██▄▄',
+  '      ▀█▓▒░▄',
+  '     ▄▀ ▀▀',
+  '    ▀▘  ▀▘',
 ]
 
 export const LOGO_LINES = [
@@ -147,6 +135,16 @@ export const LOGO_LINES = [
   '  ║  ║ ║╠╦╝╚╗╔╝║ ║╚═╗',
   '  ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝',
 ]
+
+export function completionLine(durationMs: number, extra?: string): string {
+  const secs = (durationMs / 1000).toFixed(1)
+  const check = t.positive('✓')
+  const parts = [`${check} done in ${secs}s`]
+  if (extra) parts.push(extra)
+  const cols = process.stdout.columns ?? 80
+  const line = t.muted('─'.repeat(Math.min(cols - 4, 60)))
+  return `  ${line}\n  ${t.muted(parts.join(' · '))}`
+}
 
 const SPARK_CHARS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
 
@@ -162,23 +160,55 @@ export function sparkline(values: number[], maxVal?: number): string {
     .join('')
 }
 
-const PULSE_COLORS = [
-  chalk.hex('#4A1F8A'),
-  chalk.hex('#5C29A8'),
-  chalk.hex('#6E33C6'),
-  chalk.hex('#7C3AED'),
-  chalk.hex('#9F67FF'),
-  chalk.hex('#B48AFF'),
-  chalk.hex('#9F67FF'),
-  chalk.hex('#7C3AED'),
-  chalk.hex('#6E33C6'),
-  chalk.hex('#5C29A8'),
-]
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+
+export class CorvusSpinner {
+  private frame = 0
+  private timer: ReturnType<typeof setInterval> | null = null
+  private text: string
+  private stopped = false
+
+  constructor(text: string) {
+    this.text = text
+  }
+
+  start(): this {
+    if (!isTTY) {
+      console.log(`  ${this.text}`)
+      return this
+    }
+    this.render()
+    this.timer = setInterval(() => {
+      this.frame = (this.frame + 1) % SPINNER_FRAMES.length
+      this.render()
+    }, 80)
+    return this
+  }
+
+  stop(): void {
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+    if (isTTY && !this.stopped) {
+      process.stdout.write('\x1b[1A\x1b[2K')
+      this.stopped = true
+    }
+  }
+
+  private render(): void {
+    const spinner = t.accent(SPINNER_FRAMES[this.frame])
+    const line = `  ${spinner} ${t.muted(this.text)}`
+    if (this.frame > 0 || this.stopped) {
+      process.stdout.write('\x1b[1A\x1b[2K')
+    }
+    process.stdout.write(line + '\n')
+  }
+}
 
 const CROW_GRADIENT = [
-  '#3A1078', '#4A1990', '#5522A8', '#602BBF',
-  '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
-  '#B48AFF', '#C9A5FF', '#D4B8FF',
+  '#4A1990', '#5C29A8', '#6E33C6', '#7C3AED',
+  '#8B4FFF', '#9F67FF', '#B48AFF', '#C9A5FF',
 ]
 
 const LOGO_LARGE_GRADIENT = [
@@ -224,58 +254,3 @@ export function revealCrow(): Promise<void> {
   })
 }
 
-export class CrowPulse {
-  private frame = 0
-  private timer: ReturnType<typeof setInterval> | null = null
-  private lineCount: number
-  private lines: string[]
-
-  constructor(variant: 'small' | 'logo' = 'small') {
-    this.lines = variant === 'logo' ? LOGO_LINES : CROW_SMALL_LINES
-    this.lineCount = this.lines.length
-  }
-
-  start(): void {
-    if (!isTTY) {
-      for (let i = 0; i < this.lines.length; i++) {
-        console.log(chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])(this.lines[i]))
-      }
-      return
-    }
-
-    this.render()
-    this.timer = setInterval(() => {
-      this.frame = (this.frame + 1) % PULSE_COLORS.length
-      this.render()
-    }, 150)
-  }
-
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer)
-      this.timer = null
-    }
-    if (isTTY) {
-      process.stdout.write(`\x1b[${this.lineCount}A`)
-      for (let i = 0; i < this.lines.length; i++) {
-        const color = chalk.hex(CROW_GRADIENT[i % CROW_GRADIENT.length])
-        const stripped = strip(this.lines[i])
-        const padding = Math.max(0, (process.stdout.columns ?? 80) - stripped.length)
-        process.stdout.write(color(this.lines[i]) + ' '.repeat(padding) + '\n')
-      }
-    }
-  }
-
-  private render(): void {
-    if (this.frame > 0) {
-      process.stdout.write(`\x1b[${this.lineCount}A`)
-    }
-    for (let i = 0; i < this.lines.length; i++) {
-      const shift = (this.frame + i) % PULSE_COLORS.length
-      const color = PULSE_COLORS[shift]
-      const stripped = strip(this.lines[i])
-      const padding = Math.max(0, (process.stdout.columns ?? 80) - stripped.length)
-      process.stdout.write(color(this.lines[i]) + ' '.repeat(padding) + '\n')
-    }
-  }
-}

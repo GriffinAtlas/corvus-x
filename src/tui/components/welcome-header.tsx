@@ -7,10 +7,10 @@ interface Props {
 }
 
 const WAVE_COLORS = [
-  '#3A1078', '#4A1990', '#5522A8', '#602BBF',
-  '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
-  '#B48AFF', '#C9A5FF', '#B48AFF', '#9F67FF',
-  '#8B4FFF', '#7C3AED', '#6E33C6', '#602BBF',
+  '#4A1990', '#5C29A8', '#6E33C6', '#7C3AED',
+  '#8B4FFF', '#9F67FF', '#B48AFF', '#C9A5FF',
+  '#B48AFF', '#9F67FF', '#8B4FFF', '#7C3AED',
+  '#6E33C6', '#5C29A8',
 ]
 
 const LOGO_LARGE_COLORS = [
@@ -44,7 +44,7 @@ export function WelcomeHeader({ version }: Props) {
         </Box>
 
         {/* Logo + tagline */}
-        <Box flexDirection="column" paddingLeft={2} paddingTop={useLarge ? 0 : 2}>
+        <Box flexDirection="column" paddingLeft={2} paddingTop={useLarge ? 1 : 2}>
           {useLarge ? (
             LOGO_LARGE_LINES.map((line, i) => (
               <Text key={i} color={LOGO_LARGE_COLORS[i % LOGO_LARGE_COLORS.length]}>{line}</Text>

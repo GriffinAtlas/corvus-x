@@ -1,5 +1,4 @@
-import ora from 'ora'
-import { t, divider } from './theme.js'
+import { t, divider, CorvusSpinner, completionLine } from './theme.js'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -78,7 +77,7 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
   }
 
   const deps = initDeps()
-  const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
+  const spinner = new CorvusSpinner(opts.spinnerText).start()
 
   try {
     let response: GrokResponse
@@ -146,7 +145,8 @@ export async function runStructuredCommand<T extends Snapshot>(
   }
 
   const deps = initDeps()
-  const spinner = ora({ text: opts.spinnerText, indent: 2 }).start()
+  const spinner = new CorvusSpinner(opts.spinnerText).start()
+  const startTime = Date.now()
 
   try {
     const result = await executeStructuredQuery({
@@ -170,6 +170,10 @@ export async function runStructuredCommand<T extends Snapshot>(
     }
 
     console.log(formatStructuredOutput(structured, opts.format, opts.renderSnapshot))
+    if (opts.format === 'table') {
+      console.log(completionLine(Date.now() - startTime, `$${result.cost.toFixed(4)}`))
+      console.log('')
+    }
   } catch (err) {
     spinner.stop()
     const msg = err instanceof Error ? err.message : String(err)

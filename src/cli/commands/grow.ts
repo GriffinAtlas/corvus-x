@@ -1,6 +1,5 @@
 import { Command } from 'commander'
-import ora from 'ora'
-import { t, divider, banner } from '../theme.js'
+import { t, divider, banner, CorvusSpinner } from '../theme.js'
 import { initDeps, showCostAndExit } from '../run-command.js'
 import { renderHooks, renderDraft, renderTiming } from '../output.js'
 import { buildHooksSnapshot } from '../../core/builders/hooks.js'
@@ -35,7 +34,7 @@ export function registerGrowCommand(program: Command): void {
         console.log()
 
         let hooksContext = ''
-        const hookSpinner = ora({ text: 'finding conversations to reply to...', indent: 2 }).start()
+        const hookSpinner = new CorvusSpinner( 'finding conversations to reply to...').start()
         try {
           const hooks = await buildHooksSnapshot(deps, topic, 30)
           hookSpinner.stop()
@@ -58,7 +57,7 @@ export function registerGrowCommand(program: Command): void {
           console.log()
         }
 
-        const draftSpinner = ora({ text: 'drafting a post...', indent: 2 }).start()
+        const draftSpinner = new CorvusSpinner( 'drafting a post...').start()
         try {
           const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread, hooksContext: hooksContext || undefined })
           draftSpinner.stop()
@@ -74,7 +73,7 @@ export function registerGrowCommand(program: Command): void {
         }
 
         const handle = new AuthManager(ConfigManager.defaultDir()).getXHandle()
-        const timingSpinner = ora({ text: 'analyzing best posting times...', indent: 2 }).start()
+        const timingSpinner = new CorvusSpinner( 'analyzing best posting times...').start()
         try {
           const timing = await buildTimingSnapshot(deps, {
             handle: handle ?? undefined,

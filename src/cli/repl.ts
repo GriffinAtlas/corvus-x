@@ -1,6 +1,5 @@
 import { createInterface, Interface } from 'readline'
-import ora from 'ora'
-import { t } from './theme.js'
+import { t, CorvusSpinner } from './theme.js'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
 import { GrokAdapter } from '../core/grok-adapter.js'
@@ -149,7 +148,7 @@ function handleSlashCommand(input: string, ctx: ReplContext, rl: Interface): 'ex
 }
 
 async function handleQuery(input: string, ctx: ReplContext): Promise<void> {
-  const spinner = ora({ text: '', indent: 2 }).start()
+  const spinner = new CorvusSpinner('thinking...').start()
 
   try {
     const cached = ctx.cache.get('repl', input)

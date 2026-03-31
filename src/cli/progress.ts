@@ -1,4 +1,4 @@
-import { t, isTTY, strip } from './theme.js'
+import { t, isTTY, strip, percentBar } from './theme.js'
 
 interface StepEntry {
   label: string
@@ -108,17 +108,26 @@ export class StepProgress {
       return `  ${t.muted(num)} ${step.label}${tag}  ${statusStr}${durationStr}`
     })
 
+    const done = this.steps.filter((s) => s.status === 'done').length
+    const failed = this.steps.filter((s) => s.status === 'failed').length
+    const completed = done + failed
+    const progress = total > 0 ? completed / total : 0
+    const bar = percentBar(progress, 20, t.accent)
+    const progressLine = `  ${bar} ${completed}/${total} steps`
+      + (failed > 0 ? ` ${t.negative(`(${failed} failed)`)}` : '')
+
     if (isTTY) {
       if (this.rendered) {
         process.stdout.write(`\x1b[${this.renderedLineCount}A`)
       }
-      for (const line of lines) {
+      const allLines = [...lines, '', progressLine]
+      for (const line of allLines) {
         const stripped = strip(line)
         const padding = Math.max(0, (process.stdout.columns ?? 80) - stripped.length)
         process.stdout.write(line + ' '.repeat(padding) + '\n')
       }
       this.rendered = true
-      this.renderedLineCount = this.steps.length
+      this.renderedLineCount = allLines.length
     } else {
       if (!this.rendered) {
         for (const line of lines) {

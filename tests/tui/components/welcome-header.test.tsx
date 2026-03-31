@@ -7,7 +7,8 @@ describe('WelcomeHeader', () => {
   it('renders crow art', () => {
     const { lastFrame } = render(<WelcomeHeader version="0.2.0" />)
     const frame = lastFrame()!
-    expect(frame).toContain('⣠⣤⣄')
+    // New crow art uses block characters
+    expect(frame.includes('█') || frame.includes('▓') || frame.includes('▒')).toBe(true)
   })
 
   it('renders block-letter logo', () => {

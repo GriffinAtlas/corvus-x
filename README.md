@@ -43,7 +43,7 @@ corvus agent "Who's driving the AI regulation debate in the EU?"
 
 **It investigates, not just searches.** Corvus plans multi-step research, chains commands, detects contradictions, and computes confidence. Give it a question and it figures out the rest.
 
-**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights — replies worth 27x likes, author reply-backs worth 75x, conversations worth 150x. Not vanity metrics.
+**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights — replies worth 13.5x likes, author reply-backs worth 75x, conversations worth 150x. Not vanity metrics.
 
 **It helps you post, not just consume.** `grow` finds conversations, drafts a post in your voice, and tells you when to post — one command, complete daily workflow. `draft` loads your voice profile so posts sound like you, not generic AI.
 
@@ -166,13 +166,13 @@ Profile analysis scores accounts against the [real X algorithm weights](https://
 
 ```
 ── Algorithm Health  B ────────────
-    Reply rate       ██████░░░░░░░░░ 42%  27x likes
+    Reply rate       ██████░░░░░░░░░ 42%  13.5x likes
     Author replies   ███████████░░░░ 71%  75x weight
     Conversations    █████░░░░░░░░░░ 31%  150x a like
-    Bookmark/like    ██░░░░░░░░░░░░░ 12%  20x likes
+    Bookmark/like    ██░░░░░░░░░░░░░ 12%  save-worthy
 ```
 
-Key insight: a reply is worth 27x more than a like. A conversation (reply + author reply) is worth 150x. Most "growth tools" optimize for likes — Corvus optimizes for what the algorithm actually values.
+Key insight: a reply is worth 13.5x more than a like. A conversation (reply + author reply) is worth 150x. Most "growth tools" optimize for likes — Corvus optimizes for what the algorithm actually values.
 
 ## Interactive Mode
 
@@ -250,7 +250,7 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 | Data | X API v2 (optional) |
 | CLI | Commander |
 | TUI | Ink 6 + React 19 + fullscreen-ink |
-| Testing | Vitest (937 tests) |
+| Testing | Vitest (957 tests) |
 
 ## License
 

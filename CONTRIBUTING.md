@@ -29,7 +29,7 @@ bin/
   corvus.ts              # CLI entrypoint — registers commands, launches fullscreen TUI
   corvus-mcp.ts          # standalone MCP server entrypoint (stdio)
 src/
-  cli/commands/           # one file per CLI command (16 commands)
+  cli/commands/           # one file per CLI command (15 commands)
   cli/run-command.ts      # shared command runner (auth, spinner, errors)
   cli/output.ts           # output renderers with visual bars, labeled dividers
   cli/theme.ts            # color palette, gradient, sparklines, percent bars
@@ -48,7 +48,7 @@ src/
   mcp/server.ts           # MCP server — 5 tools via McpServer
   infra/                  # auth (credentials + xHandle) and config management
   index.ts                # public API surface for library consumers
-tests/                    # mirrors src/ — 916 tests across 50 files
+tests/                    # mirrors src/ — 957 tests across 51 files
 ```
 
 ## Conventions
