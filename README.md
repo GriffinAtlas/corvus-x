@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/corvus-logo.png" alt="Corvus" width="200">
-</p>
-
 <h3 align="center">AI agent toolkit for X</h3>
 
 <p align="center">
@@ -250,7 +246,7 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 | Data | X API v2 (optional) |
 | CLI | Commander |
 | TUI | Ink 6 + React 19 + fullscreen-ink |
-| Testing | Vitest (957 tests) |
+| Testing | Vitest (1,041 tests) |
 
 ## License
 
