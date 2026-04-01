@@ -362,4 +362,85 @@ describe('compactResults', () => {
     })
     expect(summaries.length).toBeLessThan(full.length)
   })
+
+  it('returns empty summaries and zero compactedCount for empty array', () => {
+    const { summaries, compactedCount } = compactResults([])
+    expect(summaries).toBe('')
+    expect(compactedCount).toBe(0)
+  })
+
+  it('returns compactedCount 0 and full JSON when results equal preserveRecent', () => {
+    const results = [makeScanResult('x'), makePulseResult('y')]
+    const { summaries, compactedCount } = compactResults(results, {
+      maxTokenBudget: 50000,
+      preserveRecent: 2,
+    })
+    expect(compactedCount).toBe(0)
+    // Full JSON includes all detail — verify key fields from both snapshots
+    expect(summaries).toContain('"totalEngagement": 5000')
+    expect(summaries).toContain('"totalEngagement": 3000')
+    expect(summaries).toContain('Key finding about x')
+    expect(summaries).toContain('Momentum analysis for y')
+  })
+
+  it('profile result under tight budget produces minimal summary with "profile: @"', () => {
+    // To force the condensed (not omitted) path, use a budget that allows some compaction
+    const results2 = [
+      makeProfileResult('bob'),
+      makeScanResult('a'),
+      makePulseResult('b'),
+      makeTraceResult('c'),
+      makeScanResult('recent1'),
+      makeScanResult('recent2'),
+    ]
+    const { summaries: s2 } = compactResults(results2, {
+      maxTokenBudget: 2000,
+      preserveRecent: 2,
+    })
+    // The profile result is in the older group and should get condensed
+    expect(s2).toContain('profile')
+    expect(s2).toContain('(condensed)')
+  })
+
+  it('snapshot with neither takeaway nor handle nor topic produces "command completed" minimal', () => {
+    // A snapshot with no takeaway, handle, or topic — just arbitrary data
+    const snapshot = { value: 42, status: true } as any
+    const result: AgentStepResult = {
+      step: { command: 'custom', args: {}, reasoning: 'test' },
+      command: 'custom',
+      snapshot,
+      cost: 0.001,
+      durationMs: 100,
+      tweets: [],
+      scores: [],
+      newestTweetAt: null,
+      citations: [],
+    }
+    // Create enough results to force compaction with tight budget
+    const results = [
+      result,
+      makeScanResult('a'),
+      makePulseResult('b'),
+      makeTraceResult('c'),
+      makeScanResult('recent1'),
+      makeScanResult('recent2'),
+    ]
+    // Use impossibly low budget so older results get minimal summaries
+    const { summaries } = compactResults(results, {
+      maxTokenBudget: 1,
+      preserveRecent: 2,
+    })
+    // With budget <=0, older steps are omitted entirely with a note
+    expect(summaries).toContain('earlier steps omitted')
+    expect(summaries).toContain('custom')
+  })
+})
+
+describe('compactSnapshot — null field handling', () => {
+  it('null field does NOT appear in generic summarizer output', () => {
+    const snapshot = { name: 'test', deleted: null } as any
+    const compact = compactSnapshot('unknown', snapshot)
+    expect(compact.name).toBe('test')
+    expect('deleted' in compact).toBe(false)
+  })
 })

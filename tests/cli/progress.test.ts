@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-// Mock isTTY to false before importing
+// Mock isTTY before importing — default false, toggled to true where needed
 vi.mock('../../src/cli/theme.js', async () => {
   const actual = await vi.importActual('../../src/cli/theme.js')
   return { ...(actual as object), isTTY: false }
@@ -8,6 +8,7 @@ vi.mock('../../src/cli/theme.js', async () => {
 
 import { StepProgress } from '../../src/cli/progress.js'
 import { strip } from '../../src/cli/theme.js'
+import * as theme from '../../src/cli/theme.js'
 
 describe('StepProgress', () => {
   let logs: string[]
@@ -133,5 +134,90 @@ describe('StepProgress', () => {
     const output = logs.map(strip).join('\n')
     expect(output).toContain('(lead)')
     expect(output).toContain('(replan)')
+  })
+
+  describe('progress bar (TTY)', () => {
+    let writeSpy: ReturnType<typeof vi.spyOn>
+    let writes: string[]
+
+    beforeEach(() => {
+      writes = []
+      // Enable TTY mode for progress bar output
+      ;(theme as Record<string, unknown>).isTTY = true
+      writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
+        writes.push(String(chunk))
+        return true
+      })
+    })
+
+    afterEach(() => {
+      writeSpy.mockRestore()
+      ;(theme as Record<string, unknown>).isTTY = false
+    })
+
+    it('shows N/M steps text', () => {
+      const progress = new StepProgress([
+        { label: 'scan · bitcoin' },
+        { label: 'pulse · bitcoin' },
+      ])
+      progress.start(0)
+      progress.complete(0, 500)
+
+      const output = writes.map((w) => strip(w)).join('')
+      expect(output).toContain('1/2 steps')
+      progress.cleanup()
+    })
+
+    it('shows failed counter', () => {
+      const progress = new StepProgress([
+        { label: 'scan · bitcoin' },
+        { label: 'pulse · bitcoin' },
+      ])
+      progress.start(0)
+      progress.fail(0)
+
+      const output = writes.map((w) => strip(w)).join('')
+      expect(output).toContain('(1 failed)')
+      progress.cleanup()
+    })
+
+    it('skip does not count toward completed steps', () => {
+      const progress = new StepProgress([
+        { label: 'scan · bitcoin' },
+        { label: 'pulse · bitcoin' },
+      ])
+      progress.start(0)
+      progress.complete(0, 100)
+      progress.start(1)
+      progress.skip(1, 'budget')
+
+      const output = writes.map((w) => strip(w)).join('')
+      expect(output).toContain('1/2 steps')
+      expect(output).not.toContain('2/2 steps')
+      progress.cleanup()
+    })
+
+    it('addStep after completion updates total', () => {
+      const progress = new StepProgress([{ label: 'scan · bitcoin' }])
+      progress.start(0)
+      progress.complete(0, 50)
+      writes.length = 0
+
+      progress.addStep('new', 'lead')
+
+      const output = writes.map((w) => strip(w)).join('')
+      expect(output).toContain('new')
+      expect(output).toContain('1/2 steps')
+      progress.cleanup()
+    })
+
+    it('renders rate-limited tag', () => {
+      const progress = new StepProgress([{ label: 'scan · bitcoin', tag: 'rate-limited' }])
+      progress.render()
+
+      const output = writes.map((w) => strip(w)).join('')
+      expect(output).toContain('(rate-limited)')
+      progress.cleanup()
+    })
   })
 })

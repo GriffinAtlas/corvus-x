@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AgentPlanner, AgentExecutor, AgentSynthesizer } from '../../src/core/agent.js'
+import { AgentPlanner, AgentExecutor, AgentSynthesizer, agentMulti } from '../../src/core/agent.js'
 import type { AgentPlan, AgentOptions, AgentContext } from '../../src/core/agent.js'
 import type { GrokAdapter } from '../../src/core/grok-adapter.js'
 import type { CorvusDeps } from '../../src/core/types.js'
@@ -1515,5 +1515,218 @@ describe('AgentExecutor — budget check uses step cost average, not total cost 
     expect(context.results).toHaveLength(1)
     expect(skipped.length).toBeGreaterThanOrEqual(1)
     expect(skipped[0].reason).toBe('budget exceeded')
+  })
+})
+
+describe('agentMulti', () => {
+  it('returns a valid MultiAgentResult with populated brief fields', async () => {
+    const briefJson = JSON.stringify({
+      signalLine: 'Bitcoin is trending bullish across crypto X.',
+      sentiment: 0.6,
+      summary: ['Strong positive momentum', 'Institutional interest rising'],
+      contradictions: ['Some traders warn of overbought RSI'],
+      keyAccounts: [
+        { handle: '@alice', reach: 50000, sentiment: 0.8, stance: 'Long BTC' },
+        { handle: 'bob', reach: 12000, sentiment: 0.3, stance: 'Cautious' },
+      ],
+      evidence: [
+        { source: 'x_search', key: 'Volume spike', detail: 'Trading volume up 40%' },
+      ],
+      confidence: {
+        overall: 0.75,
+        volume: 'high',
+        consistency: 0.8,
+        diversity: 0.7,
+      },
+    })
+
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: briefJson,
+        usage: { inputTokens: 1000, outputTokens: 500, costUsd: 0.005, toolCalls: 2 },
+        citations: [{ type: 'url_citation', url: 'https://x.com/alice/status/1' }],
+      }),
+      queryStream: vi.fn(),
+    } as unknown as GrokAdapter
+
+    const result = await agentMulti(mockGrok, 'What is the sentiment on bitcoin?')
+
+    expect(result.brief.signalLine).toBe('Bitcoin is trending bullish across crypto X.')
+    expect(result.brief.sentiment).toBe(0.6)
+    expect(result.brief.summary).toHaveLength(2)
+    expect(result.brief.keyAccounts).toHaveLength(2)
+    // normalizeAccounts preserves handles as-is (no @ stripping)
+    expect(result.brief.keyAccounts[0].handle).toBe('@alice')
+    expect(result.brief.keyAccounts[1].handle).toBe('bob')
+    expect(result.brief.evidence).toHaveLength(1)
+    expect(result.brief.evidence[0].source).toBe('x_search')
+    expect(result.brief.confidence.overall).toBe(0.75)
+    expect(result.brief.confidence.volume).toBe('high')
+    expect(result.brief.citations).toHaveLength(1)
+    expect(result.cost).toBe(0.005)
+    expect(result.cost).toBeGreaterThan(0)
+    expect(result.durationMs).toBeGreaterThanOrEqual(0)
+    // sampleSize and staleness are always fixed for agentMulti
+    expect(result.brief.sampleSize).toBe(0)
+    expect(result.brief.staleness).toBeNull()
+  })
+
+  it('defaults all brief fields when Grok returns empty object', async () => {
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: '{}',
+        usage: { inputTokens: 200, outputTokens: 100, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+      queryStream: vi.fn(),
+    } as unknown as GrokAdapter
+
+    const result = await agentMulti(mockGrok, 'test question')
+
+    expect(result.brief.signalLine).toBe('No signal.')
+    expect(result.brief.sentiment).toBe(0)
+    expect(result.brief.summary).toEqual([])
+    expect(result.brief.contradictions).toEqual([])
+    expect(result.brief.keyAccounts).toEqual([])
+    expect(result.brief.evidence).toEqual([])
+    expect(result.brief.confidence.overall).toBe(0.5)
+    expect(result.brief.confidence.volume).toBe('moderate')
+    expect(result.brief.confidence.consistency).toBe(0.5)
+    expect(result.brief.confidence.diversity).toBe(0.5)
+    expect(result.brief.sampleSize).toBe(0)
+    expect(result.brief.staleness).toBeNull()
+  })
+
+  it('uses queryStream when onChunk is provided', async () => {
+    const briefJson = JSON.stringify({
+      signalLine: 'Streamed signal.',
+      summary: [],
+      contradictions: [],
+      keyAccounts: [],
+      evidence: [],
+    })
+
+    const mockGrok = {
+      query: vi.fn(),
+      queryStream: vi.fn().mockResolvedValue({
+        text: briefJson,
+        usage: { inputTokens: 300, outputTokens: 150, costUsd: 0.002, toolCalls: 1 },
+        citations: [],
+      }),
+    } as unknown as GrokAdapter
+
+    const chunks: string[] = []
+    const result = await agentMulti(mockGrok, 'test stream', (text) => chunks.push(text))
+
+    expect(mockGrok.queryStream).toHaveBeenCalled()
+    expect(mockGrok.query).not.toHaveBeenCalled()
+    expect(result.brief.signalLine).toBe('Streamed signal.')
+  })
+})
+
+describe('AgentExecutor — rate limit via err.status === 429 (object-style)', () => {
+  it('calls onStepSkip with rate-limited for object-style 429 errors', async () => {
+    const { buildScanSnapshot } = await import('../../src/core/builders/scan.js')
+    vi.mocked(buildScanSnapshot).mockRejectedValueOnce(
+      Object.assign(new Error('rate limited'), { status: 429 }),
+    )
+
+    const deps: CorvusDeps = {
+      grok: makeMockGrok([]),
+      x: {} as CorvusDeps['x'],
+    }
+
+    const plan: AgentPlan = {
+      goal: 'Test',
+      steps: [
+        { command: 'scan', args: { topic: 'bitcoin' }, reasoning: 'Step 1' },
+        { command: 'pulse', args: { topic: 'bitcoin' }, reasoning: 'Step 2' },
+      ],
+    }
+
+    const skipped: { index: number; reason: string }[] = []
+    const failures: { index: number; error: Error }[] = []
+    const executor = new AgentExecutor(deps, 'test', plan, {
+      maxSteps: 8,
+      budget: 1.0,
+      replan: false,
+      onStepSkip: (index, _step, reason) => skipped.push({ index, reason }),
+      onStepFail: (index, _step, error) => failures.push({ index, error }),
+    })
+    const context = await executor.execute(0)
+
+    // 429 object-style should trigger onStepSkip, NOT onStepFail
+    expect(skipped).toHaveLength(1)
+    expect(skipped[0].index).toBe(0)
+    expect(skipped[0].reason).toBe('rate-limited')
+    expect(failures).toHaveLength(0)
+    // Step 2 (pulse) should still run
+    expect(context.results).toHaveLength(1)
+    expect(context.results[0].command).toBe('pulse')
+  })
+})
+
+describe('AgentSynthesizer — normalizeEvidence with undefined fields', () => {
+  it('defaults undefined evidence fields to empty strings', async () => {
+    const mockGrok = {
+      query: vi.fn().mockResolvedValue({
+        text: JSON.stringify({
+          signalLine: 'Test.',
+          summary: [],
+          contradictions: [],
+          keyAccounts: [],
+          evidence: [
+            { source: undefined, key: undefined, detail: undefined },
+            {},
+          ],
+        }),
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.001, toolCalls: 0 },
+        citations: [],
+      }),
+    }
+
+    const synthesizer = new AgentSynthesizer(mockGrok as any)
+    const context: AgentContext = {
+      goal: 'Test',
+      question: 'Test',
+      results: [],
+      totalCost: 0.001,
+      leads: [],
+      usage: new UsageTracker(),
+    }
+
+    const brief = await synthesizer.synthesize(context)
+
+    expect(brief.evidence).toHaveLength(2)
+    expect(brief.evidence[0]).toEqual({ source: '', key: '', detail: '' })
+    expect(brief.evidence[1]).toEqual({ source: '', key: '', detail: '' })
+  })
+})
+
+describe('AgentExecutor — replan records usage', () => {
+  it('replan API call is tracked in context.usage.turnCount', async () => {
+    const replanResponse = JSON.stringify({ action: 'continue' })
+    const mockGrok = makeMockGrok([replanResponse])
+    const deps: CorvusDeps = { grok: mockGrok, x: {} as CorvusDeps['x'] }
+
+    const plan: AgentPlan = {
+      goal: 'Test',
+      steps: [
+        { command: 'scan', args: { topic: 'bitcoin' }, reasoning: 'Step 1' },
+        { command: 'pulse', args: { topic: 'bitcoin' }, reasoning: 'Step 2' },
+      ],
+    }
+
+    const executor = new AgentExecutor(deps, 'test', plan, {
+      maxSteps: 8,
+      budget: 1.0,
+      replan: true,
+    })
+    const context = await executor.execute(0)
+
+    // 2 steps executed + 1 replan API call = 3 usage records
+    expect(context.results).toHaveLength(2)
+    expect(context.usage.turnCount).toBe(3)
+    expect(context.usage.turnCount).toBeGreaterThan(context.results.length)
   })
 })

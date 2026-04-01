@@ -1,5 +1,19 @@
-import { describe, it, expect } from 'vitest'
-import { strip, sentimentBar, confidenceBar, divider, box, LOGO, percentBar, labeledDivider } from '../../src/cli/theme.js'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import {
+  strip,
+  sentimentBar,
+  confidenceBar,
+  divider,
+  box,
+  LOGO,
+  percentBar,
+  labeledDivider,
+  completionLine,
+  agentBanner,
+  sparkline,
+  gradient,
+  CorvusSpinner,
+} from '../../src/cli/theme.js'
 
 describe('strip', () => {
   it('removes ANSI color codes', () => {
@@ -180,5 +194,85 @@ describe('LOGO', () => {
     const stripped = strip(LOGO)
     expect(stripped).toContain('╔═╗╔═╗╦═╗╦')
     expect(stripped).toContain('╚═╝╚═╝╩╚═')
+  })
+})
+
+describe('completionLine', () => {
+  it('formats duration in seconds with done message', () => {
+    const result = strip(completionLine(2500))
+    expect(result).toContain('2.5s')
+    expect(result).toContain('done in')
+  })
+
+  it('includes extra text when provided', () => {
+    const result = strip(completionLine(1000, '$0.01'))
+    expect(result).toContain('$0.01')
+  })
+
+  it('handles zero duration', () => {
+    const result = strip(completionLine(0))
+    expect(result).toContain('0.0s')
+  })
+})
+
+describe('agentBanner', () => {
+  it('contains the question and command name', () => {
+    const result = strip(agentBanner('What about bitcoin?'))
+    expect(result).toContain('What about bitcoin?')
+    expect(result).toContain('corvus agent')
+  })
+})
+
+describe('sparkline', () => {
+  it('returns empty string for empty array', () => {
+    expect(sparkline([])).toBe('')
+  })
+
+  it('returns lowest bars for all-zero values', () => {
+    expect(sparkline([0, 0, 0])).toBe('▁▁▁')
+  })
+
+  it('scales values — last char is max block', () => {
+    const result = sparkline([1, 5, 10])
+    expect(result.length).toBe(3)
+    expect(result[2]).toBe('█')
+  })
+
+  it('respects explicit max parameter', () => {
+    const result = sparkline([5, 10], 10)
+    expect(result.length).toBe(2)
+  })
+
+  it('returns max block for single value', () => {
+    expect(sparkline([100])).toBe('█')
+  })
+})
+
+describe('gradient', () => {
+  it('preserves text content in non-TTY fallback', () => {
+    expect(strip(gradient('hello'))).toBe('hello')
+  })
+})
+
+describe('CorvusSpinner', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('logs text on start in non-TTY mode', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const spinner = new CorvusSpinner('thinking...')
+    spinner.start()
+
+    expect(spy).toHaveBeenCalled()
+    const logged = spy.mock.calls.map((args) => args.join(' ')).join(' ')
+    expect(logged).toContain('thinking...')
+  })
+
+  it('stop after start does not throw', () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const spinner = new CorvusSpinner('working...')
+    spinner.start()
+    expect(() => spinner.stop()).not.toThrow()
   })
 })

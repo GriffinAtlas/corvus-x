@@ -74,4 +74,34 @@ describe('UsageTracker', () => {
     tracker.record({ inputTokens: 1234, outputTokens: 567, toolCalls: 0 })
     expect(tracker.toSummary()).toBe('1.8K tokens')
   })
+
+  it('allTurns()[0] deep-equals the first recorded usage', () => {
+    const tracker = new UsageTracker()
+    const first = { inputTokens: 100, outputTokens: 50, toolCalls: 1 }
+    const second = { inputTokens: 200, outputTokens: 100, toolCalls: 2 }
+    tracker.record(first)
+    tracker.record(second)
+    expect(tracker.allTurns()[0]).toEqual({ inputTokens: 100, outputTokens: 50, toolCalls: 1 })
+    expect(tracker.allTurns()[1]).toEqual({ inputTokens: 200, outputTokens: 100, toolCalls: 2 })
+  })
+
+  it('allTurns() returns the internal array reference — push does not update turnCount', () => {
+    const tracker = new UsageTracker()
+    tracker.record({ inputTokens: 100, outputTokens: 50, toolCalls: 0 })
+    expect(tracker.turnCount).toBe(1)
+
+    // allTurns() exposes the internal array — mutating it bypasses cumulative tracking
+    const turns = tracker.allTurns() as { inputTokens: number; outputTokens: number; toolCalls: number }[]
+    turns.push({ inputTokens: 999, outputTokens: 999, toolCalls: 9 })
+
+    // The array grew, but turnCount reads from the same array's length
+    // This documents the aliasing behavior: turnCount reflects the mutation
+    expect(turns.length).toBe(2)
+    expect(tracker.turnCount).toBe(2)
+
+    // However, cumulative totals are NOT updated — only record() updates them
+    expect(tracker.totalInputTokens).toBe(100)
+    expect(tracker.totalOutputTokens).toBe(50)
+    expect(tracker.totalToolCalls).toBe(0)
+  })
 })

@@ -612,6 +612,30 @@ describe('parseGrokJson', () => {
     const result = parseGrokJson<{ msg: string; n: number }>(raw)
     expect(result).toEqual({ msg: 'he said "hello"', n: 1 })
   })
+
+  it('parses empty object', () => {
+    const result = parseGrokJson<Record<string, never>>('{}')
+    expect(result).toEqual({})
+  })
+
+  it('parses empty array', () => {
+    const result = parseGrokJson<never[]>('[]')
+    expect(result).toEqual([])
+  })
+
+  it('parses 4-level nested object correctly', () => {
+    const raw = '{"a":{"b":{"c":{"d":1}}}}'
+    const result = parseGrokJson<{ a: { b: { c: { d: number } } } }>(raw)
+    expect(result).toEqual({ a: { b: { c: { d: 1 } } } })
+    expect(result.a.b.c.d).toBe(1)
+  })
+
+  it('handles unicode escape for quote character', () => {
+    const raw = '{"msg": "\\u0022hello\\u0022", "n": 1}'
+    const result = parseGrokJson<{ msg: string; n: number }>(raw)
+    expect(result.msg).toBe('"hello"')
+    expect(result.n).toBe(1)
+  })
 })
 
 describe('MODEL_PRICING', () => {
