@@ -25,6 +25,7 @@ const TOOL_COST_PER_CALL = 0.005
 export const DEFAULT_MODEL = 'grok-4-1-fast'
 
 const TIMEOUT_MS = 60_000
+const STREAM_TIMEOUT_MS = 120_000
 const RETRY_DELAY_MS = 2_000
 const MAX_ATTEMPTS = 2
 const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503])
@@ -278,7 +279,7 @@ export class GrokAdapter {
     }
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 120_000)
+    const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS)
 
     let text = ''
     let inputTokens = 0
