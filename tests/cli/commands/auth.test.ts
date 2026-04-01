@@ -1,6 +1,55 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Command } from 'commander'
-import { registerAuthCommand } from '../../../src/cli/commands/auth.js'
+import { registerAuthCommand, validateGrokKey } from '../../../src/cli/commands/auth.js'
+
+describe('validateGrokKey', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns "valid" when API responds 200', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+    expect(await validateGrokKey('xai-good-key')).toBe('valid')
+  })
+
+  it('returns "invalid" when API responds 401', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Unauthorized', { status: 401 }))
+    expect(await validateGrokKey('xai-bad-key')).toBe('invalid')
+  })
+
+  it('returns "invalid" when API responds 403', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Forbidden', { status: 403 }))
+    expect(await validateGrokKey('xai-forbidden-key')).toBe('invalid')
+  })
+
+  it('returns "unknown" on network failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'))
+    expect(await validateGrokKey('xai-any-key')).toBe('unknown')
+  })
+
+  it('returns "unknown" on non-auth HTTP error (e.g. 500)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Internal Error', { status: 500 }))
+    expect(await validateGrokKey('xai-any-key')).toBe('unknown')
+  })
+
+  it('returns "unknown" on timeout (abort)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((_resolve, reject) => setTimeout(() => reject(new Error('AbortError')), 50)),
+    )
+    expect(await validateGrokKey('xai-any-key')).toBe('unknown')
+  })
+
+  it('sends correct Authorization header', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+    await validateGrokKey('xai-test-123')
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.x.ai/v1/models',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer xai-test-123' },
+      }),
+    )
+  })
+})
 
 describe('registerAuthCommand', () => {
   let program: Command

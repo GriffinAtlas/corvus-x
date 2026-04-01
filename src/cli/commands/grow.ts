@@ -14,6 +14,10 @@ export function registerGrowCommand(program: Command): void {
     .description('Daily growth workflow — find hooks, draft a post, get timing advice')
     .option('--thread', 'draft as a thread instead of single post')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus grow "machine learning"
+  $ corvus grow "developer tools" --thread`)
     .action(
       async (
         topicParts: string[],

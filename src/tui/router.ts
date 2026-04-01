@@ -7,8 +7,16 @@ export type ParsedCommand =
 const TOPIC_COMMANDS = new Set(['scan', 'pulse', 'trace', 'hooks', 'draft', 'grow'])
 const SLASH_COMMANDS = new Set(['help', 'cost', 'history', 'clear', 'exit', 'view', 'brief'])
 
+const COMMAND_ALIASES: Record<string, string> = {
+  opportunities: 'hooks',
+  sentiment: 'pulse',
+  spread: 'trace',
+  when: 'timing',
+}
+
 export const COMMAND_KEYWORDS = [
   ...TOPIC_COMMANDS,
+  ...Object.keys(COMMAND_ALIASES),
   'agent',
   'profile',
   'review',
@@ -46,7 +54,8 @@ export function parseInput(raw: string): ParsedCommand {
   }
 
   const spaceIdx = input.indexOf(' ')
-  const keyword = (spaceIdx === -1 ? input : input.slice(0, spaceIdx)).toLowerCase()
+  const rawKeyword = (spaceIdx === -1 ? input : input.slice(0, spaceIdx)).toLowerCase()
+  const keyword = COMMAND_ALIASES[rawKeyword] ?? rawKeyword
   const rest = spaceIdx === -1 ? '' : input.slice(spaceIdx + 1).trim()
 
   if (TOPIC_COMMANDS.has(keyword)) {

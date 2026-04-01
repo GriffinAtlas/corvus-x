@@ -15,6 +15,10 @@ export function registerProfileCommand(program: Command): void {
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --posts <count>', 'number of recent posts to analyze', '50')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus profile @elonmusk
+  $ corvus profile @self -n 100 -f md`)
     .action(
       async (
         username: string,

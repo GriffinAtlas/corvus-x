@@ -93,12 +93,26 @@ program
   })
 
 program
-  .command('repl')
+  .command('repl', { hidden: true })
   .description('[deprecated] Use corvus (no args) for interactive mode')
   .action(async () => {
     console.log('\n  corvus repl is deprecated. Run corvus (no args) for the interactive TUI.\n')
     process.exit(0)
   })
+
+const cmdMap = new Map(program.commands.map((c) => [c.name(), c]))
+for (const [group, names] of [
+  ['Investigation:', ['agent', 'trace']],
+  ['Intelligence:', ['scan', 'pulse']],
+  ['Growth:', ['profile', 'hooks', 'draft', 'review', 'timing', 'grow']],
+  ['Monitoring:', ['watch']],
+  ['Data:', ['export', 'history']],
+  ['Utilities:', ['ask', 'auth', 'mcp']],
+] as const) {
+  for (const name of names) {
+    cmdMap.get(name)?.helpGroup(group)
+  }
+}
 
 program
   .argument('[args...]')

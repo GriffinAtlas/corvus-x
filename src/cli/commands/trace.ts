@@ -11,10 +11,15 @@ export { buildTraceSnapshot } from '../../core/builders/trace.js'
 export function registerTraceCommand(program: Command): void {
   program
     .command('trace <narrative...>')
+    .alias('spread')
     .description('Map how a narrative spreads — origin, amplifiers, mutations')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --count <n>', 'max tweets to analyze', '50')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus trace "AI will replace developers"
+  $ corvus spread "lab leak theory" -n 100`)
     .action(
       async (
         narrativeParts: string[],

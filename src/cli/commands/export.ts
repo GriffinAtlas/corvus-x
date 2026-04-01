@@ -155,6 +155,11 @@ export function registerExportCommand(program: Command): void {
     .option('--all', 'export all snapshots (not just latest)')
     .option('--tweets', 'include raw tweets in export')
     .option('--list', 'list available snapshots')
+    .addHelpText('after', `
+Examples:
+  $ corvus export --list
+  $ corvus export scan "AI regulation" -f csv
+  $ corvus export pulse bitcoin --all --tweets -f jsonl`)
     .action(
       async (
         command: string | undefined,

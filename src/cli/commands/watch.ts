@@ -150,6 +150,10 @@ export function registerWatchCommand(program: Command): void {
     .option('--from <date>', 'filter x_search from date (YYYY-MM-DD)')
     .option('--to <date>', 'filter x_search to date (YYYY-MM-DD)')
     .option('--handle <name...>', 'filter x_search to specific handles (max 10)')
+    .addHelpText('after', `
+Examples:
+  $ corvus watch "OpenAI announcements"
+  $ corvus watch bitcoin -i 120 -n 10`)
     .action(
       async (
         topicParts: string[],

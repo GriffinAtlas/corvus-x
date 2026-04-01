@@ -16,6 +16,10 @@ export function registerReviewCommand(program: Command): void {
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-d, --days <n>', 'analysis window in days', '7')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus review
+  $ corvus review -d 30 -f md`)
     .action(
       async (options: { format: OutputFormat; days: string; cost?: boolean }) => {
         const auth = new AuthManager(ConfigManager.defaultDir())

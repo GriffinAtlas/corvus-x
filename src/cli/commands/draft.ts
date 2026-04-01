@@ -14,6 +14,11 @@ export function registerDraftCommand(program: Command): void {
     .option('--reply-to <url>', 'draft a reply to this tweet/thread')
     .option('--no-context', 'skip search, draft from topic only')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus draft "AI in healthcare"
+  $ corvus draft "hot take on open source" --thread
+  $ corvus draft "response to this" --reply-to https://x.com/user/status/123`)
     .action(
       async (
         topicParts: string[],

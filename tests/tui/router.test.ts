@@ -246,6 +246,63 @@ describe('parseInput', () => {
     })
   })
 
+  describe('command aliases', () => {
+    it('resolves "opportunities" to hooks', () => {
+      expect(parseInput('opportunities AI startups')).toEqual({
+        type: 'command',
+        command: 'hooks',
+        args: { topic: 'AI startups' },
+      })
+    })
+
+    it('resolves "sentiment" to pulse', () => {
+      expect(parseInput('sentiment crypto')).toEqual({
+        type: 'command',
+        command: 'pulse',
+        args: { topic: 'crypto' },
+      })
+    })
+
+    it('resolves "spread" to trace', () => {
+      expect(parseInput('spread lab leak narrative')).toEqual({
+        type: 'command',
+        command: 'trace',
+        args: { topic: 'lab leak narrative' },
+      })
+    })
+
+    it('resolves "when" to timing', () => {
+      expect(parseInput('when AI tools')).toEqual({
+        type: 'command',
+        command: 'timing',
+        args: { topic: 'AI tools' },
+      })
+    })
+
+    it('resolves "when" with no topic to timing with no topic', () => {
+      expect(parseInput('when')).toEqual({
+        type: 'command',
+        command: 'timing',
+        args: {},
+      })
+    })
+
+    it('resolves aliases case-insensitively', () => {
+      expect(parseInput('OPPORTUNITIES typescript')).toEqual({
+        type: 'command',
+        command: 'hooks',
+        args: { topic: 'typescript' },
+      })
+    })
+
+    it('returns error for alias without required topic', () => {
+      expect(parseInput('sentiment')).toEqual({
+        type: 'error',
+        message: 'Usage: pulse <topic>',
+      })
+    })
+  })
+
   describe('natural language fallback', () => {
     it('treats unrecognized input as ask', () => {
       expect(parseInput('why is bitcoin pumping')).toEqual({

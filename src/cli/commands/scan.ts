@@ -15,6 +15,10 @@ export function registerScanCommand(program: Command): void {
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --count <n>', 'max tweets to analyze', '50')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus scan AI regulation
+  $ corvus scan "open source LLMs" -n 100 -f json`)
     .action(
       async (
         topicParts: string[],

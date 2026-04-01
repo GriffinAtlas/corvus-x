@@ -9,10 +9,15 @@ import type { OutputFormat } from '../output.js'
 export function registerHooksCommand(program: Command): void {
   program
     .command('hooks <topic...>')
+    .alias('opportunities')
     .description('Find conversations to reply to — high-signal engagement opportunities')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --count <n>', 'max tweets to search', '50')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus hooks "AI startups"
+  $ corvus opportunities "typescript CLI tools" -n 20`)
     .action(
       async (
         topicParts: string[],

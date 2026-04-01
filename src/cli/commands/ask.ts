@@ -49,6 +49,11 @@ export function registerAskCommand(program: Command): void {
     .option('--to <date>', 'filter x_search to date (YYYY-MM-DD)')
     .option('--handle <name...>', 'filter x_search to specific handles (max 10)')
     .option('--exclude-handle <name...>', 'exclude specific handles from x_search (max 10)')
+    .addHelpText('after', `
+Examples:
+  $ corvus ask "what's trending in AI today?"
+  $ corvus ask "what did @elonmusk say about X?" --handle elonmusk
+  $ corvus ask "major crypto news" --from 2025-03-01 --to 2025-03-15`)
     .action(
       async (
         questionParts: string[],

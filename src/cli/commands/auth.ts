@@ -46,6 +46,24 @@ function promptSecret(question: string): Promise<string> {
   })
 }
 
+export async function validateGrokKey(apiKey: string): Promise<'valid' | 'invalid' | 'unknown'> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10_000)
+  try {
+    const res = await fetch('https://api.x.ai/v1/models', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    })
+    if (res.ok) return 'valid'
+    if (res.status === 401 || res.status === 403) return 'invalid'
+    return 'unknown'
+  } catch {
+    return 'unknown'
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function runSetup(): Promise<void> {
   const auth = new AuthManager(ConfigManager.defaultDir())
 
@@ -58,6 +76,19 @@ async function runSetup(): Promise<void> {
   if (!grokKey) {
     console.log('\n  Grok API key is required. Aborting.')
     process.exit(1)
+  }
+
+  process.stdout.write('  Verifying key...')
+  const status = await validateGrokKey(grokKey)
+  if (status === 'invalid') {
+    console.log(' ✗ invalid key')
+    console.log('  Check your key at https://console.x.ai and try again.\n')
+    process.exit(1)
+  }
+  if (status === 'unknown') {
+    console.log(' ⚠ could not verify — saving anyway\n')
+  } else {
+    console.log(' ✓ valid\n')
   }
 
   auth.setGrokKey(grokKey)
@@ -95,7 +126,8 @@ function runStatus(): void {
 }
 
 export function registerAuthCommand(program: Command): void {
-  const auth = program.command('auth').description('Set up API keys')
+  const auth = program.command('auth')
+    .description('Configure Grok API key and optional X credentials')
 
   auth.command('setup').description('Interactive API key setup').action(runSetup)
   auth.command('status').description('Show current auth status').action(runStatus)

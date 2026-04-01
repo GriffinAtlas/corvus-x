@@ -288,6 +288,11 @@ export function registerAgentCommand(program: Command): void {
     .option('--no-replan', 'disable adaptive replanning (classic only)')
     .option('--budget <amount>', 'cost cap in USD (classic only)', '0.10')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus agent "what's driving the AI regulation debate?"
+  $ corvus agent "compare React vs Svelte sentiment" --classic -i
+  $ corvus agent "who are the key voices in climate tech?" -f json`)
     .action(
       async (
         questionParts: string[],

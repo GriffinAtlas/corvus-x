@@ -12,10 +12,16 @@ import type { OutputFormat } from '../output.js'
 export function registerTimingCommand(program: Command): void {
   program
     .command('timing [topic...]')
+    .alias('when')
     .description('Best times to post — based on your audience or a topic\'s activity')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-d, --days <n>', 'lookback window for self-analysis', '30')
     .option('--cost', 'show estimated cost before executing')
+    .addHelpText('after', `
+Examples:
+  $ corvus timing "AI tools"
+  $ corvus when
+  $ corvus timing -d 14`)
     .action(
       async (
         topicParts: string[],
