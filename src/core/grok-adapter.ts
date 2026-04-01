@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { zodResponseFormat } from 'openai/helpers/zod'
+import { estimateTokens } from './compaction.js'
 import type { GrokResponse, GrokCitation, QueryOptions } from './types.js'
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -307,7 +308,7 @@ export class GrokAdapter {
     }
 
     if (inputTokens === 0 && outputTokens === 0) {
-      outputTokens = Math.ceil(text.length / 4)
+      outputTokens = estimateTokens(text)
     }
 
     const costUsd = this.computeCost(model, inputTokens, outputTokens, toolCallCount)

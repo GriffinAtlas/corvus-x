@@ -110,6 +110,8 @@ export const DEFAULT_COMPACTION: CompactionConfig = {
   preserveRecent: 2,
 }
 
+const toFullJson = (r: AgentStepResult) => `## ${r.command}\n${JSON.stringify(r.snapshot, null, 2)}`
+
 export function compactResults(
   results: AgentStepResult[],
   config: CompactionConfig = DEFAULT_COMPACTION,
@@ -117,7 +119,7 @@ export function compactResults(
   if (results.length <= config.preserveRecent) {
     return {
       summaries: results
-        .map((r) => `## ${r.command}\n${JSON.stringify(r.snapshot, null, 2)}`)
+        .map(toFullJson)
         .join('\n\n'),
       compactedCount: 0,
     }
@@ -125,7 +127,7 @@ export function compactResults(
 
   const recentResults = results.slice(-config.preserveRecent)
   const recentJson = recentResults
-    .map((r) => `## ${r.command}\n${JSON.stringify(r.snapshot, null, 2)}`)
+    .map(toFullJson)
     .join('\n\n')
 
   const recentTokens = estimateTokens(recentJson)

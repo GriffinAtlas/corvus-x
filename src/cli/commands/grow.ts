@@ -34,7 +34,7 @@ export function registerGrowCommand(program: Command): void {
         console.log()
 
         let hooksContext = ''
-        const hookSpinner = new CorvusSpinner( 'finding conversations to reply to...').start()
+        const hookSpinner = new CorvusSpinner('finding conversations to reply to...').start()
         try {
           const hooks = await buildHooksSnapshot(deps, topic, 30)
           hookSpinner.stop()
@@ -57,7 +57,7 @@ export function registerGrowCommand(program: Command): void {
           console.log()
         }
 
-        const draftSpinner = new CorvusSpinner( 'drafting a post...').start()
+        const draftSpinner = new CorvusSpinner('drafting a post...').start()
         try {
           const draft = await buildDraftSnapshot(deps, topic, { thread: options.thread, hooksContext: hooksContext || undefined })
           draftSpinner.stop()
@@ -73,7 +73,7 @@ export function registerGrowCommand(program: Command): void {
         }
 
         const handle = new AuthManager(ConfigManager.defaultDir()).getXHandle()
-        const timingSpinner = new CorvusSpinner( 'analyzing best posting times...').start()
+        const timingSpinner = new CorvusSpinner('analyzing best posting times...').start()
         try {
           const timing = await buildTimingSnapshot(deps, {
             handle: handle ?? undefined,

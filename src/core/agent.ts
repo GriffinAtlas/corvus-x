@@ -15,6 +15,8 @@ import { ConfigManager } from '../infra/config.js'
 import { compactResults, DEFAULT_COMPACTION } from './compaction.js'
 import { UsageTracker } from './usage.js'
 
+const VALID_COMMANDS: ReadonlySet<string> = new Set(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft'])
+
 export interface AgentPlan {
   goal: string
   steps: AgentStep[]
@@ -135,7 +137,7 @@ export class AgentPlanner {
       throw new Error('Planner returned an empty or invalid plan')
     }
 
-    const validCommands = new Set(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft'])
+    const validCommands = VALID_COMMANDS
 
     return {
       plan: {
@@ -254,6 +256,7 @@ export class AgentExecutor {
   private deps: CorvusDeps
   private options: AgentOptions
   private store: SnapshotStore
+  private leadSet = new Set<string>()
   private replanCount = 0
   private aborted = false
 
@@ -344,10 +347,10 @@ export class AgentExecutor {
           toolCalls: result.toolCalls,
         })
 
-        const leadSet = new Set(this.context.leads)
-        const newLeads = extractLeads(result.data, leadSet, plannedTargets)
+        const newLeads = extractLeads(result.data, this.leadSet, plannedTargets)
         for (const lead of newLeads) {
           this.context.leads.push(lead)
+          this.leadSet.add(lead)
           this.options.onLeadFound?.(`profile · @${lead}`, 'lead')
         }
 
@@ -414,7 +417,7 @@ export class AgentExecutor {
     const decision = parseGrokJson<ReplanDecision>(response.text)
 
     if (decision.action === 'revise' && 'steps' in decision && Array.isArray(decision.steps)) {
-      const validCommands = new Set(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft'])
+      const validCommands = VALID_COMMANDS
       const maxAdditional = remaining.length + 3
       return decision.steps
         .filter((s) => validCommands.has(s.command))
@@ -509,17 +512,8 @@ export class AgentSynthesizer {
       sentiment,
       summary: grokBrief.summary ?? [],
       contradictions: mergeContradictions(localContradictions, grokBrief.contradictions ?? []),
-      keyAccounts: (grokBrief.keyAccounts ?? []).map((a) => ({
-        handle: a.handle ?? '',
-        reach: a.reach ?? 0,
-        sentiment: a.sentiment ?? 0,
-        stance: a.stance ?? '',
-      })),
-      evidence: (grokBrief.evidence ?? []).map((e) => ({
-        source: e.source ?? '',
-        key: e.key ?? '',
-        detail: e.detail ?? '',
-      })),
+      keyAccounts: normalizeAccounts(grokBrief.keyAccounts),
+      evidence: normalizeEvidence(grokBrief.evidence),
       confidence,
       sampleSize,
       staleness,
@@ -597,17 +591,8 @@ export async function agentMulti(
     sentiment: grokBrief.sentiment ?? 0,
     summary: grokBrief.summary ?? [],
     contradictions: grokBrief.contradictions ?? [],
-    keyAccounts: (grokBrief.keyAccounts ?? []).map((a) => ({
-      handle: a.handle ?? '',
-      reach: a.reach ?? 0,
-      sentiment: a.sentiment ?? 0,
-      stance: a.stance ?? '',
-    })),
-    evidence: (grokBrief.evidence ?? []).map((e) => ({
-      source: e.source ?? '',
-      key: e.key ?? '',
-      detail: e.detail ?? '',
-    })),
+    keyAccounts: normalizeAccounts(grokBrief.keyAccounts),
+    evidence: normalizeEvidence(grokBrief.evidence),
     confidence: {
       overall: grokBrief.confidence?.overall ?? 0.5,
       volume: grokBrief.confidence?.volume ?? 'moderate',
@@ -627,6 +612,23 @@ export async function agentMulti(
 }
 
 export { MULTI_AGENT_MODEL }
+
+function normalizeAccounts(raw: Partial<AgentBrief>['keyAccounts']): AgentBrief['keyAccounts'] {
+  return (raw ?? []).map((a) => ({
+    handle: a.handle ?? '',
+    reach: a.reach ?? 0,
+    sentiment: a.sentiment ?? 0,
+    stance: a.stance ?? '',
+  }))
+}
+
+function normalizeEvidence(raw: Partial<AgentBrief>['evidence']): AgentBrief['evidence'] {
+  return (raw ?? []).map((e) => ({
+    source: e.source ?? '',
+    key: e.key ?? '',
+    detail: e.detail ?? '',
+  }))
+}
 
 function mergeContradictions(local: string[], grok: string[]): string[] {
   const merged = [...local]

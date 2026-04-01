@@ -1,4 +1,4 @@
-import { t, isTTY, strip, percentBar } from './theme.js'
+import { t, isTTY, strip, percentBar, SPINNER_FRAMES } from './theme.js'
 
 interface StepEntry {
   label: string
@@ -7,8 +7,6 @@ interface StepEntry {
   durationMs?: number
 }
 
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
-
 export class StepProgress {
   private steps: StepEntry[]
   private rendered = false
@@ -16,6 +14,9 @@ export class StepProgress {
   private spinnerFrame = 0
   private spinnerTimer: ReturnType<typeof setInterval> | null = null
   private lastChangedIndex = -1
+  private doneCount = 0
+  private failedCount = 0
+  private runningCount = 0
 
   constructor(steps: { label: string; tag?: string }[]) {
     this.steps = steps.map((s) => ({ label: s.label, status: 'pending' as const, tag: s.tag }))
@@ -24,6 +25,7 @@ export class StepProgress {
   start(index: number): void {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'running'
+      this.runningCount++
       if (isTTY && !this.spinnerTimer) {
         this.spinnerTimer = setInterval(() => {
           this.spinnerFrame = (this.spinnerFrame + 1) % SPINNER_FRAMES.length
@@ -38,6 +40,8 @@ export class StepProgress {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'done'
       this.steps[index].durationMs = durationMs
+      this.doneCount++
+      this.runningCount--
       this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()
@@ -47,6 +51,8 @@ export class StepProgress {
   fail(index: number): void {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'failed'
+      this.failedCount++
+      this.runningCount--
       this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()
@@ -57,6 +63,7 @@ export class StepProgress {
     if (index >= 0 && index < this.steps.length) {
       this.steps[index].status = 'skipped'
       if (reason) this.steps[index].tag = reason
+      this.runningCount--
       this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()
@@ -108,13 +115,11 @@ export class StepProgress {
       return `  ${t.muted(num)} ${step.label}${tag}  ${statusStr}${durationStr}`
     })
 
-    const done = this.steps.filter((s) => s.status === 'done').length
-    const failed = this.steps.filter((s) => s.status === 'failed').length
-    const completed = done + failed
+    const completed = this.doneCount + this.failedCount
     const progress = total > 0 ? completed / total : 0
     const bar = percentBar(progress, 20, t.accent)
     const progressLine = `  ${bar} ${completed}/${total} steps`
-      + (failed > 0 ? ` ${t.negative(`(${failed} failed)`)}` : '')
+      + (this.failedCount > 0 ? ` ${t.negative(`(${this.failedCount} failed)`)}` : '')
 
     if (isTTY) {
       if (this.rendered) {
@@ -151,8 +156,7 @@ export class StepProgress {
   }
 
   private stopSpinnerIfIdle(): void {
-    const hasRunning = this.steps.some((s) => s.status === 'running')
-    if (!hasRunning && this.spinnerTimer) {
+    if (this.runningCount <= 0 && this.spinnerTimer) {
       clearInterval(this.spinnerTimer)
       this.spinnerTimer = null
     }

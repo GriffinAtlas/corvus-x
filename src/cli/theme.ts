@@ -136,6 +136,18 @@ export const LOGO_LINES = [
   '  ╚═╝╚═╝╩╚═ ╚╝ ╚═╝╚═╝',
 ]
 
+export const CROW_COLORS = [
+  '#3A1078', '#4A1990', '#5522A8', '#602BBF',
+  '#6E33C6', '#7C3AED', '#8B4FFF', '#9F67FF',
+]
+
+export const LOGO_LARGE_COLORS = [
+  '#5C29A8', '#6E33C6', '#7C3AED',
+  '#8B4FFF', '#9F67FF', '#B48AFF',
+]
+
+export const LOGO_SMALL_COLORS = ['#9F67FF', '#B48AFF', '#C9A5FF']
+
 export function completionLine(durationMs: number, extra?: string): string {
   const secs = (durationMs / 1000).toFixed(1)
   const check = t.positive('✓')
@@ -160,13 +172,13 @@ export function sparkline(values: number[], maxVal?: number): string {
     .join('')
 }
 
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+export const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 
 export class CorvusSpinner {
   private frame = 0
   private timer: ReturnType<typeof setInterval> | null = null
   private text: string
-  private stopped = false
+  private hasRendered = false
 
   constructor(text: string) {
     this.text = text
@@ -190,19 +202,19 @@ export class CorvusSpinner {
       clearInterval(this.timer)
       this.timer = null
     }
-    if (isTTY && !this.stopped) {
+    if (isTTY && this.hasRendered) {
       process.stdout.write('\x1b[1A\x1b[2K')
-      this.stopped = true
     }
   }
 
   private render(): void {
     const spinner = t.accent(SPINNER_FRAMES[this.frame])
     const line = `  ${spinner} ${t.muted(this.text)}`
-    if (this.frame > 0 || this.stopped) {
+    if (this.hasRendered) {
       process.stdout.write('\x1b[1A\x1b[2K')
     }
     process.stdout.write(line + '\n')
+    this.hasRendered = true
   }
 }
 
