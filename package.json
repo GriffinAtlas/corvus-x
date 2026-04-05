@@ -28,6 +28,10 @@
     "type": "git",
     "url": "https://github.com/GriffinAtlas/corvus-x.git"
   },
+  "homepage": "https://github.com/GriffinAtlas/corvus-x",
+  "bugs": {
+    "url": "https://github.com/GriffinAtlas/corvus-x/issues"
+  },
   "keywords": [
     "cli",
     "twitter",

@@ -23,7 +23,7 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) â€
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (957 tests)
+npm test                     # vitest run (1,041 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -55,7 +55,7 @@ src/
     hooks/                   # useCommand, useSession
     router.ts                # 15 commands + slash commands
   index.ts                   # public API surface
-tests/                       # 957 tests across 51 files
+tests/                       # 1,041 tests across 53 files
 ```
 
 ## Key Patterns
