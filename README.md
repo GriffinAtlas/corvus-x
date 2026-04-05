@@ -241,7 +241,7 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 | Layer | Technology |
 |---|---|
 | Language | TypeScript (ES2022, strict mode) |
-| Runtime | Node.js >= 18 |
+| Runtime | Node.js >= 20 |
 | AI | Grok Responses API via OpenAI SDK |
 | Data | X API v2 (optional) |
 | CLI | Commander |

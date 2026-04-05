@@ -10,7 +10,7 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) â€
 ## Stack
 
 - TypeScript (strict, ES2022, ESM with `"type": "module"`)
-- Node.js >= 18
+- Node.js >= 20
 - Grok Responses API at `https://api.x.ai/v1` via OpenAI SDK
 - Default model: `grok-4-1-fast` (commands), `grok-4.20-multi-agent-beta-0309` (agent)
 - X API v2 at `https://api.x.com/2` via native `fetch`
