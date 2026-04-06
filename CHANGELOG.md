@@ -11,7 +11,7 @@ Growth pivot — Corvus shifts from pure intel to helping creators grow on X.
 - **Growth commands** — `profile`, `hooks`, `draft`, `review`, `timing`, `grow` (daily workflow)
 - **Voice profile system** — `profile @self` extracts your writing style; `draft` and `grow` use it automatically
 - **Algorithm-aware scoring** — profile analysis uses verified X algorithm weights (replies 13.5x, author replies 75x, conversations 150x)
-- **Multi-agent model** — `grok-4.20-multi-agent-beta-0309` as default agent engine with auto-fallback to classic step-by-step
+- **Multi-agent model** — `grok-4.20-multi-agent-0309` as default agent engine with auto-fallback to classic step-by-step
 - **Responses API** — migrated from Chat Completions (410 Gone) to `client.responses.create()` with `x_search` and `web_search` tools
 - **Growth-focused prompts** — competition ratios, reply windows, hook-first drafts, takeaway + actions at top
 - **Spam filtering** — all Grok prompts filter spam, scams, memecoins, bots

@@ -48,7 +48,7 @@ src/
   mcp/server.ts           # MCP server — 5 tools via McpServer
   infra/                  # auth (credentials + xHandle) and config management
   index.ts                # public API surface for library consumers
-tests/                    # mirrors src/ — 1,041 tests across 53 files
+tests/                    # mirrors src/ — 1,013 tests across 51 files
 ```
 
 ## Conventions

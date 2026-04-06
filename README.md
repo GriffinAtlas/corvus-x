@@ -44,7 +44,7 @@ corvus grow "rust async"
   Tue 14:00 UTC · Wed 09:00 UTC · Thu 15:00 UTC
 
   ─────────────────────────────────────────────
-  3 steps · ~$0.014
+  3 steps · $0.0140
 ```
 
 ## What Makes This Different
