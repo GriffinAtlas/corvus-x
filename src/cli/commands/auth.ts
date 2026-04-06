@@ -46,6 +46,18 @@ function promptSecret(question: string): Promise<string> {
   })
 }
 
+export function formatPostSetupHints(platform: string): string[] {
+  const lines: string[] = []
+  if (platform === 'win32') {
+    lines.push('  ⚠ Note: credentials.json is not OS-protected on Windows.')
+    lines.push('     Any local user can read it. See SECURITY.md for details.')
+    lines.push('')
+  }
+  lines.push('  ✓ Ready. Try: corvus grow "your topic"')
+  lines.push('')
+  return lines
+}
+
 export async function validateGrokKey(apiKey: string): Promise<'valid' | 'invalid' | 'unknown'> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10_000)
@@ -110,7 +122,9 @@ async function runSetup(): Promise<void> {
     console.log(`  ✓ Handle saved: @${handle.replace(/^@/, '')}\n`)
   }
 
-  console.log('  ✓ Ready. Try: corvus ask "what\'s trending in AI?"\n')
+  for (const line of formatPostSetupHints(process.platform)) {
+    console.log(line)
+  }
 }
 
 function runStatus(): void {

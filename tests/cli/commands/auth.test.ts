@@ -110,3 +110,33 @@ describe('registerAuthCommand', () => {
     expect(logs.some((l) => l.includes('X API:') && l.includes('✗ not set'))).toBe(true)
   })
 })
+
+describe('formatPostSetupHints', () => {
+  it('includes Windows credentials warning on win32', async () => {
+    const { formatPostSetupHints } = await import('../../../src/cli/commands/auth.js')
+    const lines = formatPostSetupHints('win32')
+    const joined = lines.join('\n')
+    expect(joined).toMatch(/credentials\.json/i)
+    expect(joined).toMatch(/Windows/i)
+  })
+
+  it('omits Windows warning on non-win32 platforms', async () => {
+    const { formatPostSetupHints } = await import('../../../src/cli/commands/auth.js')
+    const linuxLines = formatPostSetupHints('linux')
+    const darwinLines = formatPostSetupHints('darwin')
+    expect(linuxLines.join('\n')).not.toMatch(/credentials\.json/i)
+    expect(darwinLines.join('\n')).not.toMatch(/credentials\.json/i)
+  })
+
+  it('points the user at corvus grow as the next step on every platform', async () => {
+    const { formatPostSetupHints } = await import('../../../src/cli/commands/auth.js')
+    expect(formatPostSetupHints('win32').join('\n')).toContain('corvus grow')
+    expect(formatPostSetupHints('linux').join('\n')).toContain('corvus grow')
+    expect(formatPostSetupHints('darwin').join('\n')).toContain('corvus grow')
+  })
+
+  it('does not mention "corvus ask" as the next step', async () => {
+    const { formatPostSetupHints } = await import('../../../src/cli/commands/auth.js')
+    expect(formatPostSetupHints('linux').join('\n')).not.toContain('corvus ask')
+  })
+})
