@@ -46,7 +46,7 @@ function promptSecret(question: string): Promise<string> {
   })
 }
 
-export function formatPostSetupHints(platform: string): string[] {
+export function formatPostSetupHints(platform: NodeJS.Platform): string[] {
   const lines: string[] = []
   if (platform === 'win32') {
     lines.push('  ⚠ Note: credentials.json is not OS-protected on Windows.')

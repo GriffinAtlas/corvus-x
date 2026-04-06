@@ -138,5 +138,6 @@ describe('formatPostSetupHints', () => {
   it('does not mention "corvus ask" as the next step', async () => {
     const { formatPostSetupHints } = await import('../../../src/cli/commands/auth.js')
     expect(formatPostSetupHints('linux').join('\n')).not.toContain('corvus ask')
+    expect(formatPostSetupHints('win32').join('\n')).not.toContain('corvus ask')
   })
 })
