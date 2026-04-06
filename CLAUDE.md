@@ -65,7 +65,7 @@ tests/                       # 1013 tests across 51 files
 - **Growth-focused prompts** — scan/hooks/draft optimized for creators, not analysts. Takeaway + actions at top. Competition ratios. No hashtags.
 - **X algorithm scoring** — profile analysis uses verified weights from open-source algo: replies 13.5x, author replies 75x, likes 0.5x. replyRate computed from real tweet data. No hashtags (not a ranking signal). No bookmark ranking (not in PhoenixScores).
 - **Spam filtering** — all Grok prompts instruct to filter spam, scams, memecoins, bots.
-- **No cost displays** — can't calculate accurately with multi-agent internal tool calls.
+- **Approximate multi-agent cost** — multi-agent cost shown with `~` prefix; classic mode and direct commands display exact cost.
 - **Voice profile** — `profile @self` generates voice profile (fire-and-forget). `draft` loads it.
 - **grow wiring** — hooks results feed into draft context for relevant post generation.
 
