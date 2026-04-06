@@ -111,6 +111,7 @@ async function runMultiAgent(
     tweetCount: 0,
     accountCount: brief.keyAccounts.length,
     cost: result.cost,
+    approximateCost: true,
     previousSentiment: previous ? (previous.data as AgentBrief).sentiment : undefined,
   }
 

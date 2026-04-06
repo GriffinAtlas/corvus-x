@@ -205,6 +205,17 @@ describe('registerAgentCommand', () => {
     expect(output).toContain('Confidence') // confidence section
   })
 
+  it('marks multi-agent cost as approximate with ~ prefix in footer', async () => {
+    vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
+
+    mockQuery.mockResolvedValueOnce(grokApiResponse(makeBriefResponse()))
+
+    await program.parseAsync(['node', 'corvus', 'agent', 'bitcoin'])
+
+    const output = logs.join('\n')
+    expect(output).toMatch(/~\$\d/)
+  })
+
   it('--format json produces valid JSON', async () => {
     vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
     vi.stubEnv('CORVUS_X_BEARER_TOKEN', 'test-x-token')
