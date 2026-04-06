@@ -30,11 +30,11 @@ Growth pivot — Corvus shifts from pure intel to helping creators grow on X.
 - 7 security issues — input validation, credential hardening, data truncation
 - Agent timeout increased to 60s, auto-fallback when multi-agent unavailable
 - TUI animation flicker, hooks order violation, content truncation
+- Multi-agent cost shown with `~` prefix to indicate possible undercount of internal tool calls
 
 ### Removed
 
 - `gather`, `read`, `scope` commands (replaced by growth commands)
-- Cost displays (can't calculate accurately with multi-agent internal tool calls)
 
 ## [0.2.0] — 2026-03-12
 
