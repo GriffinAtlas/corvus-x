@@ -12,7 +12,7 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) �
 - TypeScript (strict, ES2022, ESM with `"type": "module"`)
 - Node.js >= 20
 - Grok Responses API at `https://api.x.ai/v1` via OpenAI SDK
-- Default model: `grok-4-1-fast` (commands), `grok-4.20-multi-agent-beta-0309` (agent)
+- Default model: `grok-4-1-fast` (commands), `grok-4.20-multi-agent-0309` (agent)
 - X API v2 at `https://api.x.com/2` via native `fetch`
 - Commander (CLI), Vitest (tests), ESLint + Prettier (formatting)
 - Ink 6 + React 19 + fullscreen-ink (TUI)
@@ -23,7 +23,7 @@ Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) �
 ```bash
 npm run dev -- <command>     # run without building (tsx)
 npm run build                # tsc to dist/
-npm test                     # vitest run (1,041 tests)
+npm test                     # vitest run (1013 tests)
 npm run lint                 # eslint
 npm run format               # prettier
 ```
@@ -55,13 +55,13 @@ src/
     hooks/                   # useCommand, useSession
     router.ts                # 15 commands + slash commands
   index.ts                   # public API surface
-tests/                       # 1,041 tests across 53 files
+tests/                       # 1013 tests across 51 files
 ```
 
 ## Key Patterns
 
 - **Responses API** — `client.responses.create()` with `input[]`, `output_text`, tools as `{ type: 'x_search' }`. Structured output via `text.format` with `{ type: 'json_schema', name, schema, strict: true }`.
-- **Multi-agent default** — `corvus agent` uses `grok-4.20-multi-agent-beta-0309`. Auto-falls back to classic (plan/execute/replan/synthesize) if unavailable.
+- **Multi-agent default** — `corvus agent` uses `grok-4.20-multi-agent-0309`. Auto-falls back to classic (plan/execute/replan/synthesize) if unavailable.
 - **Growth-focused prompts** — scan/hooks/draft optimized for creators, not analysts. Takeaway + actions at top. Competition ratios. No hashtags.
 - **X algorithm scoring** — profile analysis uses verified weights from open-source algo: replies 13.5x, author replies 75x, likes 0.5x. replyRate computed from real tweet data. No hashtags (not a ranking signal). No bookmark ranking (not in PhoenixScores).
 - **Spam filtering** — all Grok prompts instruct to filter spam, scams, memecoins, bots.
