@@ -772,6 +772,17 @@ describe('renderAgentBrief', () => {
     const output = renderAgentBrief(brief, opts)
     expect(output).not.toContain('tokens')
   })
+
+  it('marks cost as approximate with ~ prefix when approximateCost is true', () => {
+    const output = renderAgentBrief(brief, { ...opts, approximateCost: true })
+    expect(output).toContain('~$')
+  })
+
+  it('renders exact cost without ~ prefix when approximateCost is absent', () => {
+    const output = renderAgentBrief(brief, opts)
+    expect(output).not.toContain('~$')
+    expect(output).toMatch(/\$\d/)
+  })
 })
 
 describe('renderAgentBriefMd', () => {
@@ -813,6 +824,11 @@ describe('renderAgentBriefMd', () => {
   it('includes tokenSummary in markdown footer when provided', () => {
     const output = renderAgentBriefMd(brief, { ...opts, tokenSummary: '12.5K tokens' })
     expect(output).toContain('12.5K tokens')
+  })
+
+  it('marks cost as approximate with ~ prefix when approximateCost is true', () => {
+    const output = renderAgentBriefMd(brief, { ...opts, approximateCost: true })
+    expect(output).toContain('~$')
   })
 })
 
