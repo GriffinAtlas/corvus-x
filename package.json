@@ -23,7 +23,7 @@
     "test:watch": "vitest",
     "lint": "eslint bin/ src/ tests/",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build && npm test && npm run lint"
   },
   "author": "Roger Griffin <roger@griffinatlas.us>",
   "license": "MIT",
