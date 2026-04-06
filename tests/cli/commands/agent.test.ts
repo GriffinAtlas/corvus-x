@@ -213,7 +213,7 @@ describe('registerAgentCommand', () => {
     await program.parseAsync(['node', 'corvus', 'agent', 'bitcoin'])
 
     const output = logs.join('\n')
-    expect(output).toMatch(/~\$\d/)
+    expect(output).toMatch(/~\$\d+\.\d{4}/)
   })
 
   it('--format json produces valid JSON', async () => {
