@@ -12,6 +12,7 @@ import { parseGrokJson } from './grok-adapter.js'
 import { computeConfidence, detectContradictions } from './metrics.js'
 import { SnapshotStore } from './snapshots.js'
 import { ConfigManager } from '../infra/config.js'
+import { AuthManager } from '../infra/auth.js'
 import { compactResults, DEFAULT_COMPACTION } from './compaction.js'
 import { UsageTracker } from './usage.js'
 
@@ -137,13 +138,13 @@ export class AgentPlanner {
       throw new Error('Planner returned an empty or invalid plan')
     }
 
-    const validCommands = VALID_COMMANDS
+
 
     return {
       plan: {
         goal: plan.goal,
         steps: plan.steps
-          .filter((s) => validCommands.has(s.command))
+          .filter((s) => VALID_COMMANDS.has(s.command))
           .slice(0, 8)
           .map((s) => ({
             command: s.command,
@@ -189,15 +190,19 @@ async function resolveBuildFn(command: string): Promise<BuildFn> {
   }
 }
 
-function buildArgs(step: AgentStep): unknown[] {
+function buildArgs(step: AgentStep, selfHandle: string | null): unknown[] {
   switch (step.command) {
     case 'scan':
     case 'pulse':
     case 'trace':
-    case 'hooks':
       return [step.args.topic ?? '', step.args.count ?? 50, 2]
-    case 'profile':
-      return [step.args.username ?? '', 20, false]
+    case 'hooks':
+      return [step.args.topic ?? '', step.args.count ?? 50]
+    case 'profile': {
+      const username = step.args.username ?? ''
+      const isSelf = selfHandle !== null && username.toLowerCase() === selfHandle.toLowerCase()
+      return [username, 20, isSelf]
+    }
     case 'draft':
       return [step.args.topic ?? '', {}]
     default:
@@ -319,7 +324,8 @@ export class AgentExecutor {
 
       try {
         const buildFn = await resolveBuildFn(step.command)
-        const args = buildArgs(step)
+        const selfHandle = new AuthManager(ConfigManager.defaultDir()).getXHandle()
+        const args = buildArgs(step, selfHandle)
         const result = await buildFn(this.deps, ...args)
 
         const durationMs = Date.now() - startTime
@@ -378,6 +384,8 @@ export class AgentExecutor {
         const isRateLimit =
           (err != null && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 429) ||
           (err instanceof Error && err.message.includes('429'))
+        const reason = isRateLimit ? 'rate-limited' : (err instanceof Error ? err.message : String(err))
+        this.context.leads.push(`[${step.command} failed: ${reason}]`)
         if (isRateLimit) {
           this.options.onStepSkip?.(i, step, 'rate-limited')
         } else {
@@ -417,10 +425,10 @@ export class AgentExecutor {
     const decision = parseGrokJson<ReplanDecision>(response.text)
 
     if (decision.action === 'revise' && 'steps' in decision && Array.isArray(decision.steps)) {
-      const validCommands = VALID_COMMANDS
+  
       const maxAdditional = remaining.length + 3
       return decision.steps
-        .filter((s) => validCommands.has(s.command))
+        .filter((s) => VALID_COMMANDS.has(s.command))
         .slice(0, maxAdditional)
         .map((s) => ({
           command: s.command,
@@ -526,7 +534,7 @@ export class AgentSynthesizer {
 
 // ── Multi-agent model (single-call) ──
 
-const MULTI_AGENT_MODEL = 'grok-4.20-multi-agent-beta-0309'
+const MULTI_AGENT_MODEL = 'grok-4.20-multi-agent-0309'
 
 const MULTI_AGENT_PROMPT = `You are an autonomous research agent investigating X (Twitter) discourse.
 You have access to x_search and web_search tools. Use them to research the question thoroughly.

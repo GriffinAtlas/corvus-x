@@ -106,7 +106,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           dispatch({ type: 'add-result', entry: { type: 'system', message: HELP_TEXT } })
           return
         case 'cost':
-          return // handled by StatusLine — always visible
+          return
         case 'clear':
           dispatch({ type: 'clear-history' })
           return
@@ -304,89 +304,111 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           () => buildDraftSnapshot(deps, args.topic, { priorContext: priorContext || undefined }), renderDraft, startTime, baseDir)
       } else if (command === 'grow') {
         const topic = args.topic
-        // Capture prior context before dispatches (React state updates are async)
         const draftContext = getContextForTopic(session, topic)
+        let hooksContext = ''
+        let stepsCompleted = 0
 
         // Step 1: Hooks
-        setPhaseLabel(`grow "${topic}" — finding hooks...`)
-        const hooks = await buildHooksSnapshot(deps, topic, 30, priorContext || undefined)
-        dispatch({ type: 'add-cost', cost: hooks.cost })
-        dispatch({
-          type: 'add-result',
-          entry: {
-            type: 'result', command: 'hooks', topic,
-            rendered: renderHooks(hooks.data),
-            cost: hooks.cost,
-            elapsed: Date.now() - startTime,
-          },
-        })
-        dispatch({
-          type: 'add-context',
-          topic,
-          entry: { command: 'hooks', topic, snapshot: hooks.data, timestamp: Date.now() },
-        })
+        try {
+          setPhaseLabel(`grow "${topic}" — finding hooks...`)
+          const hooks = await buildHooksSnapshot(deps, topic, 30, priorContext || undefined)
+          dispatch({ type: 'add-cost', cost: hooks.cost })
+          dispatch({
+            type: 'add-result',
+            entry: {
+              type: 'result', command: 'hooks', topic,
+              rendered: renderHooks(hooks.data),
+              cost: hooks.cost,
+              elapsed: Date.now() - startTime,
+            },
+          })
+          dispatch({
+            type: 'add-context',
+            topic,
+            entry: { command: 'hooks', topic, snapshot: hooks.data, timestamp: Date.now() },
+          })
+          hooksContext = hooks.data.opportunities
+            .slice(0, 5)
+            .map((o) => `@${o.author}: "${o.content}" (${o.engagement.likes} likes, ${o.engagement.replies} replies) — angle: ${o.suggestedAngle}`)
+            .join('\n')
+          stepsCompleted++
+        } catch (err) {
+          dispatch({ type: 'add-result', entry: { type: 'system', message: `Hooks skipped: ${err instanceof Error ? err.message : String(err)}` } })
+        }
 
         // Step 2: Draft (with hooks context injected)
-        const hooksEndTime = Date.now()
-        setPhaseLabel(`grow "${topic}" — drafting...`)
-        const hooksContext = hooks.data.opportunities
-          .slice(0, 5)
-          .map((o) => `@${o.author}: "${o.content}" (${o.engagement.likes} likes, ${o.engagement.replies} replies) — angle: ${o.suggestedAngle}`)
-          .join('\n')
-        const draft = await buildDraftSnapshot(deps, topic, { hooksContext, priorContext: draftContext || undefined })
-        dispatch({ type: 'add-cost', cost: draft.cost })
-        dispatch({
-          type: 'add-result',
-          entry: {
-            type: 'result', command: 'draft', topic,
-            rendered: renderDraft(draft.data),
-            cost: draft.cost,
-            elapsed: Date.now() - hooksEndTime,
-          },
-        })
-        dispatch({
-          type: 'add-context',
-          topic,
-          entry: { command: 'draft', topic, snapshot: draft.data, timestamp: Date.now() },
-        })
+        const draftStartTime = Date.now()
+        try {
+          setPhaseLabel(`grow "${topic}" — drafting...`)
+          const draft = await buildDraftSnapshot(deps, topic, { hooksContext: hooksContext || undefined, priorContext: draftContext || undefined })
+          dispatch({ type: 'add-cost', cost: draft.cost })
+          dispatch({
+            type: 'add-result',
+            entry: {
+              type: 'result', command: 'draft', topic,
+              rendered: renderDraft(draft.data),
+              cost: draft.cost,
+              elapsed: Date.now() - draftStartTime,
+            },
+          })
+          dispatch({
+            type: 'add-context',
+            topic,
+            entry: { command: 'draft', topic, snapshot: draft.data, timestamp: Date.now() },
+          })
+          stepsCompleted++
+        } catch (err) {
+          dispatch({ type: 'add-result', entry: { type: 'system', message: `Draft skipped: ${err instanceof Error ? err.message : String(err)}` } })
+        }
 
         // Step 3: Timing
-        const draftEndTime = Date.now()
-        setPhaseLabel(`grow "${topic}" — timing...`)
-        const handle = new AuthManager(baseDir).getXHandle()
-        const timing = await buildTimingSnapshot(deps, { handle: handle ?? undefined, topic })
-        dispatch({ type: 'add-cost', cost: timing.cost })
-        dispatch({
-          type: 'add-result',
-          entry: {
-            type: 'result', command: 'timing', topic,
-            rendered: renderTiming(timing.data),
-            cost: timing.cost,
-            elapsed: Date.now() - draftEndTime,
-          },
-        })
-        dispatch({
-          type: 'add-context',
-          topic,
-          entry: { command: 'timing', topic, snapshot: timing.data, timestamp: Date.now() },
-        })
+        const timingStartTime = Date.now()
+        try {
+          setPhaseLabel(`grow "${topic}" — timing...`)
+          const timing = await buildTimingSnapshot(deps, { topic })
+          dispatch({ type: 'add-cost', cost: timing.cost })
+          dispatch({
+            type: 'add-result',
+            entry: {
+              type: 'result', command: 'timing', topic,
+              rendered: renderTiming(timing.data),
+              cost: timing.cost,
+              elapsed: Date.now() - timingStartTime,
+            },
+          })
+          dispatch({
+            type: 'add-context',
+            topic,
+            entry: { command: 'timing', topic, snapshot: timing.data, timestamp: Date.now() },
+          })
+          stepsCompleted++
+        } catch (err) {
+          dispatch({ type: 'add-result', entry: { type: 'system', message: `Timing skipped: ${err instanceof Error ? err.message : String(err)}` } })
+        }
 
         dispatch({ type: 'set-grok-status', status: 'connected' })
         if (deps.x) dispatch({ type: 'set-x-status', status: 'connected' })
 
-        // Summary message
         const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1)
         dispatch({
           type: 'add-result',
-          entry: { type: 'system', message: `grow complete — 3 steps, ${totalElapsed}s` },
+          entry: { type: 'system', message: `grow complete — ${stepsCompleted}/3 steps, ${totalElapsed}s` },
         })
       } else if (command === 'hooks') {
         setPhaseLabel(`finding hooks for "${args.topic}"...`)
         await runStructured(dispatch, deps, 'hooks', args.topic, HOOKS_MATCH_KEYS,
           () => buildHooksSnapshot(deps, args.topic, 50, priorContext || undefined), renderHooks, startTime, baseDir)
       } else if (command === 'profile') {
-        const handle = args.username
-        const isSelf = resolveIsSelf(handle, new AuthManager(baseDir).getXHandle())
+        let handle = args.username
+        const storedHandle = new AuthManager(baseDir).getXHandle()
+        if (handle.toLowerCase() === 'self') {
+          if (!storedHandle) {
+            dispatch({ type: 'add-error', message: 'No X handle configured. Run: corvus auth setup' })
+            return
+          }
+          handle = storedHandle
+        }
+        const isSelf = resolveIsSelf(handle, storedHandle)
         setPhaseLabel(`profiling @${handle}${isSelf ? ' (self)' : ''}...`)
         await runStructured(dispatch, deps, 'profile', `@${handle}`, PROFILE_MATCH_KEYS,
           () => buildProfileSnapshot(deps, handle, 50, isSelf), renderProfile, startTime, baseDir)

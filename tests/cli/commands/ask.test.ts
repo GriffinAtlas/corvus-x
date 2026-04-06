@@ -195,7 +195,7 @@ describe('registerAskCommand', () => {
       vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
       await expect(
         program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2026-02-30']),
-      ).rejects.toThrow('Invalid calendar date: 2026-02-30')
+      ).rejects.toThrow('process.exit(1)')
       expect(mockQuery).not.toHaveBeenCalled()
     })
 
@@ -203,21 +203,21 @@ describe('registerAskCommand', () => {
       vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
       await expect(
         program.parseAsync(['node', 'corvus', 'ask', 'test', '--to', '2026-04-31']),
-      ).rejects.toThrow('Invalid calendar date: 2026-04-31')
+      ).rejects.toThrow('process.exit(1)')
     })
 
     it('rejects month 13', async () => {
       vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
       await expect(
         program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2026-13-01']),
-      ).rejects.toThrow('Invalid calendar date: 2026-13-01')
+      ).rejects.toThrow('process.exit(1)')
     })
 
     it('rejects malformed date format', async () => {
       vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
       await expect(
         program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2026/01/15']),
-      ).rejects.toThrow('expected YYYY-MM-DD')
+      ).rejects.toThrow('process.exit(1)')
     })
 
     it('accepts valid calendar date like Feb 28 in non-leap year', async () => {
@@ -231,7 +231,7 @@ describe('registerAskCommand', () => {
       vi.stubEnv('CORVUS_GROK_KEY', 'test-key')
       await expect(
         program.parseAsync(['node', 'corvus', 'ask', 'test', '--from', '2025-02-29']),
-      ).rejects.toThrow('Invalid calendar date: 2025-02-29')
+      ).rejects.toThrow('process.exit(1)')
     })
   })
 

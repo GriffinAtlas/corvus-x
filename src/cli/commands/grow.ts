@@ -5,8 +5,6 @@ import { renderHooks, renderDraft, renderTiming } from '../output.js'
 import { buildHooksSnapshot } from '../../core/builders/hooks.js'
 import { buildDraftSnapshot } from '../../core/builders/draft.js'
 import { buildTimingSnapshot } from '../../core/builders/timing.js'
-import { AuthManager } from '../../infra/auth.js'
-import { ConfigManager } from '../../infra/config.js'
 
 export function registerGrowCommand(program: Command): void {
   program
@@ -76,13 +74,9 @@ Examples:
           console.log()
         }
 
-        const handle = new AuthManager(ConfigManager.defaultDir()).getXHandle()
         const timingSpinner = new CorvusSpinner('analyzing best posting times...').start()
         try {
-          const timing = await buildTimingSnapshot(deps, {
-            handle: handle ?? undefined,
-            topic,
-          })
+          const timing = await buildTimingSnapshot(deps, { topic })
           timingSpinner.stop()
           totalCost += timing.cost
 

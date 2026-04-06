@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { zodResponseFormat } from 'openai/helpers/zod'
+import type { ZodType } from 'zod/v4'
 import { estimateTokens } from './compaction.js'
 import type { GrokResponse, GrokCitation, QueryOptions } from './types.js'
 
@@ -13,9 +14,9 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'grok-code-fast-1': { input: 0.2, output: 1.5 },
   'grok-3-mini': { input: 0.3, output: 0.5 },
   // Premium tier
-  'grok-4.20-beta-0309-reasoning': { input: 2.0, output: 6.0 },
-  'grok-4.20-beta-0309-non-reasoning': { input: 2.0, output: 6.0 },
-  'grok-4.20-multi-agent-beta-0309': { input: 2.0, output: 6.0 },
+  'grok-4.20-0309-reasoning': { input: 2.0, output: 6.0 },
+  'grok-4.20-0309-non-reasoning': { input: 2.0, output: 6.0 },
+  'grok-4.20-multi-agent-0309': { input: 2.0, output: 6.0 },
   'grok-3': { input: 3.0, output: 15.0 },
   'grok-4-0709': { input: 3.0, output: 15.0 },
 }
@@ -32,13 +33,14 @@ const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503])
 const TRANSIENT_NETWORK_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'])
 
 export class GrokParseError extends Error {
+  readonly rawPreview: string
+  readonly cleanedPreview: string
+
   constructor(raw: string, cleaned: string, cause: SyntaxError) {
     super(`Failed to parse Grok JSON: ${cause.message}`)
     this.name = 'GrokParseError'
-    const rawPreview = raw.length > 300 ? raw.slice(0, 300) + '...' : raw
-    const cleanedPreview = cleaned.length > 300 ? cleaned.slice(0, 300) + '...' : cleaned
-    console.error(`[GrokParseError] Raw (first 300): ${rawPreview}`)
-    console.error(`[GrokParseError] Cleaned (first 300): ${cleanedPreview}`)
+    this.rawPreview = raw.length > 300 ? raw.slice(0, 300) + '...' : raw
+    this.cleanedPreview = cleaned.length > 300 ? cleaned.slice(0, 300) + '...' : cleaned
   }
 }
 
@@ -79,7 +81,7 @@ function findMatchingClose(text: string, start: number): number {
   return -1
 }
 
-export function parseGrokJson<T>(raw: string): T {
+export function parseGrokJson<T>(raw: string, schema?: ZodType<T>): T {
   let cleaned = raw.trim()
 
   cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
@@ -104,7 +106,9 @@ export function parseGrokJson<T>(raw: string): T {
   cleaned = cleaned.slice(start, end + 1)
 
   try {
-    return JSON.parse(cleaned) as T
+    const parsed = JSON.parse(cleaned)
+    if (schema) return schema.parse(parsed)
+    return parsed as T
   } catch (err) {
     throw new GrokParseError(raw, cleaned, err as SyntaxError)
   }
@@ -137,6 +141,13 @@ function isTransientError(err: unknown): { retry: boolean; retryAfter?: number }
   }
   if (err instanceof Error && err.name === 'AbortError') return { retry: false }
   return { retry: false }
+}
+
+function wrapTimeout(err: unknown, timeoutMs: number): unknown {
+  if (err instanceof Error && err.name === 'AbortError') {
+    return new Error(`Grok request timed out after ${timeoutMs / 1000}s`)
+  }
+  return err
 }
 
 function delay(ms: number): Promise<void> {
@@ -175,7 +186,7 @@ export class GrokAdapter {
       const xTool: Record<string, unknown> = { type: 'x_search' }
       if (options.xSearchFromDate) xTool.from_date = options.xSearchFromDate
       if (options.xSearchToDate) xTool.to_date = options.xSearchToDate
-      if (options.xSearchHandles?.length) xTool.x_handles = options.xSearchHandles
+      if (options.xSearchHandles?.length) xTool.allowed_x_handles = options.xSearchHandles
       if (options.xSearchExcludeHandles?.length) xTool.excluded_x_handles = options.xSearchExcludeHandles
       tools.push(xTool)
     }
@@ -244,7 +255,7 @@ export class GrokAdapter {
         return { text, usage: { inputTokens, outputTokens, costUsd, toolCalls: toolCallCount }, citations }
       } catch (err) {
         clearTimeout(timer)
-        lastError = err
+        lastError = wrapTimeout(err, TIMEOUT_MS)
 
         if (attempt < MAX_ATTEMPTS - 1) {
           const { retry, retryAfter } = isTransientError(err)
@@ -254,11 +265,11 @@ export class GrokAdapter {
           }
         }
 
-        throw err
+        throw lastError
       }
     }
 
-    throw lastError ?? new Error('Grok query: max retry attempts exhausted')
+    throw lastError
   }
 
   async queryStream(
@@ -288,10 +299,10 @@ export class GrokAdapter {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const stream: any = await (this.client as any).responses.create({
-        ...createParams,
-        signal: controller.signal,
-      })
+      const stream: any = await (this.client as any).responses.create(
+        createParams,
+        { signal: controller.signal },
+      )
 
       for await (const event of stream) {
         if (event.type === 'response.output_text.delta' && event.delta) {
@@ -304,6 +315,8 @@ export class GrokAdapter {
           toolCallCount = event.response.output?.filter((o: { type: string }) => o.type === 'tool_call')?.length ?? 0
         }
       }
+    } catch (err) {
+      throw wrapTimeout(err, STREAM_TIMEOUT_MS)
     } finally {
       clearTimeout(timer)
     }

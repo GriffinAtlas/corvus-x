@@ -3,8 +3,6 @@ import {
   GrokScanResponseSchema,
   GrokPulseResponseSchema,
   GrokTraceResponseSchema,
-  AgentPlanSchema,
-  ReplanDecisionSchema,
 } from '../../src/core/validators.js'
 
 describe('GrokScanResponseSchema', () => {
@@ -67,55 +65,6 @@ describe('GrokTraceResponseSchema', () => {
       mutations: [],
     }
     expect(() => GrokTraceResponseSchema.parse(valid)).not.toThrow()
-  })
-})
-
-describe('AgentPlanSchema', () => {
-  it('accepts valid plan', () => {
-    const valid = {
-      goal: 'investigate topic',
-      steps: [
-        {
-          command: 'scan',
-          args: { topic: 'AI' },
-          reasoning: 'start broad',
-        },
-      ],
-    }
-    expect(() => AgentPlanSchema.parse(valid)).not.toThrow()
-  })
-})
-
-describe('ReplanDecisionSchema', () => {
-  it('accepts continue action', () => {
-    const valid = { action: 'continue' }
-    expect(() => ReplanDecisionSchema.parse(valid)).not.toThrow()
-  })
-
-  it('accepts revise action with steps', () => {
-    const valid = {
-      action: 'revise',
-      steps: [
-        {
-          command: 'profile',
-          args: { username: 'alice' },
-          reasoning: 'follow lead',
-        },
-      ],
-    }
-    expect(() => ReplanDecisionSchema.parse(valid)).not.toThrow()
-  })
-
-  it('rejects unknown action', () => {
-    expect(() => ReplanDecisionSchema.parse({ action: 'abort' })).toThrow()
-  })
-
-  it('rejects revise without steps', () => {
-    expect(() => ReplanDecisionSchema.parse({ action: 'revise' })).toThrow()
-  })
-
-  it('rejects missing action', () => {
-    expect(() => ReplanDecisionSchema.parse({})).toThrow()
   })
 })
 
@@ -188,42 +137,3 @@ describe('GrokTraceResponseSchema rejection', () => {
   })
 })
 
-describe('AgentPlanSchema rejection', () => {
-  it('rejects missing goal', () => {
-    const invalid = {
-      steps: [{ command: 'scan', args: { topic: 'test' }, reasoning: 'r' }],
-    }
-    expect(() => AgentPlanSchema.parse(invalid)).toThrow()
-  })
-
-  it('rejects invalid command in step', () => {
-    const invalid = {
-      goal: 'test',
-      steps: [{ command: 'hack', args: {}, reasoning: 'bad' }],
-    }
-    expect(() => AgentPlanSchema.parse(invalid)).toThrow()
-  })
-
-  it('accepts all 6 valid commands', () => {
-    for (const cmd of ['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft']) {
-      const valid = {
-        goal: 'test',
-        steps: [{ command: cmd, args: {}, reasoning: 'ok' }],
-      }
-      expect(() => AgentPlanSchema.parse(valid)).not.toThrow()
-    }
-  })
-
-  it('accepts empty steps array', () => {
-    const valid = { goal: 'test', steps: [] }
-    expect(() => AgentPlanSchema.parse(valid)).not.toThrow()
-  })
-
-  it('rejects step missing reasoning', () => {
-    const invalid = {
-      goal: 'test',
-      steps: [{ command: 'scan', args: {} }],
-    }
-    expect(() => AgentPlanSchema.parse(invalid)).toThrow()
-  })
-})

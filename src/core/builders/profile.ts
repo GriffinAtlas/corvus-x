@@ -107,13 +107,13 @@ async function buildProfileFromXApi(
     },
   )
 
-  const grok = parseGrokJson<ProfileSnapshot>(response.text)
+  const grok = parseGrokJson(response.text, GrokProfileResponseSchema)
 
   const realReplyRate = tweets.length > 0
     ? tweets.filter((tw) => tw.metrics.replies > 0).length / tweets.length
     : 0
   const algoScore = {
-    ...(grok.algorithmScore ?? { replyRate: 0, authorReplyRate: 0, conversationRatio: 0, bookmarkToLikeRatio: 0, grade: 'N/A' }),
+    ...grok.algorithmScore,
     replyRate: Number(realReplyRate.toFixed(2)),
   }
 

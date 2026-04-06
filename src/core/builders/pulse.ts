@@ -3,7 +3,7 @@ import { formatTweetsForAnalysis } from '../x-adapter.js'
 import { parseGrokJson } from '../grok-adapter.js'
 import { GrokPulseResponseSchema } from '../validators.js'
 import { computeGrokOnlyMetrics, computeGrokOnlySentiment } from './grok-only.js'
-import type { GrokPulseResponse, PulseSnapshot } from '../schemas.js'
+import type { PulseSnapshot } from '../schemas.js'
 import type { GrokOnlyPulseResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -69,13 +69,13 @@ async function buildPulseFromXApi(
     { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072, responseSchema: GrokPulseResponseSchema },
   )
 
-  const grok = parseGrokJson<GrokPulseResponse>(response.text)
+  const grok = parseGrokJson(response.text, GrokPulseResponseSchema)
   const metrics = computeBaseMetrics(tweets)
   const sentiment = computeSentiment(grok.tweetAnalysis, tweets)
   const keyVoices = computeKeyVoices(tweets, grok.tweetAnalysis, users)
 
   return {
-    data: { takeaway: grok.takeaway ?? '', actions: grok.actions ?? [], metrics, sentiment, bullSignals: grok.bullSignals, bearSignals: grok.bearSignals, keyVoices },
+    data: { takeaway: grok.takeaway, actions: grok.actions, metrics, sentiment, bullSignals: grok.bullSignals, bearSignals: grok.bearSignals, keyVoices },
     raw: response.text,
     cost: response.usage.costUsd,
     inputTokens: response.usage.inputTokens,

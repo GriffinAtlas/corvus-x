@@ -61,9 +61,9 @@ export class StepProgress {
 
   skip(index: number, reason?: string): void {
     if (index >= 0 && index < this.steps.length) {
+      if (this.steps[index].status === 'running') this.runningCount--
       this.steps[index].status = 'skipped'
       if (reason) this.steps[index].tag = reason
-      this.runningCount--
       this.lastChangedIndex = index
       this.stopSpinnerIfIdle()
       this.render()

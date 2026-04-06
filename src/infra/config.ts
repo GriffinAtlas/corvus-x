@@ -1,4 +1,3 @@
-import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
@@ -9,12 +8,4 @@ export class ConfigManager {
     return CONFIG_DIR
   }
 
-  static exists(dir?: string): boolean {
-    try {
-      fs.statSync(dir ?? ConfigManager.defaultDir())
-      return true
-    } catch {
-      return false
-    }
-  }
 }

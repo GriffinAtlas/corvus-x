@@ -66,6 +66,7 @@ export class XAdapter {
       'tweet.fields': 'created_at,public_metrics,author_id',
     })
     const data = await this.request(`/tweets/${id}?${params}`)
+    if (!data.data) throw new XApiError(404, `Tweet ${id} not found or unavailable`)
     return parseTweet(data.data)
   }
 
@@ -75,6 +76,7 @@ export class XAdapter {
       'user.fields': 'description,public_metrics,verified',
     })
     const data = await this.request(`/users/${id}?${params}`)
+    if (!data.data) throw new XApiError(404, `User ${id} not found or suspended`)
     return parseUser(data.data)
   }
 
@@ -86,6 +88,7 @@ export class XAdapter {
       'user.fields': 'description,public_metrics,verified',
     })
     const data = await this.request(`/users/by/username/${username}?${params}`)
+    if (!data.data) throw new XApiError(404, `User @${username} not found or suspended`)
     return parseUser(data.data)
   }
 
@@ -158,7 +161,7 @@ export class XAdapter {
       if (err instanceof DOMException && err.name === 'AbortError') {
         throw new XApiError(0, `X API request timed out after ${this.timeoutMs}ms`)
       }
-      throw err
+      throw new XApiError(0, err instanceof Error ? err.message : String(err))
     }
     clearTimeout(timer)
 

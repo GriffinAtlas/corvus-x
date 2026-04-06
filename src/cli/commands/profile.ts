@@ -24,9 +24,18 @@ Examples:
         username: string,
         options: { format: OutputFormat; posts: string; cost?: boolean },
       ) => {
-        const handle = username.replace(/^@/, '')
+        let handle = username.replace(/^@/, '')
+        const auth = new AuthManager(ConfigManager.defaultDir())
+        const storedHandle = auth.getXHandle()
+        if (handle.toLowerCase() === 'self') {
+          if (!storedHandle) {
+            console.error('No X handle configured. Run: corvus auth setup')
+            process.exit(1)
+          }
+          handle = storedHandle
+        }
         const postCount = Math.min(parseInt(options.posts, 10) || 50, 200)
-        const isSelf = resolveIsSelf(handle, new AuthManager(ConfigManager.defaultDir()).getXHandle())
+        const isSelf = resolveIsSelf(handle, storedHandle)
 
         await runStructuredCommand<ProfileSnapshot>({
           command: 'profile',

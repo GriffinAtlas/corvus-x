@@ -78,10 +78,7 @@ export class VoiceProfileManager {
       },
     )
 
-    const parsed = parseGrokJson<{
-      traits: VoiceProfile['traits']
-      topicPreferences: VoiceProfile['topicPreferences']
-    }>(response.text)
+    const parsed = parseGrokJson(response.text, GrokVoiceProfileResponseSchema)
 
     const profile: VoiceProfile = {
       handle,

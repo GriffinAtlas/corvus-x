@@ -35,7 +35,6 @@ Growth pivot — Corvus shifts from pure intel to helping creators grow on X.
 
 - `gather`, `read`, `scope` commands (replaced by growth commands)
 - Cost displays (can't calculate accurately with multi-agent internal tool calls)
-- Fullscreen mode (content now copyable, intro stays visible)
 
 ## [0.2.0] — 2026-03-12
 

@@ -13,7 +13,7 @@ import {
   computeGrokOnlySentiment,
   computeGrokOnlyNarratives,
 } from './grok-only.js'
-import type { GrokScanResponse, ScanSnapshot } from '../schemas.js'
+import type { ScanSnapshot } from '../schemas.js'
 import type { GrokOnlyScanResponse } from './grok-only.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -85,14 +85,14 @@ async function buildScanFromXApi(
     { systemPrompt: SYSTEM_PROMPT, maxTokens: 3072, responseSchema: GrokScanResponseSchema },
   )
 
-  const grok = parseGrokJson<GrokScanResponse>(response.text)
+  const grok = parseGrokJson(response.text, GrokScanResponseSchema)
   const metrics = computeBaseMetrics(tweets)
   const sentiment = computeSentiment(grok.tweetAnalysis, tweets)
   const topAccounts = computeTopAccounts(tweets, grok.tweetAnalysis, users)
   const narratives = computeNarratives(grok.tweetAnalysis, grok.narratives)
 
   return {
-    data: { takeaway: grok.takeaway ?? '', actions: grok.actions ?? [], metrics, sentiment, topAccounts, narratives, signals: grok.signals },
+    data: { takeaway: grok.takeaway, actions: grok.actions, metrics, sentiment, topAccounts, narratives, signals: grok.signals },
     raw: response.text,
     cost: response.usage.costUsd,
     inputTokens: response.usage.inputTokens,

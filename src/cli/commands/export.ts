@@ -15,7 +15,8 @@ function escapeCsv(value: string): string {
 
 function snapshotToCsvRow(snap: StoredSnapshot): string {
   const data = snap.data
-  const sentiment = 'sentiment' in data ? (data.sentiment as { avg: number }).avg : 0
+  const rawSentiment = 'sentiment' in data ? data.sentiment : 0
+  const sentiment = typeof rawSentiment === 'number' ? rawSentiment : (rawSentiment as { avg: number }).avg
   const tweetCount = 'metrics' in data ? (data.metrics as { tweetCount: number }).tweetCount : 0
   const engagement =
     'metrics' in data ? (data.metrics as { totalEngagement: number }).totalEngagement : 0

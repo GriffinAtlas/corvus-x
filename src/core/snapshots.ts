@@ -36,11 +36,14 @@ export class SnapshotStore {
       ...(scores?.length ? { scores } : {}),
     }
 
-    fs.writeFileSync(path.join(dir, `${snapshot.timestamp}.json`), JSON.stringify(snapshot), {
-      mode: 0o600,
-    })
-
-    this.prune(dir)
+    try {
+      fs.writeFileSync(path.join(dir, `${snapshot.timestamp}.json`), JSON.stringify(snapshot), {
+        mode: 0o600,
+      })
+      this.prune(dir)
+    } catch {
+      /* best-effort — don't lose computed results over a write failure */
+    }
     return snapshot
   }
 

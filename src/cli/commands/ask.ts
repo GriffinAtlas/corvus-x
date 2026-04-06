@@ -66,9 +66,21 @@ Examples:
           excludeHandle?: string[]
         },
       ) => {
-        validateDateRange(options.from, options.to)
-        const handles = normalizeHandles(options.handle)
-        const excludeHandles = normalizeHandles(options.excludeHandle)
+        try {
+          validateDateRange(options.from, options.to)
+        } catch (err) {
+          console.log(t.error(`\n  ${err instanceof Error ? err.message : String(err)}\n`))
+          process.exit(1)
+        }
+        let handles: string[] | undefined
+        let excludeHandles: string[] | undefined
+        try {
+          handles = normalizeHandles(options.handle)
+          excludeHandles = normalizeHandles(options.excludeHandle)
+        } catch (err) {
+          console.log(t.error(`\n  ${err instanceof Error ? err.message : String(err)}\n`))
+          process.exit(1)
+        }
         if (handles && excludeHandles) {
           console.log(
             t.error('\n  Cannot use both --handle and --exclude-handle — they are mutually exclusive\n'),

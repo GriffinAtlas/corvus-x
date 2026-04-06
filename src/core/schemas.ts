@@ -307,4 +307,6 @@ export const REVIEW_MATCH_KEYS: MatchKeys = {
   patterns: 'pattern',
 }
 
-export const TIMING_MATCH_KEYS: MatchKeys = {}
+export const TIMING_MATCH_KEYS: MatchKeys = {
+  peakWindows: 'day',
+}

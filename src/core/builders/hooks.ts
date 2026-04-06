@@ -1,4 +1,5 @@
 import { parseGrokJson } from '../grok-adapter.js'
+import { computeNewestTweetAt } from '../metrics.js'
 import type { HooksSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -105,9 +106,7 @@ async function buildHooksFromXApi(
     toolCalls: response.usage.toolCalls,
     tweets,
     scores: [],
-    newestTweetAt: tweets.length > 0
-      ? Math.max(...tweets.map((t) => new Date(t.createdAt).getTime()))
-      : null,
+    newestTweetAt: computeNewestTweetAt(tweets),
     citations: response.citations,
   }
 }

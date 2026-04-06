@@ -65,8 +65,8 @@ export function computeGrokOnlySentiment(
   let sum = 0
   for (const t of tweetAnalysis) {
     sum += t.sentiment
-    if (t.sentiment > 0.2) positive++
-    else if (t.sentiment < -0.2) negative++
+    if (t.sentiment > 0.3) positive++
+    else if (t.sentiment < -0.3) negative++
     else neutral++
   }
   const avg = Number((sum / tweetAnalysis.length).toFixed(3))

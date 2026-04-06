@@ -342,6 +342,8 @@ Examples:
           try {
             await runMultiAgent(deps.grok, question, options.format)
           } catch (err) {
+            const status = (err as { status?: number }).status
+            if (status === 401 || status === 403 || status === 429) throw err
             const msg = err instanceof Error ? err.message : String(err)
             console.log(t.warning(`\n  ✗ Deep research unavailable: ${msg}`))
             console.log(`  ${t.accent('▸')} ${t.heading('classic mode')} ${t.muted('· step-by-step orchestration')}\n`)

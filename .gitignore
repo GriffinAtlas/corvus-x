@@ -32,6 +32,7 @@ Desktop.ini
 
 # Plugins & local config
 .superpowers/
+.playwright-mcp/
 .mcp.json
 docs/superpowers/
 

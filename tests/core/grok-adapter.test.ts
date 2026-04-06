@@ -88,7 +88,7 @@ describe('GrokAdapter', () => {
       type: 'x_search',
       from_date: '2026-01-01',
       to_date: '2026-03-01',
-      x_handles: ['elonmusk', 'naval'],
+      allowed_x_handles: ['elonmusk', 'naval'],
     })
   })
 
@@ -99,7 +99,7 @@ describe('GrokAdapter', () => {
     expect(tool.type).toBe('x_search')
     expect(tool.from_date).toBe('2026-01-01')
     expect(tool.to_date).toBeUndefined()
-    expect(tool.x_handles).toBeUndefined()
+    expect(tool.allowed_x_handles).toBeUndefined()
   })
 
   it('passes live_search with web source when enableWebSearch is true', async () => {
@@ -128,7 +128,7 @@ describe('GrokAdapter', () => {
     expect(args.tools[0]).toEqual({
       type: 'x_search',
       from_date: '2026-01-01',
-      x_handles: ['user1'],
+      allowed_x_handles: ['user1'],
     })
     expect(args.tools[1]).toEqual({ type: 'web_search' })
   })
@@ -418,7 +418,7 @@ describe('GrokAdapter', () => {
     const abortErr = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
     mockCreate.mockRejectedValueOnce(abortErr)
 
-    await expect(adapter.query('test')).rejects.toThrow('The operation was aborted')
+    await expect(adapter.query('test')).rejects.toThrow('timed out after 60s')
     expect(mockCreate).toHaveBeenCalledTimes(1)
   })
 

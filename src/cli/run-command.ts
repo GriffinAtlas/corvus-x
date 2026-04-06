@@ -1,8 +1,8 @@
 import { t, divider, CorvusSpinner, completionLine } from './theme.js'
 import { AuthManager } from '../infra/auth.js'
 import { ConfigManager } from '../infra/config.js'
-import { GrokAdapter } from '../core/grok-adapter.js'
-import { XAdapter } from '../core/x-adapter.js'
+import { GrokAdapter, GrokParseError } from '../core/grok-adapter.js'
+import { XAdapter, XApiError } from '../core/x-adapter.js'
 import { QueryCache } from '../core/cache.js'
 import { executeStructuredQuery } from '../core/orchestrator.js'
 import { formatOutput, formatStructuredOutput } from './output.js'
@@ -15,6 +15,17 @@ import type {
 } from '../core/types.js'
 import type { OutputFormat } from './output.js'
 import type { Snapshot, MatchKeys } from '../core/schemas.js'
+
+function formatError(err: unknown): string {
+  if (err instanceof GrokParseError) {
+    return `${err.message}\n    Raw (300 chars): ${err.rawPreview}`
+  }
+  if (err instanceof XApiError) {
+    const status = (err as { status?: number }).status
+    return status ? `X API ${status}: ${err.message}` : err.message
+  }
+  return err instanceof Error ? err.message : String(err)
+}
 
 export function initDeps(): CorvusDeps {
   const auth = new AuthManager(ConfigManager.defaultDir())
@@ -119,8 +130,7 @@ export async function runCommand(opts: RunCommandOptions): Promise<void> {
     }
   } catch (err) {
     spinner.stop()
-    const msg = err instanceof Error ? err.message : String(err)
-    console.log(t.error(`\n  Error: ${msg}\n`))
+    console.log(t.error(`\n  Error: ${formatError(err)}\n`))
     process.exit(1)
   }
 }
@@ -176,8 +186,7 @@ export async function runStructuredCommand<T extends Snapshot>(
     }
   } catch (err) {
     spinner.stop()
-    const msg = err instanceof Error ? err.message : String(err)
-    console.log(t.error(`\n  Error: ${msg}\n`))
+    console.log(t.error(`\n  Error: ${formatError(err)}\n`))
     process.exit(1)
   }
 }

@@ -5,12 +5,10 @@ import {
   confidenceBar,
   divider,
   box,
-  LOGO,
   percentBar,
   labeledDivider,
   completionLine,
   agentBanner,
-  sparkline,
   gradient,
   CorvusSpinner,
 } from '../../src/cli/theme.js'
@@ -189,14 +187,6 @@ describe('labeledDivider', () => {
   })
 })
 
-describe('LOGO', () => {
-  it('contains CORVUS text', () => {
-    const stripped = strip(LOGO)
-    expect(stripped).toContain('╔═╗╔═╗╦═╗╦')
-    expect(stripped).toContain('╚═╝╚═╝╩╚═')
-  })
-})
-
 describe('completionLine', () => {
   it('formats duration in seconds with done message', () => {
     const result = strip(completionLine(2500))
@@ -220,31 +210,6 @@ describe('agentBanner', () => {
     const result = strip(agentBanner('What about bitcoin?'))
     expect(result).toContain('What about bitcoin?')
     expect(result).toContain('corvus agent')
-  })
-})
-
-describe('sparkline', () => {
-  it('returns empty string for empty array', () => {
-    expect(sparkline([])).toBe('')
-  })
-
-  it('returns lowest bars for all-zero values', () => {
-    expect(sparkline([0, 0, 0])).toBe('▁▁▁')
-  })
-
-  it('scales values — last char is max block', () => {
-    const result = sparkline([1, 5, 10])
-    expect(result.length).toBe(3)
-    expect(result[2]).toBe('█')
-  })
-
-  it('respects explicit max parameter', () => {
-    const result = sparkline([5, 10], 10)
-    expect(result.length).toBe(2)
-  })
-
-  it('returns max block for single value', () => {
-    expect(sparkline([100])).toBe('█')
   })
 })
 

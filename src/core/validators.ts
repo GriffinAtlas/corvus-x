@@ -102,23 +102,3 @@ export const GrokVoiceProfileResponseSchema = z.object({
     }),
   ),
 })
-
-const AgentStepSchema = z.object({
-  command: z.enum(['scan', 'pulse', 'trace', 'profile', 'hooks', 'draft']),
-  args: z.object({
-    topic: z.string().optional(),
-    username: z.string().optional(),
-    count: z.number().optional(),
-  }),
-  reasoning: z.string(),
-})
-
-export const AgentPlanSchema = z.object({
-  goal: z.string(),
-  steps: z.array(AgentStepSchema),
-})
-
-export const ReplanDecisionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('continue') }),
-  z.object({ action: z.literal('revise'), steps: z.array(AgentStepSchema) }),
-])

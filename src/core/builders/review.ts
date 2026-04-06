@@ -1,4 +1,5 @@
 import { parseGrokJson } from '../grok-adapter.js'
+import { computeNewestTweetAt } from '../metrics.js'
 import type { ReviewSnapshot } from '../schemas.js'
 import type { BuildResult, CorvusDeps } from '../types.js'
 
@@ -82,9 +83,7 @@ export async function buildReviewSnapshot(
     toolCalls: response.usage.toolCalls,
     tweets: recentTweets,
     scores: [],
-    newestTweetAt: recentTweets.length > 0
-      ? Math.max(...recentTweets.map((t) => new Date(t.createdAt).getTime()))
-      : null,
+    newestTweetAt: computeNewestTweetAt(recentTweets),
     citations: response.citations,
   }
 }

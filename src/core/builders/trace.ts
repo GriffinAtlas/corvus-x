@@ -115,7 +115,7 @@ async function buildTraceFromXApi(
     { systemPrompt: SYSTEM_PROMPT, maxTokens: 4096, responseSchema: GrokTraceResponseSchema },
   )
 
-  const grok = parseGrokJson<GrokTraceResponse>(response.text)
+  const grok = parseGrokJson(response.text, GrokTraceResponseSchema)
   const data = buildTraceData(tweets, grok, userMap)
 
   return {

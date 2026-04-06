@@ -96,16 +96,16 @@ describe('computeGrokOnlySentiment', () => {
 
   it('classifies sentiments correctly and averages', () => {
     const analysis = [
-      { sentiment: 0.5 }, // positive (> 0.2)
+      { sentiment: 0.5 }, // positive (> 0.3)
       { sentiment: 0.1 }, // neutral
-      { sentiment: -0.3 }, // negative (< -0.2)
+      { sentiment: -0.3 }, // neutral (not < -0.3)
       { sentiment: -0.5 }, // negative
-      { sentiment: 0.2 }, // neutral (exactly 0.2, not > 0.2)
+      { sentiment: 0.2 }, // neutral
     ]
     const result = computeGrokOnlySentiment(analysis)
     expect(result.positive).toBe(1)
-    expect(result.neutral).toBe(2)
-    expect(result.negative).toBe(2)
+    expect(result.neutral).toBe(3)
+    expect(result.negative).toBe(1)
     // avg = (0.5 + 0.1 + -0.3 + -0.5 + 0.2) / 5 = 0.0 / 5 = 0
     expect(result.avg).toBe(0)
   })

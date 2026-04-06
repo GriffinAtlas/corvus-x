@@ -1,6 +1,12 @@
 // Adapters
-export { GrokAdapter, parseGrokJson, MODEL_PRICING, DEFAULT_MODEL } from './core/grok-adapter.js'
-export { XAdapter, formatTweetsForAnalysis } from './core/x-adapter.js'
+export {
+  GrokAdapter,
+  GrokParseError,
+  parseGrokJson,
+  MODEL_PRICING,
+  DEFAULT_MODEL,
+} from './core/grok-adapter.js'
+export { XAdapter, XRateLimitError, XApiError, formatTweetsForAnalysis } from './core/x-adapter.js'
 
 // Builders
 export {
@@ -15,7 +21,13 @@ export {
 } from './core/builders.js'
 
 // Agent
-export { AgentPlanner, AgentExecutor, AgentSynthesizer, agentMulti } from './core/agent.js'
+export {
+  AgentPlanner,
+  AgentExecutor,
+  AgentSynthesizer,
+  agentMulti,
+  MULTI_AGENT_MODEL,
+} from './core/agent.js'
 
 // Compute
 export {
@@ -36,6 +48,9 @@ export {
 // Usage & compaction
 export { UsageTracker } from './core/usage.js'
 export { compactResults, estimateTokens, estimateResultTokens, compactSnapshot } from './core/compaction.js'
+
+// Voice
+export { VoiceProfileManager } from './core/voice.js'
 
 // Storage & diff
 export { SnapshotStore } from './core/snapshots.js'
@@ -67,6 +82,7 @@ export type {
   MatchKeys,
   GrokTweetScore,
   AgentBrief,
+  VoiceProfile,
 } from './core/schemas.js'
 
 // Validators
@@ -75,9 +91,21 @@ export {
   GrokPulseResponseSchema,
   GrokTraceResponseSchema,
   GrokProfileResponseSchema,
-  AgentPlanSchema,
-  ReplanDecisionSchema,
+  GrokVoiceProfileResponseSchema,
 } from './core/validators.js'
+
+export type {
+  AgentPlan,
+  AgentStep,
+  AgentContext,
+  AgentStepResult,
+  AgentOptions,
+  MultiAgentResult,
+  ReplanDecision,
+  PlanResult,
+} from './core/agent.js'
+
+export type { XSearchResult } from './core/x-adapter.js'
 
 export type { TokenUsage } from './core/usage.js'
 export type { CompactionConfig } from './core/compaction.js'
