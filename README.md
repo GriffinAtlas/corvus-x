@@ -1,7 +1,7 @@
-<h3 align="center">AI agent toolkit for X</h3>
+<h3 align="center">AI growth toolkit for X</h3>
 
 <p align="center">
-  Investigate discourse. Grow your presence. All from the terminal.
+  Find conversations. Draft posts in your voice. Investigate discourse. All from the terminal.
 </p>
 
 <p align="center">
@@ -12,40 +12,52 @@
 
 ---
 
-Corvus is an open-source CLI that does two things: **investigate** what's happening on X, and **help you grow** on X. It uses Grok's Responses API with `x_search` and `web_search` tools to plan research, chain commands, detect contradictions, and draft posts grounded in real discourse.
+Corvus is an open-source CLI for growing on X. It finds conversations worth replying to, drafts posts in your voice, and tells you when to post — using Grok's `x_search` and the actual X algorithm weights (replies count 13.5x likes, conversations 150x). When you need to investigate a topic instead of post about it, the same tool handles deep research via a multi-agent loop.
 
 ```bash
-corvus agent "Who's driving the AI regulation debate in the EU?"
+corvus grow "rust async"
 ```
 
 ```
-▸ corvus agent · Who's driving the AI regulation debate in the EU?
+▸ corvus grow · rust async
 ─────────────────────────────────────────────
 
-[1/5] scanning "AI regulation EU"          ✓ 3.2s
-[2/5] pulsing "AI regulation EU"           ✓ 2.8s
-[3/5] tracing "EU AI Act enforcement"      ✓ 4.1s
-[4/5] profiling @vestaborgs (lead)         ✓ 2.9s
-[5/5] synthesizing brief                   ✓ 2.1s
+  Reply Opportunities
+  ─────────────────────
+  @someone (4.2k followers) — "Why is async Rust so painful?"
+  ↳ 87 likes · 4 replies · 2h ago · score 0.91
+  ↳ angle: mention your tokio/async-std comparison post — they're missing the runtime tradeoff
 
-╔══════════════════════════════════════════════════════╗
-║  EU AI regulation discourse shifted hawkish (+0.44)  ║
-╚══════════════════════════════════════════════════════╝
+  Your Draft
+  ─────────
+  Async Rust is painful because you're fighting two languages:
+  the sync one you learned and the executor's state machine.
+  Once you stop trying to write "async functions" and start
+  thinking in tasks + cancellation, it clicks.
 
-5 steps · 15.1s · 98 tweets · 1 account profiled · $0.018
+  why: opens with a contrarian claim (replies-bait), no jargon
+       in line 1, ends on a hook ("it clicks") — algorithm rewards
+       dwell + replies.
+
+  When to Post
+  ────────────
+  Tue 14:00 UTC · Wed 09:00 UTC · Thu 15:00 UTC
+
+  ─────────────────────────────────────────────
+  3 steps · ~$0.014
 ```
 
 ## What Makes This Different
 
-**It investigates, not just searches.** Corvus plans multi-step research, chains commands, detects contradictions, and computes confidence. Give it a question and it figures out the rest.
-
-**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights — replies worth 13.5x likes, author reply-backs worth 75x, conversations worth 150x. Not vanity metrics.
+**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights — replies worth 13.5x likes, author reply-backs worth 75x, conversations worth 150x. Most growth tools optimize for likes. Corvus optimizes for what the algorithm actually values.
 
 **It helps you post, not just consume.** `grow` finds conversations, drafts a post in your voice, and tells you when to post — one command, complete daily workflow. `draft` loads your voice profile so posts sound like you, not generic AI.
 
+**It investigates, not just searches.** When you need intel instead of growth, `corvus agent` plans multi-step research, chains commands, detects contradictions, and computes confidence. Give it a question and it figures out the rest.
+
 **It shows you what changed.** Every command stores a snapshot. Run it again and Corvus diffs the results — which accounts entered/left, which narratives grew/shrank, how sentiment shifted.
 
-**It costs almost nothing.** A full agent investigation runs ~$0.01-0.02 via Grok. The `grow` workflow is ~$0.01-0.02. No monthly subscription.
+**It costs almost nothing.** A `grow` workflow runs ~$0.01-0.02 via Grok. A full agent investigation runs ~$0.01-0.025. No monthly subscription.
 
 ## Install
 
@@ -69,16 +81,6 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 
 ## Commands
 
-### Intel — Investigate X discourse
-
-| Command | Description |
-|---|---|
-| `agent <question>` | Deep research via Grok multi-agent (falls back to step-by-step) |
-| `scan <topic>` | Snapshot — narratives, top voices, engagement |
-| `pulse <topic>` | Sentiment pulse — bull/bear signals, momentum |
-| `trace <narrative>` | Map narrative spread — origin, amplifiers, mutations |
-| `watch <topic>` | Live-monitor with periodic updates |
-
 ### Growth — Grow your X presence
 
 | Command | Description |
@@ -89,6 +91,16 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 | `draft <topic>` | Draft a post or thread in your voice |
 | `review` | What worked, what didn't, algorithm health |
 | `timing [topic]` | Best times to post based on your audience |
+
+### Intel — Investigate X discourse
+
+| Command | Description |
+|---|---|
+| `agent <question>` | Deep research via Grok multi-agent (falls back to step-by-step) |
+| `scan <topic>` | Snapshot — narratives, top voices, engagement |
+| `pulse <topic>` | Sentiment pulse — bull/bear signals, momentum |
+| `trace <narrative>` | Map narrative spread — origin, amplifiers, mutations |
+| `watch <topic>` | Live-monitor with periodic updates |
 
 ### Utility
 
@@ -230,7 +242,7 @@ Every command tracks API spend. Use `--cost` on any command to preview pricing.
 | Operation | Typical Cost |
 |---|---|
 | Single command (scan, pulse, etc.) | $0.003 - 0.005 |
-| Full agent investigation | $0.010 - 0.025 |
+| Full agent investigation | ~$0.010 - 0.025 |
 | `grow` workflow (hooks + draft + timing) | $0.010 - 0.020 |
 | Watch (per cycle) | $0.002 - 0.004 |
 
@@ -246,7 +258,7 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 | Data | X API v2 (optional) |
 | CLI | Commander |
 | TUI | Ink 6 + React 19 + fullscreen-ink |
-| Testing | Vitest (1,041 tests) |
+| Testing | Vitest |
 
 ## License
 
