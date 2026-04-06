@@ -41,7 +41,7 @@ export function WelcomeView({
               <Text key={`logo-${i}`} color={LOGO_SMALL_COLORS[i % LOGO_SMALL_COLORS.length]}>{line}</Text>
             ))}
           </Box>
-          <Text dimColor>  investigate X · grow your presence · v{version}</Text>
+          <Text dimColor>  grow your presence · investigate X · v{version}</Text>
         </Box>
       )}
       <Box paddingLeft={2} paddingTop={1}>

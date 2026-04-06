@@ -34,7 +34,7 @@ export function WelcomeHeader({ version }: Props) {
             ))
           )}
           <Text> </Text>
-          <Text dimColor>  investigate X · grow your presence · v{version}</Text>
+          <Text dimColor>  grow your presence · investigate X · v{version}</Text>
         </Box>
       </Box>
     </Box>

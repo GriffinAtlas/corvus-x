@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Corvus (`corvus-x` on npm) is an open-source AI agent toolkit for X (Twitter) — investigate discourse and grow your presence, all from the terminal. Uses Grok's Responses API (`client.responses.create()`) with `x_search` and `web_search` tools. Multi-agent model for deep research, classic step-by-step as fallback.
+Corvus (`corvus-x` on npm) is an open-source AI growth toolkit for X (Twitter) — find conversations, draft posts in your voice, investigate discourse, all from the terminal. Uses Grok's Responses API (`client.responses.create()`) with `x_search` and `web_search` tools. Multi-agent model for deep research, classic step-by-step as fallback.
 
 **Author:** Roger Griffin (roger@griffinatlas.us)
 **Repo:** github.com/GriffinAtlas/corvus-x

@@ -39,7 +39,7 @@ const program = new Command()
 
 program
   .name('corvus')
-  .description('AI agent toolkit for X — investigate discourse, grow your presence')
+  .description('AI growth toolkit for X — find conversations, draft posts, investigate discourse')
   .usage('[options] [command]')
   .version(VERSION)
   .option('--no-color', 'disable color output')
@@ -50,21 +50,21 @@ program
     }
   })
 
-// Investigation
-registerAgentCommand(program)
-registerTraceCommand(program)
-
-// Intelligence
-registerScanCommand(program)
-registerPulseCommand(program)
-
-// Growth
+// Growth (front door)
+registerGrowCommand(program)
 registerProfileCommand(program)
 registerHooksCommand(program)
 registerDraftCommand(program)
 registerReviewCommand(program)
 registerTimingCommand(program)
-registerGrowCommand(program)
+
+// Intelligence
+registerScanCommand(program)
+registerPulseCommand(program)
+
+// Investigation
+registerAgentCommand(program)
+registerTraceCommand(program)
 
 // Monitoring
 registerWatchCommand(program)
@@ -102,9 +102,9 @@ program
 
 const cmdMap = new Map(program.commands.map((c) => [c.name(), c]))
 for (const [group, names] of [
-  ['Investigation:', ['agent', 'trace']],
+  ['Growth:', ['grow', 'profile', 'hooks', 'draft', 'review', 'timing']],
   ['Intelligence:', ['scan', 'pulse']],
-  ['Growth:', ['profile', 'hooks', 'draft', 'review', 'timing', 'grow']],
+  ['Investigation:', ['agent', 'trace']],
   ['Monitoring:', ['watch']],
   ['Data:', ['export', 'history']],
   ['Utilities:', ['ask', 'auth', 'mcp']],
