@@ -775,7 +775,7 @@ describe('renderAgentBrief', () => {
 
   it('marks cost as approximate with ~ prefix when approximateCost is true', () => {
     const output = renderAgentBrief(brief, { ...opts, approximateCost: true })
-    expect(output).toContain('~$')
+    expect(output).toContain('~$0.0100')
   })
 
   it('renders exact cost without ~ prefix when approximateCost is absent', () => {
@@ -828,7 +828,13 @@ describe('renderAgentBriefMd', () => {
 
   it('marks cost as approximate with ~ prefix when approximateCost is true', () => {
     const output = renderAgentBriefMd(brief, { ...opts, approximateCost: true })
-    expect(output).toContain('~$')
+    expect(output).toContain('~$0.0100')
+  })
+
+  it('renders exact cost without ~ prefix when approximateCost is absent', () => {
+    const output = renderAgentBriefMd(brief, opts)
+    expect(output).not.toContain('~$')
+    expect(output).toMatch(/\$\d/)
   })
 })
 

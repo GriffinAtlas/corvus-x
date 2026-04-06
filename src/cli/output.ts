@@ -540,9 +540,9 @@ export interface AgentBriefRenderOptions {
   tweetCount: number
   accountCount: number
   cost: number
+  approximateCost?: boolean
   tokenSummary?: string
   previousSentiment?: number
-  approximateCost?: boolean
 }
 
 export function renderAgentBrief(brief: AgentBrief, opts: AgentBriefRenderOptions): string {
