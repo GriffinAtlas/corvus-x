@@ -60,4 +60,4 @@ The agent pipeline's replan step includes Grok-returned signals (which may conta
 - **Directory permissions** — `~/.corvus/` created with `0o700`, enforced with explicit `chmodSync`
 - **Cost ledger** — query text truncated to 100 chars to limit sensitive data on disk
 - **No shell execution** — Corvus never invokes shell commands or `eval()`
-- **Dependency audit** — `npm audit` runs as part of CI; 0 known vulnerabilities as of v0.3.0
+- **Dependency audit** — `npm audit` runs as part of CI; 0 known vulnerabilities as of v0.3.1

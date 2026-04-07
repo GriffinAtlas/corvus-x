@@ -2,6 +2,49 @@
 
 All notable changes to Corvus are documented here.
 
+## [0.3.1] — 2026-04-06
+
+First public release — Corvus ships to npm as an AI growth toolkit for X.
+
+### Added
+
+- **OSS metadata** — CHANGELOG, GitHub Actions CI workflow (Node 20/22), CODE_OF_CONDUCT, `.env.example`, `package.json` homepage and bugs fields
+- **CI smoke-tests the built binary** after `tsc`, and runs `npm run lint` on `prepublishOnly`
+- **Windows credentials warning** on `corvus auth setup` — surfaces the `credentials.json` file-permissions gap documented in SECURITY.md
+- **Public API type exports** — `AgentPlan`, `XApiError`, `VoiceProfile` and others now exported from the main entry point; `exports` field includes the `types` condition for bundler resolution
+
+### Changed
+
+- **Front door is growth.** `corvus --help` leads with the Growth command group and `grow` as the first command. TUI welcome subtitle reordered. README opens with a `corvus grow` example. `package.json` description and `CLAUDE.md` intro now read "AI growth toolkit for X — find conversations, draft posts in your voice, investigate discourse"
+- **Multi-agent cost shown with `~` prefix** — the `grok-4.20-multi-agent-0309` model may not expose all internal tool calls in `response.output[]`, so its cost is marked approximate. Classic mode and direct commands still show exact cost.
+- **Node.js minimum bumped to 20** — Ink 6 and its dependency tree require it (regex `v` flag crashes on Node 18)
+- **`corvus auth setup` ends with `Try: corvus grow "your topic"`** (was `corvus ask`)
+- **`grow` timing analyzes topic activity**, not user history — cleaner behavior when running the daily workflow
+- **Model IDs no longer use the `-beta-` suffix** — `grok-4.20-multi-agent-0309` everywhere; `MODEL_PRICING` keys updated
+
+### Fixed
+
+- **8 bugs from pre-release review:**
+  - Stream abort signal in wrong position (timeout never fired)
+  - CSV export crash on `ProfileSnapshot` sentiment
+  - `x_handles` → `allowed_x_handles` (handle filtering silently ignored by Grok)
+  - Agent hooks args leaking into `priorContext`
+  - `profile @self` now resolves to the stored handle
+  - Sentiment thresholds aligned (0.3 in both paths)
+  - `newestTweetAt` NaN guard via `computeNewestTweetAt`
+  - `StepProgress.skip()` negative counter
+- **3 dependency vulnerabilities patched**
+- **Zod v4 runtime validation** — `parseGrokJson` now accepts an optional Zod schema and validates when provided, wired through scan/pulse/trace/profile/voice builders
+- **Error handling at boundaries** — `AbortError` shows "timed out after 60s" instead of a cryptic message; X API null-data guard for deleted tweets and suspended users; `ask.ts` validation exits cleanly instead of dumping a stack trace; snapshot save failure no longer crashes the command; X API network errors wrapped in `XApiError`; CLI agent fallback re-throws auth and rate-limit errors
+- **Stale test counts and model names** across README, CHANGELOG, CLAUDE.md, CONTRIBUTING.md
+- **README example output** now matches what `corvus grow` actually prints (previously inherited the `agent` command's shape)
+- **TUI `grow` has per-step error handling** matching the CLI
+
+### Removed
+
+- **Dead code** — `repl.ts`, `status-line.tsx` and its tests, `AgentPlanSchema`, `ReplanDecisionSchema`, `resultBox`, `sparkline`, `LOGO`, `ConfigManager.exists`, unused `validCommands` aliases
+- **Unused dependencies** — `ora`, `@pppp606/ink-chart`
+
 ## [0.3.0] — 2026-03-20
 
 Growth pivot — Corvus shifts from pure intel to helping creators grow on X.
@@ -85,6 +128,7 @@ Initial release — CLI toolkit for investigating X discourse.
 - Error handling at external boundaries
 - Critical startup crash and cache resilience
 
+[0.3.1]: https://github.com/GriffinAtlas/corvus-x/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/GriffinAtlas/corvus-x/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/GriffinAtlas/corvus-x/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/GriffinAtlas/corvus-x/releases/tag/v0.1.0
