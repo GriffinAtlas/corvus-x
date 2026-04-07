@@ -26,12 +26,12 @@ import { normalizeTopic } from './use-session.js'
 
 const HELP_TEXT = `Commands:
   scan <topic>        Snapshot X discourse on a topic
-  pulse <topic>       Sentiment pulse — bull/bear signals
+  pulse <topic>       Sentiment pulse: bull/bear signals
   trace <topic>       Trace how a narrative spreads
   draft <topic>       Draft a post in your voice
   hooks <topic>       Find conversations to reply to
   grow <topic>        Full growth workflow (hooks + draft + timing)
-  agent <question>    Deep research — multi-step investigation
+  agent <question>    Deep research via Grok multi-agent
   profile <@user>     Analyze content strategy
   review              Review your recent posting
   timing [topic]      Best times to post
@@ -45,7 +45,7 @@ const HELP_TEXT = `Commands:
   /exit               Quit
 
 Context flows between commands on the same topic.
-Run scan first, then draft — the draft will use scan insights.`
+Run scan first, then draft. The draft will use scan insights.`
 
 function getContextForTopic(session: Session, topic: string): string {
   const entries = session.contextMap[normalizeTopic(topic)]
@@ -181,7 +181,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
       return
     }
 
-    // history is instant — no loading state or user echo needed
+    // history is instant, no loading state or user echo needed
     if (parsed.command === 'history') {
       dispatch({
         type: 'add-result',
@@ -242,7 +242,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           const { plan, costUsd: planCost } = await planner.plan(args.question)
           dispatch({
             type: 'add-result',
-            entry: { type: 'system', message: `Agent plan: ${plan.goal}\n${plan.steps.map((s, i) => `  ${i + 1}. ${s.command} ${s.args.topic ?? s.args.username ?? ''} — ${s.reasoning}`).join('\n')}` },
+            entry: { type: 'system', message: `Agent plan: ${plan.goal}\n${plan.steps.map((s, i) => `  ${i + 1}. ${s.command} ${s.args.topic ?? s.args.username ?? ''}: ${s.reasoning}`).join('\n')}` },
           })
 
           const executor = new AgentExecutor(deps, args.question, plan, {
@@ -310,7 +310,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
 
         // Step 1: Hooks
         try {
-          setPhaseLabel(`grow "${topic}" — finding hooks...`)
+          setPhaseLabel(`grow "${topic}": finding hooks...`)
           const hooks = await buildHooksSnapshot(deps, topic, 30, priorContext || undefined)
           dispatch({ type: 'add-cost', cost: hooks.cost })
           dispatch({
@@ -329,7 +329,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
           })
           hooksContext = hooks.data.opportunities
             .slice(0, 5)
-            .map((o) => `@${o.author}: "${o.content}" (${o.engagement.likes} likes, ${o.engagement.replies} replies) — angle: ${o.suggestedAngle}`)
+            .map((o) => `@${o.author}: "${o.content}" (${o.engagement.likes} likes, ${o.engagement.replies} replies). Angle: ${o.suggestedAngle}`)
             .join('\n')
           stepsCompleted++
         } catch (err) {
@@ -339,7 +339,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         // Step 2: Draft (with hooks context injected)
         const draftStartTime = Date.now()
         try {
-          setPhaseLabel(`grow "${topic}" — drafting...`)
+          setPhaseLabel(`grow "${topic}": drafting...`)
           const draft = await buildDraftSnapshot(deps, topic, { hooksContext: hooksContext || undefined, priorContext: draftContext || undefined })
           dispatch({ type: 'add-cost', cost: draft.cost })
           dispatch({
@@ -364,7 +364,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         // Step 3: Timing
         const timingStartTime = Date.now()
         try {
-          setPhaseLabel(`grow "${topic}" — timing...`)
+          setPhaseLabel(`grow "${topic}": timing...`)
           const timing = await buildTimingSnapshot(deps, { topic })
           dispatch({ type: 'add-cost', cost: timing.cost })
           dispatch({
@@ -392,7 +392,7 @@ export function useCommand(deps: CorvusDeps | null, dispatch: Dispatch<SessionAc
         const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1)
         dispatch({
           type: 'add-result',
-          entry: { type: 'system', message: `grow complete — ${stepsCompleted}/3 steps, ${totalElapsed}s` },
+          entry: { type: 'system', message: `grow complete: ${stepsCompleted}/3 steps, ${totalElapsed}s` },
         })
       } else if (command === 'hooks') {
         setPhaseLabel(`finding hooks for "${args.topic}"...`)
