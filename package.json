@@ -29,7 +29,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GriffinAtlas/corvus-x.git"
+    "url": "git+https://github.com/GriffinAtlas/corvus-x.git"
   },
   "homepage": "https://github.com/GriffinAtlas/corvus-x",
   "bugs": {
@@ -58,6 +58,7 @@
     "dist",
     "README.md",
     "LICENSE",
+    "CHANGELOG.md",
     "SECURITY.md",
     "CONTRIBUTING.md"
   ],
