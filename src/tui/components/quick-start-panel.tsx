@@ -7,10 +7,10 @@ interface Props {
 }
 
 const TIPS = [
-  { cmd: 'grow "topic"', desc: 'daily workflow — hooks + draft + timing' },
-  { cmd: 'scan "topic"', desc: 'what\'s being said + what to do' },
-  { cmd: 'agent "question"', desc: 'deep research — Grok investigates' },
-  { cmd: 'profile @handle', desc: 'algorithm score + strategy' },
+  { cmd: 'grow "topic"', desc: 'daily workflow: hooks, draft, timing' },
+  { cmd: 'scan "topic"', desc: 'what\'s being said and what to do' },
+  { cmd: 'agent "question"', desc: 'deep research via Grok' },
+  { cmd: 'profile @handle', desc: 'algorithm score and strategy' },
 ]
 
 function truncate(text: string, maxLen: number): string {
@@ -43,7 +43,7 @@ export function QuickStartPanel({ recentTopics }: Props) {
       )}
 
       <Text> </Text>
-      <Text dimColor>Just type a question — Corvus will figure out the rest.</Text>
+      <Text dimColor>Just type a question. Corvus will figure out the rest.</Text>
     </Box>
   )
 }

@@ -11,7 +11,7 @@ import type { OutputFormat } from '../output.js'
 export function registerProfileCommand(program: Command): void {
   program
     .command('profile <username>')
-    .description('Analyze content strategy — yours or anyone\'s')
+    .description('Analyze any account\'s content strategy')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-n, --posts <count>', 'number of recent posts to analyze', '50')
     .option('--cost', 'show estimated cost before executing')

@@ -78,7 +78,7 @@ describe('registerAskCommand', () => {
   it('registers ask command on program', () => {
     const cmd = program.commands.find((c) => c.name() === 'ask')
     expect(cmd).toBeDefined()
-    expect(cmd!.description()).toBe('Quick question — prose answer via Grok x_search')
+    expect(cmd!.description()).toBe('Quick prose answer via Grok x_search')
   })
 
   it('exits with code 1 when no grok key is configured', async () => {
@@ -282,7 +282,7 @@ describe('registerAskCommand', () => {
         /* process.exit */
       }
       expect(exitCode).toBe(1)
-      expect(logs.some((l) => l.includes('mutually exclusive'))).toBe(true)
+      expect(logs.some((l) => l.includes('Pick one'))).toBe(true)
     })
   })
 })

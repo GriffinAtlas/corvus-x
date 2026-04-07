@@ -9,7 +9,7 @@ import { buildTimingSnapshot } from '../../core/builders/timing.js'
 export function registerGrowCommand(program: Command): void {
   program
     .command('grow <topic...>')
-    .description('Daily growth workflow — find hooks, draft a post, get timing advice')
+    .description('Daily growth workflow: hooks + draft + timing')
     .option('--thread', 'draft as a thread instead of single post')
     .option('--cost', 'show estimated cost before executing')
     .addHelpText('after', `
@@ -47,7 +47,7 @@ Examples:
             console.log(renderHooks(hooks.data))
             hooksContext = hooks.data.opportunities
               .slice(0, 3)
-              .map((o) => `@${o.author} (${o.authorFollowers} followers): "${o.content}" — ${o.suggestedAngle}`)
+              .map((o) => `@${o.author} (${o.authorFollowers} followers): "${o.content}". Angle: ${o.suggestedAngle}`)
               .join('\n')
           } else {
             console.log(`  ${t.muted('No reply opportunities found right now.')}`)

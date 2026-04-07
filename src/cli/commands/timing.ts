@@ -13,7 +13,7 @@ export function registerTimingCommand(program: Command): void {
   program
     .command('timing [topic...]')
     .alias('when')
-    .description('Best times to post — based on your audience or a topic\'s activity')
+    .description('Best times to post for your audience or a topic')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-d, --days <n>', 'lookback window for self-analysis', '30')
     .option('--cost', 'show estimated cost before executing')

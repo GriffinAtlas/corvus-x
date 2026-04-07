@@ -281,7 +281,7 @@ async function runClassicAgent(
 export function registerAgentCommand(program: Command): void {
   program
     .command('agent <question...>')
-    .description('Investigate a question — uses Grok multi-agent for deep research')
+    .description('Deep research via Grok multi-agent')
     .option('-i, --interactive', 'checkpoint mode with plan approval (classic only)')
     .option('-n, --max-steps <n>', 'maximum steps for classic mode (2-12)', '8')
     .option('-f, --format <type>', 'output format: table, json, md', 'table')

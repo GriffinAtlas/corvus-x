@@ -98,7 +98,7 @@ async function runSetup(): Promise<void> {
     process.exit(1)
   }
   if (status === 'unknown') {
-    console.log(' ⚠ could not verify — saving anyway\n')
+    console.log(' ⚠ could not verify, saving anyway\n')
   } else {
     console.log(' ✓ valid\n')
   }

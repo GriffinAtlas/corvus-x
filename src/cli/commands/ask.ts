@@ -42,7 +42,7 @@ function normalizeHandles(handles?: string[]): string[] | undefined {
 export function registerAskCommand(program: Command): void {
   program
     .command('ask <question...>')
-    .description('Quick question — prose answer via Grok x_search')
+    .description('Quick prose answer via Grok x_search')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('--cost', 'show estimated cost before executing')
     .option('--from <date>', 'filter x_search from date (YYYY-MM-DD)')
@@ -83,7 +83,7 @@ Examples:
         }
         if (handles && excludeHandles) {
           console.log(
-            t.error('\n  Cannot use both --handle and --exclude-handle — they are mutually exclusive\n'),
+            t.error('\n  Cannot use both --handle and --exclude-handle. Pick one.\n'),
           )
           process.exit(1)
         }

@@ -39,7 +39,7 @@ const program = new Command()
 
 program
   .name('corvus')
-  .description('AI growth toolkit for X — find conversations, draft posts, investigate discourse')
+  .description('AI growth toolkit for X. Find conversations, draft posts, investigate discourse.')
   .usage('[options] [command]')
   .version(VERSION)
   .option('--no-color', 'disable color output')
@@ -80,7 +80,7 @@ registerAuthCommand(program)
 // MCP
 program
   .command('mcp')
-  .description('Start MCP server — exposes all tools over stdio for AI agents')
+  .description('Start MCP server (exposes all tools over stdio for AI agents)')
   .action(async () => {
     const { StdioServerTransport } = await import(
       '@modelcontextprotocol/sdk/server/stdio.js'

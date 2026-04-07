@@ -12,7 +12,7 @@ import type { OutputFormat } from '../output.js'
 export function registerReviewCommand(program: Command): void {
   program
     .command('review')
-    .description('Review your recent posting — what worked, what didn\'t')
+    .description('Review what worked in your recent posts')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('-d, --days <n>', 'analysis window in days', '7')
     .option('--cost', 'show estimated cost before executing')

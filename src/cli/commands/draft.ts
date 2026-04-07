@@ -8,7 +8,7 @@ import type { OutputFormat } from '../output.js'
 export function registerDraftCommand(program: Command): void {
   program
     .command('draft <topic...>')
-    .description('Draft a post or thread in your voice — grounded in current discourse')
+    .description('Draft a post or thread in your voice')
     .option('-f, --format <type>', 'output format: table, json, csv, md', 'table')
     .option('--thread', 'generate a multi-post thread')
     .option('--reply-to <url>', 'draft a reply to this tweet/thread')
