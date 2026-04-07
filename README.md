@@ -6,13 +6,14 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/corvus-x"><img src="https://img.shields.io/npm/v/corvus-x" alt="npm version"></a>
+  <a href="https://github.com/GriffinAtlas/corvus-x/actions/workflows/ci.yml"><img src="https://github.com/GriffinAtlas/corvus-x/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
   <a href="LICENSE"><img src="https://img.shields.io/npm/l/corvus-x" alt="license"></a>
   <a href="package.json"><img src="https://img.shields.io/node/v/corvus-x" alt="node"></a>
 </p>
 
 ---
 
-Corvus is an open-source CLI for growing on X. It finds conversations worth replying to, drafts posts in your voice, and tells you when to post — using Grok's `x_search` and the actual X algorithm weights (replies count 13.5x likes, conversations 150x). When you need to investigate a topic instead of post about it, the same tool handles deep research via a multi-agent loop.
+Corvus is an open-source CLI for growing on X. It finds conversations worth replying to, drafts posts in your voice, and tells you when to post, scoring everything against the real X algorithm weights (replies count 13.5x likes, conversations 150x). When you need intel instead of growth, the same tool handles deep research via a multi-agent loop.
 
 ```bash
 corvus grow "rust async"
@@ -24,9 +25,9 @@ corvus grow "rust async"
 
   Reply Opportunities
   ─────────────────────
-  @someone (4.2k followers) — "Why is async Rust so painful?"
+  @someone (4.2k followers): "Why is async Rust so painful?"
   ↳ 87 likes · 4 replies · 2h ago · score 0.91
-  ↳ angle: mention your tokio/async-std comparison post — they're missing the runtime tradeoff
+  ↳ angle: mention your tokio/async-std comparison post. They're missing the runtime tradeoff.
 
   Your Draft
   ─────────
@@ -36,7 +37,7 @@ corvus grow "rust async"
   thinking in tasks + cancellation, it clicks.
 
   why: opens with a contrarian claim (replies-bait), no jargon
-       in line 1, ends on a hook ("it clicks") — algorithm rewards
+       in line 1, ends on a hook ("it clicks"). Algorithm rewards
        dwell + replies.
 
   When to Post
@@ -49,13 +50,13 @@ corvus grow "rust async"
 
 ## What Makes This Different
 
-**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights — replies worth 13.5x likes, author reply-backs worth 75x, conversations worth 150x. Most growth tools optimize for likes. Corvus optimizes for what the algorithm actually values.
+**It scores against the actual X algorithm.** Profile analysis uses the real algorithm weights: replies worth 13.5x likes, author reply-backs worth 75x, conversations worth 150x. Most growth tools optimize for likes. Corvus optimizes for what the algorithm actually values.
 
-**It helps you post, not just consume.** `grow` finds conversations, drafts a post in your voice, and tells you when to post — one command, complete daily workflow. `draft` loads your voice profile so posts sound like you, not generic AI.
+**It helps you post, not just consume.** `grow` finds conversations, drafts a post in your voice, and tells you when to post. One command, complete daily workflow. `draft` loads your voice profile so posts sound like you, not generic AI.
 
 **It investigates, not just searches.** When you need intel instead of growth, `corvus agent` plans multi-step research, chains commands, detects contradictions, and computes confidence. Give it a question and it figures out the rest.
 
-**It shows you what changed.** Every command stores a snapshot. Run it again and Corvus diffs the results — which accounts entered/left, which narratives grew/shrank, how sentiment shifted.
+**It shows you what changed.** Every command stores a snapshot. Re-run it and Corvus diffs the results: which accounts entered or left, which narratives grew or shrank, how sentiment shifted.
 
 **It costs almost nothing.** A `grow` workflow runs ~$0.01-0.02 via Grok. A full agent investigation runs ~$0.01-0.025. No monthly subscription.
 
@@ -71,7 +72,7 @@ npm install -g corvus-x
 corvus auth setup
 ```
 
-You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional — it enriches results with real engagement data but all commands work without it via Grok's `x_search`. You'll also be asked for your **X handle** (used by growth commands to identify your account).
+You'll need a **Grok API key** from [console.x.ai](https://console.x.ai) (required). An **X API bearer token** from [developer.x.com](https://developer.x.com) is optional. It enriches results with real engagement data, but every command works without it via Grok's `x_search`. You'll also be asked for your **X handle**, used by the growth commands to identify your account.
 
 ```bash
 export CORVUS_GROK_KEY=xai-...
@@ -81,33 +82,33 @@ export CORVUS_X_HANDLE=RogGriff       # optional
 
 ## Commands
 
-### Growth — Grow your X presence
+### Growth
 
 | Command | Description |
 |---|---|
-| `grow <topic>` | Daily workflow — hooks + draft + timing in one command |
+| `grow <topic>` | Daily workflow: hooks, draft, and timing in one command |
 | `profile <@handle>` | Algorithm-aware content strategy analysis |
 | `hooks <topic>` | Find conversations to reply to right now |
 | `draft <topic>` | Draft a post or thread in your voice |
 | `review` | What worked, what didn't, algorithm health |
-| `timing [topic]` | Best times to post based on your audience |
+| `timing [topic]` | Best times to post for your audience or a topic |
 
-### Intel — Investigate X discourse
+### Intel
 
 | Command | Description |
 |---|---|
 | `agent <question>` | Deep research via Grok multi-agent (falls back to step-by-step) |
-| `scan <topic>` | Snapshot — narratives, top voices, engagement |
-| `pulse <topic>` | Sentiment pulse — bull/bear signals, momentum |
-| `trace <narrative>` | Map narrative spread — origin, amplifiers, mutations |
-| `watch <topic>` | Live-monitor with periodic updates |
+| `scan <topic>` | Snapshot a topic: narratives, top voices, engagement |
+| `pulse <topic>` | Sentiment pulse: bull/bear signals, momentum |
+| `trace <narrative>` | Map narrative spread: origin, amplifiers, mutations |
+| `watch <topic>` | Live-monitor a topic with periodic updates |
 
 ### Utility
 
 | Command | Description |
 |---|---|
 | `ask <question>` | Quick prose answer via Grok |
-| `export [cmd] [topic]` | Export snapshots as JSON/CSV/JSONL |
+| `export [cmd] [topic]` | Export snapshots as JSON, CSV, or JSONL |
 | `history` | Browse stored snapshots |
 | `auth setup` | Configure API keys and handle |
 
@@ -150,23 +151,7 @@ export CORVUS_X_HANDLE=RogGriff       # optional
        └───────────────┘      └─────────────┘
 ```
 
-The **agent loop** is the key differentiator. When you run `corvus agent`, Grok plans which commands to run, executes them, discovers leads (accounts, narratives), replans mid-investigation if data is thin, and synthesizes everything into a brief. The agent can now use both intel commands (scan, pulse, trace, profile) and growth commands (hooks, draft).
-
-## The Growth Workflow
-
-The fastest way to use Corvus for growth:
-
-```bash
-corvus profile @YourHandle          # analyze your account + save voice profile
-corvus grow "your topic"            # find hooks, draft a post, get timing
-```
-
-`grow` runs three steps:
-1. **Hooks** — finds conversations worth replying to, scored by opportunity
-2. **Draft** — writes a post in your voice (uses your voice profile if available)
-3. **Timing** — when to post for maximum reach
-
-Run `corvus profile @YourHandle` once to generate a voice profile. After that, `draft` and `grow` use it automatically.
+When you run `corvus agent`, Grok plans which commands to run, executes them, discovers leads (accounts, narratives), replans mid-investigation if data is thin, and synthesizes everything into a brief. The agent can use both intel commands (scan, pulse, trace, profile) and growth commands (hooks, draft).
 
 ## Algorithm Scoring
 
@@ -180,17 +165,17 @@ Profile analysis scores accounts against the [real X algorithm weights](https://
     Bookmark/like    ██░░░░░░░░░░░░░ 12%  save-worthy
 ```
 
-Key insight: a reply is worth 13.5x more than a like. A conversation (reply + author reply) is worth 150x. Most "growth tools" optimize for likes — Corvus optimizes for what the algorithm actually values.
+A reply is worth 13.5x more than a like. A conversation (reply + author reply) is worth 150x. Most growth tools optimize for likes. Corvus optimizes for what the algorithm actually values.
 
 ## Interactive Mode
 
-Run `corvus` with no arguments to launch the full-screen interactive TUI:
+Run `corvus` with no arguments to launch the full-screen TUI:
 
 ```bash
 corvus
 ```
 
-Full-screen terminal app with alternate screen buffer, pinned header with connection status, command autocomplete, session history, and keyboard shortcuts.
+Alternate screen buffer, pinned header with connection status, command autocomplete, session history, and keyboard shortcuts.
 
 ## Snapshot Diffing
 
@@ -230,7 +215,7 @@ All commands support `-f` / `--format`:
 
 | Format | Description |
 |---|---|
-| `table` | Default — rich terminal output with bars and charts |
+| `table` | Default. Rich terminal output with bars and charts |
 | `json` | Machine-readable JSON |
 | `csv` | CSV with headers |
 | `md` | Markdown |
@@ -245,6 +230,8 @@ Every command tracks API spend. Use `--cost` on any command to preview pricing.
 | Full agent investigation | ~$0.010 - 0.025 |
 | `grow` workflow (hooks + draft + timing) | $0.010 - 0.020 |
 | Watch (per cycle) | $0.002 - 0.004 |
+
+The `~` on the agent row indicates the cost is approximate. The multi-agent model makes internal `x_search` calls that may not all be exposed in usage reporting, so the displayed cost can undercount. All other commands report exact cost.
 
 Costs logged to `~/.corvus/cost-ledger.json`.
 
@@ -262,4 +249,4 @@ Costs logged to `~/.corvus/cost-ledger.json`.
 
 ## License
 
-[MIT](LICENSE) — Roger Griffin ([@GriffinAtlas](https://github.com/GriffinAtlas))
+MIT. Roger Griffin ([@GriffinAtlas](https://github.com/GriffinAtlas)). See [LICENSE](LICENSE).
