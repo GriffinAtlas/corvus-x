@@ -32,7 +32,7 @@ export function parseInput(raw: string): ParsedCommand {
   if (!input) return { type: 'empty' }
 
   if (input.startsWith('/')) {
-    // /view N or /view ref:N — must be checked before generic slash lookup
+    // /view N or /view ref:N must be checked before generic slash lookup
     if (input === '/view' || input.startsWith('/view ')) {
       const rest = input.slice(5).trim()
       if (!rest) return { type: 'error', message: 'Usage: /view <number or ref>' }

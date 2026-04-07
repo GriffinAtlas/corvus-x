@@ -75,7 +75,7 @@ export function App({ version, init }: Props) {
   const userScrolled = useRef(false)
   const { height: terminalHeight, width: terminalWidth } = useScreenSize()
 
-  // Auto-snap to bottom on new entries — only when user hasn't scrolled away
+  // Auto-snap to bottom on new entries, only when user hasn't scrolled away
   const historyLength = session.history.length
   useEffect(() => {
     if (!userScrolled.current) {
@@ -132,7 +132,7 @@ export function App({ version, init }: Props) {
             xApiStatus={session.xApiStatus}
           />
 
-          {/* Content area — fills space between header and footer */}
+          {/* Content area fills the space between header and footer */}
           <Box flexDirection="column" flexGrow={1} justifyContent={session.history.length === 0 ? 'center' : 'flex-end'}>
             {session.history.length === 0 ? (
               <WelcomeView

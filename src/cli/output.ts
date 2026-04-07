@@ -274,7 +274,7 @@ export function renderTrace(data: TraceSnapshot): string {
     for (const phase of timeline) {
       const amplifiers =
         phase.keyAmplifiers.length > 0
-          ? ` — ${phase.keyAmplifiers
+          ? ` · ${phase.keyAmplifiers
               .slice(0, 3)
               .map((a) => `@${a}`)
               .join(', ')}`
@@ -385,7 +385,7 @@ export function renderProfile(data: ProfileSnapshot): string {
   const hasContent = data.postFrequency.postsPerWeek > 0 || data.contentMix.length > 0 || data.topPerformers.length > 0
   if (!hasContent) {
     parts.push('')
-    parts.push(`  ${t.muted('Limited data — this account has few or no recent posts.')}`)
+    parts.push(`  ${t.muted('Limited data. This account has few or no recent posts.')}`)
   }
 
   return parts.join('\n')
